@@ -2,6 +2,11 @@
 
 **A programming language for laser cutting.**
 
+[Website](https://kerfscript.mylasertools.com) ·
+[Playground](https://kerfscript.mylasertools.com/playground/) ·
+[Models](https://kerfscript.mylasertools.com/models/) ·
+[Docs](https://kerfscript.mylasertools.com/docs/)
+
 Write a part once as code, change a number, and get a new cut file. KerfScript
 is to laser cutters what OpenSCAD is to 3D printers, except it was designed for
 flat parts from the start: cut, score and engrave layers, kerf compensation,
