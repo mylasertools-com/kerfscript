@@ -1,0 +1,39 @@
+import { readdir, readFile, writeFile } from 'node:fs/promises';
+import { build } from 'esbuild';
+const noNodeBuiltins = {
+  name: 'no-node-builtins',
+  setup(b) {
+    b.onResolve({ filter: /^fs$/ }, () => ({ path: 'fs', namespace: 'empty' }));
+    b.onLoad({ filter: /.*/, namespace: 'empty' }, () => ({ contents: 'module.exports = {}' }));
+  },
+};
+const banner = {
+  js: '/*! @mylasertools/kerfscript | (c) MyLaserTools | AGPL-3.0-only or commercial licence, see COMMERCIAL-LICENSE.md. Includes Clipper2 (BSL-1.0) and opentype.js (MIT), see THIRD-PARTY-NOTICES.md. */',
+};
+for (const format of ['esm', 'cjs'])
+  await build({
+    entryPoints: ['src/index.ts'],
+    outfile: `dist/index.${format === 'esm' ? 'js' : 'cjs'}`,
+    bundle: true,
+    minify: true,
+    format,
+    platform: 'neutral',
+    mainFields: ['module', 'main'],
+    target: 'es2020',
+    banner,
+    plugins: [noNodeBuiltins],
+  });
+await build({
+  entryPoints: ['src/cli.ts'],
+  outfile: 'dist/cli.js',
+  bundle: true,
+  format: 'esm',
+  platform: 'node',
+  target: 'node20',
+  banner: { js: '#!/usr/bin/env node\n' + banner.js },
+});
+for (const name of await readdir('dist', { recursive: true })) {
+  if (!name.endsWith('.d.ts')) continue;
+  const text = await readFile('dist/' + name, 'utf8');
+  await writeFile('dist/' + name.replace('.d.ts', '.d.cts'), text.replaceAll(".js'", ".cjs'"));
+}

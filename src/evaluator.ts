@@ -1,0 +1,1067 @@
+// Copyright (c) 2026 MyLaserTools. SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-MyLaserTools-Commercial
+
+import type { Arg, Assign, Expr, ListItem, Param, Program, Stmt } from './ast.js';
+import { FUNCTIONS } from './functions.js';
+import {
+  clipLines,
+  difference,
+  emptyShape,
+  ellipsePoly,
+  fragments,
+  hull,
+  intersection,
+  isEmpty,
+  lineShape,
+  merge,
+  offset,
+  regionShape,
+  retag,
+  roundedRect,
+  strokeLines,
+  transform,
+  union,
+  type Layer,
+  type Matrix,
+  type Poly,
+  type Pt,
+  type Shape,
+} from './geometry.js';
+import { fingerCount, fingerHoles, fingerRect, livingHinge, tslot, type Edge } from './joinery.js';
+import { KerfError, type Pos } from './lexer.js';
+import { parse } from './parser.js';
+import { LIBRARIES } from './stdlib.js';
+import { flatten, parseSvgPath } from './paths.js';
+import { textMetrics, textRegions, type FontBook } from './text.js';
+import {
+  equals,
+  isFn,
+  isRange,
+  rangeValues,
+  show,
+  truthy,
+  typeName,
+  type Closure,
+  type Value,
+} from './values.js';
+
+export interface LayerDef {
+  name: string;
+  mode: 'cut' | 'line' | 'fill' | 'guide';
+  color: string;
+}
+
+export const DEFAULT_LAYERS: LayerDef[] = [
+  { name: 'engrave', mode: 'fill', color: '#000000' },
+  { name: 'score', mode: 'line', color: '#0000ff' },
+  { name: 'cut', mode: 'cut', color: '#ff0000' },
+  { name: 'guide', mode: 'guide', color: '#00a0ff' },
+];
+
+export interface EvalOptions {
+  overrides?: Record<string, Value>;
+  resolve?: (path: string) => string | undefined;
+  fonts?: FontBook;
+  maxSteps?: number;
+}
+
+interface ModDef {
+  params: Param[];
+  body: Stmt[];
+  env: Env;
+}
+
+interface FnDef {
+  params: Param[];
+  body: Expr;
+  env: Env;
+}
+
+interface ChildCtx {
+  stmts: Stmt[];
+  env: Env;
+}
+
+class Env {
+  vars = new Map<string, Value>();
+  fns = new Map<string, FnDef>();
+  mods = new Map<string, ModDef>();
+  children?: ChildCtx;
+  constructor(
+    public parent?: Env,
+    public caller?: Env,
+  ) {}
+
+  get(name: string): { found: boolean; value?: Value } {
+    let e: Env | undefined = this;
+    const dynamic = name.startsWith('$');
+    while (e) {
+      if (e.vars.has(name)) return { found: true, value: e.vars.get(name) };
+      e = dynamic ? (e.caller ?? e.parent) : e.parent;
+    }
+    return { found: false };
+  }
+  fn(name: string): FnDef | undefined {
+    for (let e: Env | undefined = this; e; e = e.parent) {
+      const f = e.fns.get(name);
+      if (f) return f;
+    }
+  }
+  mod(name: string): ModDef | undefined {
+    for (let e: Env | undefined = this; e; e = e.parent) {
+      const m = e.mods.get(name);
+      if (m) return m;
+    }
+  }
+  childCtx(): ChildCtx | undefined {
+    for (let e: Env | undefined = this; e; e = e.parent) if (e.children) return e.children;
+  }
+}
+
+interface Args {
+  pos: Value[];
+  named: Map<string, Value>;
+  at: Pos;
+}
+
+interface BuiltinCtx {
+  args: Args;
+  env: Env;
+  children: () => Shape;
+  childList: () => Shape[];
+}
+
+export interface EvalResult {
+  shape: Shape;
+  globals: Env;
+  layers: Map<string, LayerDef>;
+  echoes: string[];
+  warnings: string[];
+}
+
+export const STDLIB: Record<string, string> = LIBRARIES;
+
+export class Evaluator {
+  private steps = 0;
+  private depth = 0;
+  private maxSteps: number;
+  readonly echoes: string[] = [];
+  readonly warnings: string[] = [];
+  readonly layers = new Map<string, LayerDef>(DEFAULT_LAYERS.map((l) => [l.name, l]));
+  private loaded = new Map<string, Program>();
+  private builtins: Record<string, (c: BuiltinCtx) => Shape>;
+
+  constructor(private opts: EvalOptions = {}) {
+    this.maxSteps = opts.maxSteps ?? 5_000_000;
+    this.builtins = this.makeBuiltins();
+  }
+
+  run(program: Program): EvalResult {
+    const g = new Env();
+    const defaults: Record<string, Value> = {
+      $fn: 0,
+      $fa: 2,
+      $fs: 0.2,
+      $thickness: 3,
+      $kerf: 0,
+      $material: 'material',
+      $sheet: [600, 400],
+      $gap: 3,
+      $layout: 'pack',
+      PI: Math.PI,
+    };
+    for (const [k, v] of Object.entries(defaults)) g.vars.set(k, v);
+    const top = new Env(g);
+    const shape = this.block(program.body, top, true);
+    return {
+      shape,
+      globals: top,
+      layers: this.layers,
+      echoes: this.echoes,
+      warnings: this.warnings,
+    };
+  }
+
+  private tick(pos?: Pos) {
+    if (++this.steps > this.maxSteps)
+      throw new KerfError(`Stopped after ${this.maxSteps} steps. Is there an endless loop?`, pos);
+  }
+
+  private load(path: string, at: Pos): Program {
+    const hit = this.loaded.get(path);
+    if (hit) return hit;
+    const src = STDLIB[path] ?? this.opts.resolve?.(path);
+    if (src === undefined) throw new KerfError(`Library <${path}> not found`, at);
+    this.loaded.set(path, { body: [] });
+    const { program } = parse(src);
+    this.loaded.set(path, program);
+    return program;
+  }
+
+  private hoist(stmts: Stmt[], env: Env) {
+    for (const s of stmts) {
+      if (s.kind === 'module') env.mods.set(s.name, { params: s.params, body: s.body, env });
+      else if (s.kind === 'function') env.fns.set(s.name, { params: s.params, body: s.body, env });
+      else if (s.kind === 'use' && !s.include) {
+        const lib = this.load(s.path, s.pos);
+        const libEnv = new Env(env);
+        this.hoist(lib.body, libEnv);
+        for (const ls of lib.body)
+          if (ls.kind === 'assign') this.assign(ls.name, this.expr(ls.value, libEnv), libEnv);
+        for (const [k, v] of libEnv.mods) env.mods.set(k, v);
+        for (const [k, v] of libEnv.fns) env.fns.set(k, v);
+      }
+    }
+  }
+
+  private assign(name: string, value: Value, env: Env) {
+    env.vars.set(name, value);
+  }
+
+  block(stmts: Stmt[], env: Env, top = false): Shape {
+    this.hoist(stmts, env);
+    const shapes: Shape[] = [];
+    for (const s of stmts) {
+      const out = this.stmt(s, env, top);
+      if (out && !isEmpty(out)) shapes.push(out);
+    }
+    return shapes.length === 1 ? shapes[0] : merge(shapes);
+  }
+
+  private stmt(s: Stmt, env: Env, top = false): Shape | null {
+    this.tick(s.pos);
+    switch (s.kind) {
+      case 'assign': {
+        const o = this.opts.overrides;
+        const v =
+          top && o && Object.prototype.hasOwnProperty.call(o, s.name)
+            ? o[s.name]
+            : this.expr(s.value, env);
+        this.assign(s.name, v, env);
+        return null;
+      }
+      case 'module':
+      case 'function':
+        return null;
+      case 'use': {
+        if (!s.include) return null;
+        const lib = this.load(s.path, s.pos);
+        return this.block(lib.body, env);
+      }
+      case 'block':
+        return this.block(s.body, new Env(env));
+      case 'if':
+        return truthy(this.expr(s.cond, env))
+          ? this.block(s.then, new Env(env))
+          : this.block(s.else, new Env(env));
+      case 'let': {
+        const e = new Env(env);
+        this.bindSeq(s.assigns, e);
+        return this.block(s.body, e);
+      }
+      case 'for': {
+        const shapes: Shape[] = [];
+        this.loop(s.assigns, env, (e) => shapes.push(this.block(s.body, e)));
+        return merge(shapes);
+      }
+      case 'call':
+        if (s.modifier === '*') return null;
+        {
+          const out = this.callModule(s, env);
+          return s.modifier === '#' || s.modifier === '%' ? retag(out, 'guide') : out;
+        }
+    }
+  }
+
+  private bindSeq(assigns: Assign[], env: Env) {
+    for (const a of assigns) this.assign(a.name, this.expr(a.value, env), env);
+  }
+
+  private iterable(v: Value, at: Pos): Value[] {
+    if (isRange(v)) {
+      try {
+        return rangeValues(v, 1_000_000);
+      } catch (e) {
+        throw new KerfError((e as Error).message, at);
+      }
+    }
+    if (Array.isArray(v)) return v;
+    if (typeof v === 'string') return [...v];
+    if (v === undefined) return [];
+    return [v];
+  }
+
+  private loop(
+    assigns: Assign[],
+    env: Env,
+    body: (e: Env) => void,
+    i = 0,
+    cur: Env = new Env(env),
+  ) {
+    if (i === assigns.length) return body(cur);
+    const a = assigns[i];
+    for (const v of this.iterable(this.expr(a.value, cur), a.pos)) {
+      this.tick(a.pos);
+      const e = new Env(cur);
+      e.vars.set(a.name, v);
+      this.loop(assigns, env, body, i + 1, e);
+    }
+  }
+
+  private evalArgs(args: Arg[], env: Env, at: Pos): Args {
+    const pos: Value[] = [];
+    const named = new Map<string, Value>();
+    for (const a of args) {
+      const v = this.expr(a.value, env);
+      if (a.name === null) pos.push(v);
+      else named.set(a.name, v);
+    }
+    return { pos, named, at };
+  }
+
+  private bindParams(params: Param[], args: Args, env: Env, defEnv: Env, what: string) {
+    const names = new Set(params.map((p) => p.name));
+    params.forEach((p, i) => {
+      let v: Value;
+      if (args.named.has(p.name)) v = args.named.get(p.name);
+      else if (i < args.pos.length) v = args.pos[i];
+      else v = p.default ? this.expr(p.default, env) : undefined;
+      env.vars.set(p.name, v);
+    });
+    for (const k of args.named.keys()) {
+      if (k.startsWith('$')) env.vars.set(k, args.named.get(k));
+      else if (!names.has(k))
+        this.warnings.push(`${what}: unknown argument "${k}" (line ${args.at.line})`);
+    }
+    void defEnv;
+  }
+
+  private callModule(s: Extract<Stmt, { kind: 'call' }>, env: Env): Shape {
+    const args = this.evalArgs(s.args, env, s.pos);
+    const user = env.mod(s.name);
+    if (user) {
+      if (++this.depth > 1000)
+        throw new KerfError(`Recursion too deep in module ${s.name}()`, s.pos);
+      try {
+        const e = new Env(user.env, env);
+        this.bindParams(user.params, args, e, user.env, `${s.name}()`);
+        e.children = { stmts: s.children, env };
+        e.vars.set('$children', this.childStmts(s.children).length);
+        return this.block(user.body, e);
+      } finally {
+        this.depth--;
+      }
+    }
+    const b = this.builtins[s.name];
+    if (!b) {
+      const hint =
+        s.name === 'color'
+          ? ' Use layer(), cut(), score() or engrave() instead.'
+          : s.name === 'square'
+            ? ' Use rect().'
+            : '';
+      throw new KerfError(`Unknown module ${s.name}().${hint}`, s.pos);
+    }
+    const callEnv = new Env(env, env);
+    for (const [k, v] of args.named) if (k.startsWith('$')) callEnv.vars.set(k, v);
+    const kids = this.childStmts(s.children);
+    const childEnv = () => new Env(env, callEnv);
+    const ctx: BuiltinCtx = {
+      args,
+      env: callEnv,
+      children: () => (s.children.length ? this.block(s.children, childEnv()) : emptyShape()),
+      childList: () => {
+        const e = childEnv();
+        this.hoist(s.children, e);
+        const out: Shape[] = [];
+        for (const st of s.children) {
+          const r = this.stmt(st, e);
+          if (kids.includes(st)) out.push(r ?? emptyShape());
+        }
+        return out;
+      },
+    };
+    try {
+      return b(ctx);
+    } catch (e) {
+      if (e instanceof KerfError) throw e;
+      throw new KerfError(`${s.name}(): ${(e as Error).message}`, s.pos);
+    }
+  }
+
+  private childStmts(stmts: Stmt[]): Stmt[] {
+    return stmts.filter(
+      (s) =>
+        s.kind !== 'assign' && s.kind !== 'module' && s.kind !== 'function' && s.kind !== 'use',
+    );
+  }
+
+  callFunction(f: FnDef | Closure, args: Args, caller: Env, name: string): Value {
+    if (++this.depth > 2000) throw new KerfError(`Recursion too deep in ${name}()`, args.at);
+    try {
+      this.tick(args.at);
+      const defEnv = (isFn(f as Value) ? (f as Closure).scope : (f as FnDef).env) as Env;
+      const e = new Env(defEnv, caller);
+      this.bindParams(f.params, args, e, defEnv, `${name}()`);
+      return this.expr(f.body, e);
+    } finally {
+      this.depth--;
+    }
+  }
+
+  expr(x: Expr, env: Env): Value {
+    switch (x.kind) {
+      case 'num':
+      case 'str':
+      case 'bool':
+        return x.value;
+      case 'undef':
+        return undefined;
+      case 'var': {
+        const r = env.get(x.name);
+        if (r.found) return r.value;
+        const f = env.fn(x.name);
+        if (f)
+          return { type: 'function', params: f.params, body: f.body, scope: f.env, name: x.name };
+        if (x.name.startsWith('$')) return undefined;
+        throw new KerfError(`Unknown variable "${x.name}"`, x.pos);
+      }
+      case 'list': {
+        const out: Value[] = [];
+        for (const it of x.items) this.listItem(it, env, out);
+        return out;
+      }
+      case 'range': {
+        const start = this.expr(x.start, env);
+        const end = this.expr(x.end, env);
+        const step = x.step ? this.expr(x.step, env) : 1;
+        if (typeof start !== 'number' || typeof end !== 'number' || typeof step !== 'number')
+          throw new KerfError('Range values must be numbers', x.pos);
+        return { type: 'range', start, step, end };
+      }
+      case 'unary': {
+        const v = this.expr(x.arg, env);
+        if (x.op === '!') return !truthy(v);
+        if (x.op === '+') return v;
+        return this.arith('*', -1, v, x.pos);
+      }
+      case 'binary': {
+        if (x.op === '&&') return truthy(this.expr(x.left, env)) && truthy(this.expr(x.right, env));
+        if (x.op === '||') return truthy(this.expr(x.left, env)) || truthy(this.expr(x.right, env));
+        const a = this.expr(x.left, env);
+        const b = this.expr(x.right, env);
+        if (x.op === '==') return equals(a, b);
+        if (x.op === '!=') return !equals(a, b);
+        if (x.op === '<' || x.op === '<=' || x.op === '>' || x.op === '>=') {
+          if (
+            !(
+              (typeof a === 'number' && typeof b === 'number') ||
+              (typeof a === 'string' && typeof b === 'string')
+            )
+          )
+            throw new KerfError(`Can't compare ${typeName(a)} ${x.op} ${typeName(b)}`, x.pos);
+          return x.op === '<' ? a < b : x.op === '<=' ? a <= b : x.op === '>' ? a > b : a >= b;
+        }
+        return this.arith(x.op, a, b, x.pos);
+      }
+      case 'ternary':
+        return truthy(this.expr(x.cond, env)) ? this.expr(x.then, env) : this.expr(x.else, env);
+      case 'index': {
+        const t = this.expr(x.target, env);
+        const i = this.expr(x.index, env);
+        if (typeof i !== 'number')
+          throw new KerfError(`List index must be a number, got ${typeName(i)}`, x.pos);
+        if (Array.isArray(t)) return t[Math.floor(i)];
+        if (typeof t === 'string') return [...t][Math.floor(i)];
+        if (isRange(t)) return [t.start, t.step, t.end][Math.floor(i)];
+        return undefined;
+      }
+      case 'member': {
+        const t = this.expr(x.target, env);
+        const i = { x: 0, y: 1, z: 2 }[x.name];
+        if (Array.isArray(t) && i !== undefined) return t[i];
+        if (isRange(t) && (x.name === 'begin' || x.name === 'step' || x.name === 'end'))
+          return x.name === 'begin' ? t.start : x.name === 'step' ? t.step : t.end;
+        return undefined;
+      }
+      case 'call':
+        return this.call(x, env);
+      case 'lambda':
+        return { type: 'function', params: x.params, body: x.body, scope: env };
+      case 'let': {
+        const e = new Env(env);
+        this.bindSeq(x.assigns, e);
+        return this.expr(x.body, e);
+      }
+    }
+  }
+
+  private listItem(it: ListItem, env: Env, out: Value[]) {
+    switch (it.kind) {
+      case 'item':
+        out.push(this.expr(it.expr, env));
+        return;
+      case 'each': {
+        const v = this.expr(it.expr, env);
+        out.push(...this.iterable(v, { line: 0, col: 0, offset: 0 }));
+        return;
+      }
+      case 'for':
+        this.loop(it.assigns, env, (e) => this.listItem(it.body, e, out));
+        return;
+      case 'if':
+        if (truthy(this.expr(it.cond, env))) this.listItem(it.then, env, out);
+        else if (it.else) this.listItem(it.else, env, out);
+        return;
+      case 'let': {
+        const e = new Env(env);
+        this.bindSeq(it.assigns, e);
+        this.listItem(it.body, e, out);
+      }
+    }
+  }
+
+  private call(x: Extract<Expr, { kind: 'call' }>, env: Env): Value {
+    if (x.callee.kind === 'var') {
+      const name = x.callee.name;
+      const v = env.get(name);
+      if (!v.found) {
+        const f = env.fn(name);
+        if (f) return this.callFunction(f, this.evalArgs(x.args, env, x.pos), env, name);
+        const special = this.specialFunction(name, x, env);
+        if (special.handled) return special.value;
+        const b = FUNCTIONS[name];
+        if (b) {
+          const args = this.evalArgs(x.args, env, x.pos);
+          try {
+            return b(args.pos, args.named);
+          } catch (e) {
+            throw new KerfError((e as Error).message, x.pos);
+          }
+        }
+        throw new KerfError(`Unknown function ${name}()`, x.pos);
+      }
+      if (!isFn(v.value))
+        throw new KerfError(`"${name}" is a ${typeName(v.value)}, not a function`, x.pos);
+      return this.callFunction(v.value, this.evalArgs(x.args, env, x.pos), env, name);
+    }
+    const f = this.expr(x.callee, env);
+    if (!isFn(f)) throw new KerfError(`Can't call a ${typeName(f)}`, x.pos);
+    return this.callFunction(f, this.evalArgs(x.args, env, x.pos), env, 'function');
+  }
+
+  private specialFunction(
+    name: string,
+    x: Extract<Expr, { kind: 'call' }>,
+    env: Env,
+  ): { handled: boolean; value?: Value } {
+    if (name === 'echo') {
+      const a = this.evalArgs(x.args, env, x.pos);
+      this.echoes.push(this.echoText(a));
+      return { handled: true, value: undefined };
+    }
+    if (name === 'assert') {
+      const a = this.evalArgs(x.args, env, x.pos);
+      if (!truthy(a.pos[0]))
+        throw new KerfError(
+          `Assertion failed${a.pos[1] !== undefined ? ': ' + (typeof a.pos[1] === 'string' ? a.pos[1] : show(a.pos[1])) : ''}`,
+          x.pos,
+        );
+      return { handled: true, value: true };
+    }
+    if (name === 'text_width' || name === 'text_metrics') {
+      const a = this.evalArgs(x.args, env, x.pos);
+      const m = this.measure(a, env);
+      if (name === 'text_width') return { handled: true, value: m.advance };
+      return {
+        handled: true,
+        value: [m.advance, m.bounds as Value, m.ascent, m.descent],
+      };
+    }
+    if (name === 'finger_count') {
+      const a = this.evalArgs(x.args, env, x.pos);
+      const L = this.num(this.arg(a, 'length', 0), 'finger_count', 'length');
+      return { handled: true, value: fingerCount(L, this.fingerWidth(a, env, 1)) };
+    }
+    return { handled: false };
+  }
+
+  private echoText(a: Args): string {
+    const parts = a.pos.map((v) => (typeof v === 'string' ? v : show(v)));
+    for (const [k, v] of a.named) parts.push(`${k} = ${show(v)}`);
+    return parts.join(', ');
+  }
+
+  private arith(op: string, a: Value, b: Value, at: Pos): Value {
+    if (typeof a === 'number' && typeof b === 'number') {
+      switch (op) {
+        case '+':
+          return a + b;
+        case '-':
+          return a - b;
+        case '*':
+          return a * b;
+        case '/':
+          return a / b;
+        case '%':
+          return a % b;
+        case '^':
+          return Math.pow(a, b);
+      }
+    }
+    if (op === '+' && typeof a === 'string' && typeof b === 'string') return a + b;
+    if (Array.isArray(a) && Array.isArray(b)) {
+      if (op === '+' || op === '-') {
+        if (a.length !== b.length)
+          throw new KerfError(
+            `Can't ${op === '+' ? 'add' : 'subtract'} lists of length ${a.length} and ${b.length}`,
+            at,
+          );
+        return a.map((x, i) => this.arith(op, x, b[i], at));
+      }
+      if (op === '*') {
+        if (Array.isArray(a[0])) return a.map((row) => this.arith('*', row, b, at));
+        if (Array.isArray(b[0])) {
+          const cols = (b[0] as Value[]).length;
+          return Array.from({ length: cols }, (_, j) =>
+            a.reduce(
+              (s: number, x, i) => s + (this.arith('*', x, (b[i] as Value[])[j], at) as number),
+              0,
+            ),
+          );
+        }
+        if (a.length !== b.length)
+          throw new KerfError(`Can't multiply lists of length ${a.length} and ${b.length}`, at);
+        return a.reduce((s: number, x, i) => s + (this.arith('*', x, b[i], at) as number), 0);
+      }
+    }
+    if (Array.isArray(a) && typeof b === 'number' && (op === '*' || op === '/'))
+      return a.map((x) => this.arith(op, x, b, at));
+    if (typeof a === 'number' && Array.isArray(b) && op === '*')
+      return b.map((x) => this.arith(op, a, x, at));
+    const verb: Record<string, string> = {
+      '+': 'add',
+      '-': 'subtract',
+      '*': 'multiply',
+      '/': 'divide',
+      '%': 'take remainder of',
+      '^': 'raise',
+    };
+    throw new KerfError(`Can't ${verb[op] ?? op} ${typeName(a)} and ${typeName(b)}`, at);
+  }
+
+  private arg(a: Args, name: string, index: number, def?: Value): Value {
+    if (a.named.has(name)) return a.named.get(name);
+    if (index >= 0 && index < a.pos.length) return a.pos[index];
+    return def;
+  }
+
+  private num(v: Value, fn: string, name: string): number {
+    if (typeof v !== 'number' || Number.isNaN(v))
+      throw new Error(`${name} must be a number, got ${show(v)}`);
+    return v;
+  }
+
+  private vec2(v: Value, name: string, scalarBoth = true): Pt {
+    if (typeof v === 'number' && scalarBoth) return [v, v];
+    if (Array.isArray(v) && typeof v[0] === 'number')
+      return [v[0], typeof v[1] === 'number' ? v[1] : 0];
+    throw new Error(`${name} must be a number or [x, y], got ${show(v)}`);
+  }
+
+  private points(v: Value, name: string): Pt[] {
+    if (!Array.isArray(v)) throw new Error(`${name} must be a list of [x, y] points`);
+    return v.map((p, i) => {
+      if (!Array.isArray(p) || typeof p[0] !== 'number' || typeof p[1] !== 'number')
+        throw new Error(`${name}[${i}] must be an [x, y] point, got ${show(p)}`);
+      return [p[0], p[1]];
+    });
+  }
+
+  private dyn(env: Env, name: string): Value {
+    return env.get(name).value;
+  }
+
+  private segs(env: Env) {
+    const fn = Number(this.dyn(env, '$fn')) || 0;
+    const fa = Number(this.dyn(env, '$fa')) || 2;
+    const fs = Number(this.dyn(env, '$fs')) || 0.2;
+    return (r: number) => fragments(r, fn, fa, fs);
+  }
+
+  private thickness(env: Env): number {
+    const t = this.dyn(env, '$thickness');
+    if (typeof t !== 'number' || t <= 0) throw new Error('$thickness must be a positive number');
+    return t;
+  }
+
+  private fingerWidth(a: Args, env: Env, index: number): number {
+    const f = this.arg(a, 'finger', index);
+    if (typeof f === 'number' && f > 0) return f;
+    return Math.max(3 * this.thickness(env), 6);
+  }
+
+  private measure(a: Args, env: Env) {
+    if (!this.opts.fonts)
+      throw new KerfError(
+        'text needs a font. Pass fonts to render(), or --font on the command line.',
+        a.at,
+      );
+    const text = String(this.arg(a, 'text', 0, ''));
+    return textMetrics(this.opts.fonts, text, this.textOpts(a, env));
+  }
+
+  private textOpts(a: Args, env: Env) {
+    return {
+      size: this.num(this.arg(a, 'size', 1, 10), 'text', 'size'),
+      font: String(this.arg(a, 'font', 2, this.dyn(env, '$font') ?? '')),
+      halign: String(this.arg(a, 'halign', -1, 'left')),
+      valign: String(this.arg(a, 'valign', -1, 'baseline')),
+      spacing: Number(this.arg(a, 'spacing', -1, 1)),
+    };
+  }
+
+  private edges(v: Value): Edge[] {
+    const all = (e: Value): Edge => {
+      if (e === 'out' || e === 'in' || e === 'flat') return e;
+      throw new Error(`edges must be "out", "in" or "flat", got ${show(e)}`);
+    };
+    if (typeof v === 'string') return [all(v), all(v), all(v), all(v)];
+    if (Array.isArray(v) && v.length === 4) return v.map(all);
+    throw new Error('edges must be one value or a list of 4: [bottom, right, top, left]');
+  }
+
+  private makeBuiltins(): Record<string, (c: BuiltinCtx) => Shape> {
+    const tr = (c: BuiltinCtx, m: Matrix) => transform(c.children(), m);
+    const layerTag = (name: string) => (c: BuiltinCtx) => retag(c.children(), name);
+    return {
+      rect: (c) => {
+        const [w, h] = this.vec2(this.arg(c.args, 'size', 0, 1), 'size');
+        const r = Number(this.arg(c.args, 'r', -1, 0)) || 0;
+        const center = truthy(this.arg(c.args, 'center', 1, false));
+        const p = roundedRect(w, h, r, this.segs(c.env));
+        return regionShape(union([center ? p.map(([x, y]): Pt => [x - w / 2, y - h / 2]) : p]));
+      },
+      square: (c) => this.builtins.rect(c),
+      circle: (c) => {
+        const d = this.arg(c.args, 'd', -1);
+        const r =
+          d !== undefined
+            ? this.num(d, 'circle', 'd') / 2
+            : this.num(this.arg(c.args, 'r', 0, 1), 'circle', 'r');
+        return regionShape([ellipsePoly(r, r, this.segs(c.env)(r))]);
+      },
+      ellipse: (c) => {
+        const [rx, ry] = this.vec2(this.arg(c.args, 'r', 0, 1), 'r');
+        return regionShape([ellipsePoly(rx, ry, this.segs(c.env)(Math.max(rx, ry)))]);
+      },
+      regular_polygon: (c) => {
+        const n = Math.max(
+          3,
+          Math.floor(this.num(this.arg(c.args, 'n', 0, 6), 'regular_polygon', 'n')),
+        );
+        const r = this.num(this.arg(c.args, 'r', 1, 10), 'regular_polygon', 'r');
+        return regionShape([ellipsePoly(r, r, n)]);
+      },
+      star: (c) => {
+        const n = Math.max(2, Math.floor(this.num(this.arg(c.args, 'n', 0, 5), 'star', 'n')));
+        const r = this.num(this.arg(c.args, 'r', 1, 10), 'star', 'r');
+        const ri = this.num(this.arg(c.args, 'inner', 2, r * 0.45), 'star', 'inner');
+        const p: Poly = [];
+        for (let i = 0; i < n * 2; i++) {
+          const a = Math.PI / 2 + (Math.PI * i) / n;
+          const rr = i % 2 ? ri : r;
+          p.push([rr * Math.cos(a), rr * Math.sin(a)]);
+        }
+        return regionShape(union([p]));
+      },
+      polygon: (c) => {
+        const pts = this.points(this.arg(c.args, 'points', 0), 'points');
+        const paths = this.arg(c.args, 'paths', 1);
+        const polys: Poly[] = Array.isArray(paths)
+          ? paths.map((ix) =>
+              (Array.isArray(ix) ? ix : []).map((i) => pts[Number(i)]).filter(Boolean),
+            )
+          : [pts];
+        return regionShape(union(polys, 'evenodd'));
+      },
+      path: (c) => {
+        const d = this.arg(c.args, 'd', 0);
+        if (typeof d !== 'string')
+          throw new Error('path() needs SVG path data, like path("M0 0 L10 0 L5 8 Z")');
+        const flat = flatten(parseSvgPath(d), 0.01);
+        const fill =
+          String(this.arg(c.args, 'fill', -1, 'evenodd')) === 'nonzero' ? 'nonzero' : 'evenodd';
+        return merge([regionShape(union(flat.closed, fill)), lineShape(flat.open)]);
+      },
+      line: (c) => {
+        const a = this.vec2(this.arg(c.args, 'from', 0, [0, 0]), 'from', false);
+        const b = this.vec2(this.arg(c.args, 'to', 1, [10, 0]), 'to', false);
+        return lineShape([[a, b]]);
+      },
+      polyline: (c) => {
+        const pts = this.points(this.arg(c.args, 'points', 0), 'points');
+        const closed = truthy(this.arg(c.args, 'closed', 1, false));
+        return lineShape([closed && pts.length ? [...pts, pts[0]] : pts]);
+      },
+      arc: (c) => {
+        const r = this.num(this.arg(c.args, 'r', 0, 10), 'arc', 'r');
+        const a0 = this.num(this.arg(c.args, 'start', 1, 0), 'arc', 'start');
+        const a1 = this.num(this.arg(c.args, 'end', 2, 90), 'arc', 'end');
+        const n = Math.max(2, Math.ceil((this.segs(c.env)(r) * Math.abs(a1 - a0)) / 360));
+        const p: Poly = [];
+        for (let i = 0; i <= n; i++) {
+          const a = ((a0 + ((a1 - a0) * i) / n) * Math.PI) / 180;
+          p.push([r * Math.cos(a), r * Math.sin(a)]);
+        }
+        return lineShape([p]);
+      },
+      text: (c) => {
+        if (!this.opts.fonts)
+          throw new Error(
+            'text() needs a font. Pass fonts to render(), or --font on the command line.',
+          );
+        const text = this.arg(c.args, 'text', 0, '');
+        return regionShape(
+          textRegions(
+            this.opts.fonts,
+            typeof text === 'string' ? text : show(text),
+            this.textOpts(c.args, c.env),
+          ),
+        );
+      },
+      translate: (c) => {
+        const [x, y] = this.vec2(this.arg(c.args, 'v', 0, [0, 0]), 'v', false);
+        return tr(c, [1, 0, 0, 1, x, y]);
+      },
+      rotate: (c) => {
+        const a = this.arg(c.args, 'a', 0, 0);
+        const deg = Array.isArray(a) ? Number(a[2] ?? 0) : this.num(a, 'rotate', 'a');
+        const r = (deg * Math.PI) / 180;
+        const cs = Math.cos(r),
+          sn = Math.sin(r);
+        const ctr = this.arg(c.args, 'center', -1);
+        let m: Matrix = [cs, sn, -sn, cs, 0, 0];
+        if (ctr !== undefined) {
+          const [cx, cy] = this.vec2(ctr, 'center', false);
+          m = [cs, sn, -sn, cs, cx - cs * cx + sn * cy, cy - sn * cx - cs * cy];
+        }
+        return tr(c, m);
+      },
+      scale: (c) => {
+        const [sx, sy] = this.vec2(this.arg(c.args, 'v', 0, 1), 'v');
+        return tr(c, [sx, 0, 0, sy, 0, 0]);
+      },
+      mirror: (c) => {
+        const [x, y] = this.vec2(this.arg(c.args, 'v', 0, [1, 0]), 'v', false);
+        const l = Math.hypot(x, y) || 1;
+        const nx = x / l,
+          ny = y / l;
+        return tr(c, [1 - 2 * nx * nx, -2 * nx * ny, -2 * nx * ny, 1 - 2 * ny * ny, 0, 0]);
+      },
+      multmatrix: (c) => {
+        const m = this.arg(c.args, 'm', 0);
+        if (!Array.isArray(m) || m.length < 2) throw new Error('m must be a 2x3 or 3x3 matrix');
+        const r0 = m[0] as number[],
+          r1 = m[1] as number[];
+        return tr(c, [r0[0], r1[0], r0[1], r1[1], r0[2] ?? 0, r1[2] ?? 0]);
+      },
+      union: (c) => c.children(),
+      group: (c) => c.children(),
+      difference: (c) => {
+        const [first, ...rest] = c.childList();
+        if (!first) return emptyShape();
+        const cutter = flat(rest, 'difference');
+        return mapLayers(first, (l) => ({
+          regions: difference(l.regions, cutter.regions),
+          lines: clipLines(l.lines, union(cutter.regions), 'outside'),
+        }));
+      },
+      intersection: (c) => {
+        const [first, ...rest] = c.childList();
+        if (!first) return emptyShape();
+        let out = first;
+        for (const r of rest) {
+          const keep = union(flat([r], 'intersection').regions);
+          out = mapLayers(out, (l) => ({
+            regions: intersection(l.regions, keep),
+            lines: clipLines(l.lines, keep, 'inside'),
+          }));
+        }
+        return out;
+      },
+      hull: (c) => {
+        const s = c.children();
+        const pts: Pt[] = [];
+        let key = 'cut';
+        let first = true;
+        for (const [k, l] of s.layers) {
+          if (first && (l.regions.length || l.lines.length)) {
+            key = k;
+            first = false;
+          }
+          for (const p of [...l.regions, ...l.lines]) pts.push(...p);
+        }
+        const h = hull(pts);
+        return {
+          layers: new Map([[key, { regions: h.length >= 3 ? [h] : [], lines: [] }]]),
+          parts: s.parts,
+        };
+      },
+      offset: (c) => {
+        const r = this.arg(c.args, 'r', 0);
+        const delta = this.arg(c.args, 'delta', -1);
+        const chamfer = truthy(this.arg(c.args, 'chamfer', -1, false));
+        const d =
+          r !== undefined ? this.num(r, 'offset', 'r') : this.num(delta ?? 0, 'offset', 'delta');
+        const join = r !== undefined ? 'round' : chamfer ? 'square' : 'miter';
+        return mapLayers(c.children(), (l) => ({
+          regions: offset(l.regions, d, join),
+          lines: l.lines,
+        }));
+      },
+      stroke: (c) => {
+        const w = this.num(this.arg(c.args, 'width', 0, 1), 'stroke', 'width');
+        return mapLayers(c.children(), (l) => ({
+          regions: union([...l.regions, ...strokeLines(l.lines, w)]),
+          lines: [],
+        }));
+      },
+      outline: (c) =>
+        mapLayers(c.children(), (l) => ({
+          regions: [],
+          lines: [...l.lines, ...union(l.regions).map((p) => [...p, p[0]])],
+        })),
+      cut: layerTag('cut'),
+      score: layerTag('score'),
+      engrave: layerTag('engrave'),
+      guide: layerTag('guide'),
+      layer: (c) => {
+        const name = this.arg(c.args, 'name', 0);
+        if (typeof name !== 'string' || !name) throw new Error('layer() needs a name');
+        const mode = this.arg(c.args, 'mode', 1);
+        const color = this.arg(c.args, 'color', 2);
+        const known = this.layers.get(name);
+        if (mode !== undefined || color !== undefined || !known) {
+          const m = (mode ?? known?.mode ?? 'line') as LayerDef['mode'];
+          if (!['cut', 'line', 'fill', 'guide'].includes(m))
+            throw new Error('mode must be "cut", "line", "fill" or "guide"');
+          const col = String(color ?? known?.color ?? '#00aa00');
+          if (!/^#[0-9a-fA-F]{6}$/.test(col)) throw new Error('color must look like "#00aa00"');
+          this.layers.set(name, { name, mode: m, color: col });
+        }
+        return retag(c.children(), name);
+      },
+      part: (c) => {
+        const name = String(this.arg(c.args, 'name', 0, 'part'));
+        const qty = Math.max(1, Math.floor(Number(this.arg(c.args, 'qty', 1, 1)) || 1));
+        const s = c.children();
+        return {
+          layers: new Map(),
+          parts: [
+            ...s.parts,
+            {
+              name,
+              qty,
+              layers: s.layers,
+              thickness: this.thickness(c.env),
+              kerf: Number(this.dyn(c.env, '$kerf')) || 0,
+              material: String(this.dyn(c.env, '$material') ?? 'material'),
+            },
+          ],
+        };
+      },
+      material: (c) => {
+        const t = this.arg(c.args, 'thickness', 0);
+        const k = this.arg(c.args, 'kerf', 1);
+        const n = this.arg(c.args, 'name', 2);
+        if (t !== undefined) c.env.vars.set('$thickness', this.num(t, 'material', 'thickness'));
+        if (k !== undefined) c.env.vars.set('$kerf', this.num(k, 'material', 'kerf'));
+        if (n !== undefined) c.env.vars.set('$material', String(n));
+        return c.children();
+      },
+      children: (c) => {
+        const ctx = c.env.childCtx();
+        if (!ctx) return emptyShape();
+        const kids = this.childStmts(ctx.stmts);
+        const idx = this.arg(c.args, 'index', 0);
+        const e = new Env(ctx.env, c.env);
+        this.hoist(ctx.stmts, e);
+        const want = new Set<Stmt>();
+        if (idx === undefined) kids.forEach((k) => want.add(k));
+        else
+          for (const i of this.iterable(idx, c.args.at))
+            if (kids[Number(i)]) want.add(kids[Number(i)]);
+        const out: Shape[] = [];
+        for (const st of ctx.stmts) {
+          if (st.kind === 'assign') this.stmt(st, e);
+          else if (want.has(st)) {
+            const r = this.stmt(st, e);
+            if (r) out.push(r);
+          }
+        }
+        return merge(out);
+      },
+      echo: (c) => {
+        this.echoes.push(this.echoText(c.args));
+        return c.children();
+      },
+      assert: (c) => {
+        const a = c.args;
+        if (!truthy(a.pos[0] ?? a.named.get('condition')))
+          throw new KerfError(
+            `Assertion failed${a.pos[1] !== undefined ? ': ' + (typeof a.pos[1] === 'string' ? a.pos[1] : show(a.pos[1])) : ''}`,
+            a.at,
+          );
+        return c.children();
+      },
+      finger_rect: (c) => {
+        const [w, h] = this.vec2(this.arg(c.args, 'size', 0), 'size');
+        const edges = this.edges(this.arg(c.args, 'edges', 1, 'out'));
+        const t = this.thickness(c.env);
+        return regionShape(fingerRect(w, h, edges, t, this.fingerWidth(c.args, c.env, 2)));
+      },
+      finger_holes: (c) => {
+        const L = this.num(this.arg(c.args, 'length', 0), 'finger_holes', 'length');
+        const e = this.edges(this.arg(c.args, 'edge', 1, 'out'))[0];
+        if (e === 'flat') throw new Error('edge must be "out" or "in"');
+        return regionShape(
+          fingerHoles(L, e, this.thickness(c.env), this.fingerWidth(c.args, c.env, 2)),
+        );
+      },
+      tslot: (c) => {
+        const d = this.num(this.arg(c.args, 'd', 0, 3), 'tslot', 'd');
+        const length = this.num(this.arg(c.args, 'length', 1, 12), 'tslot', 'length');
+        const [nw, nh] = this.vec2(this.arg(c.args, 'nut', 2, [d * 1.85, d * 0.8]), 'nut', false);
+        const at = this.num(this.arg(c.args, 'nut_at', 3, length / 2), 'tslot', 'nut_at');
+        return regionShape(union(tslot(d, length, nw, nh, at)));
+      },
+      living_hinge: (c) => {
+        const [w, h] = this.vec2(this.arg(c.args, 'size', 0), 'size');
+        const spacing = this.num(this.arg(c.args, 'spacing', 1, 1.5), 'living_hinge', 'spacing');
+        const bridge = this.num(this.arg(c.args, 'bridge', 2, 3), 'living_hinge', 'bridge');
+        const cut = this.num(
+          this.arg(c.args, 'cut', 3, Math.max(bridge * 2, (h - 3 * bridge) / 2)),
+          'living_hinge',
+          'cut',
+        );
+        if (spacing <= 0 || bridge <= 0 || cut <= 0)
+          throw new Error('spacing, bridge and cut must be positive');
+        return lineShape(livingHinge(w, h, spacing, bridge, cut));
+      },
+    };
+
+    function flat(shapes: Shape[], fn: string): Layer {
+      const out: Layer = { regions: [], lines: [] };
+      for (const s of shapes) {
+        if (s.parts.length) throw new Error(`part() can only be the first child of ${fn}()`);
+        for (const l of s.layers.values()) out.regions.push(...l.regions);
+      }
+      return out;
+    }
+    function mapLayers(s: Shape, f: (l: Layer) => Layer): Shape {
+      const layers = new Map<string, Layer>();
+      for (const [k, l] of s.layers) layers.set(k, f(l));
+      return { layers, parts: s.parts };
+    }
+  }
+}

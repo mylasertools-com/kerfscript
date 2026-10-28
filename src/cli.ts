@@ -1,0 +1,176 @@
+// Copyright (c) 2026 MyLaserTools. SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-MyLaserTools-Commercial
+
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { basename, dirname, extname, join, resolve } from 'node:path';
+import { parameters, render, KerfError, VERSION, type Value } from './index.js';
+import { parse } from './parser.js';
+import { Evaluator } from './evaluator.js';
+
+const HELP = `kerf ${VERSION}: the KerfScript laser cutting language
+
+Usage:
+  kerf render <file.kerf> [-o out.svg] [options]
+  kerf params <file.kerf>            print customizer parameters as JSON
+  kerf check <file.kerf>             run the program and print parts and warnings
+
+Options:
+  -o, --out <file>        output file (.svg, .dxf or .json); default <file>.svg
+  -D name=value           set a parameter (value is KerfScript: 40, "Oak", true, [1,2])
+  -p, --params <file>     JSON file of parameter values
+  --font <file.ttf>       font for text(); repeat for more fonts (name = file name)
+  --kerf <mm>             override kerf compensation for all parts
+  --sheet <W>x<H>         sheet size for packing, in mm
+  --gap <mm>              space between packed parts
+  --no-pack               keep parts where the program placed them
+  --guides                include guide layer geometry
+  --split                 write one file per sheet (out-1.svg, out-2.svg, ...)
+  -h, --help              show this help
+  -v, --version           show the version
+`;
+
+function fail(msg: string): never {
+  process.stderr.write(msg + '\n');
+  process.exit(1);
+}
+
+function parseValue(text: string): Value {
+  const { program } = parse(`__v = ${text};`);
+  const ev = new Evaluator();
+  const res = ev.run(program);
+  return res.globals.get('__v').value;
+}
+
+function main(argv: string[]) {
+  if (!argv.length || argv.includes('-h') || argv.includes('--help')) {
+    process.stdout.write(HELP);
+    return;
+  }
+  if (argv.includes('-v') || argv.includes('--version')) {
+    process.stdout.write(VERSION + '\n');
+    return;
+  }
+  const cmd = argv[0];
+  if (!['render', 'params', 'check'].includes(cmd))
+    fail(`Unknown command "${cmd}". Run kerf --help.`);
+  let file = '';
+  let out = '';
+  const params: Record<string, Value> = {};
+  const fonts: Record<string, Uint8Array> = {};
+  const opts: {
+    kerf?: number;
+    sheet?: [number, number];
+    gap?: number;
+    layout?: 'pack' | 'none';
+    guides?: boolean;
+  } = {};
+  let split = false;
+  for (let i = 1; i < argv.length; i++) {
+    const a = argv[i];
+    const next = () => argv[++i] ?? fail(`${a} needs a value`);
+    if (a === '-o' || a === '--out') out = next();
+    else if (a === '-D' || a.startsWith('-D')) {
+      const kv = a === '-D' ? next() : a.slice(2);
+      const eq = kv.indexOf('=');
+      if (eq < 1) fail(`-D needs name=value, got "${kv}"`);
+      const raw = kv.slice(eq + 1);
+      let v: Value;
+      try {
+        v = parseValue(raw);
+      } catch {
+        v = raw;
+      }
+      params[kv.slice(0, eq)] = v;
+    } else if (a === '-p' || a === '--params')
+      Object.assign(params, JSON.parse(readFileSync(next(), 'utf8')));
+    else if (a === '--font') {
+      const f = next();
+      fonts[basename(f, extname(f))] = readFileSync(f);
+    } else if (a === '--kerf') opts.kerf = Number(next());
+    else if (a === '--sheet') {
+      const m = /^(\d+(?:\.\d+)?)x(\d+(?:\.\d+)?)$/.exec(next());
+      if (!m) fail('--sheet needs WxH, like 600x400');
+      opts.sheet = [Number(m[1]), Number(m[2])];
+    } else if (a === '--gap') opts.gap = Number(next());
+    else if (a === '--no-pack') opts.layout = 'none';
+    else if (a === '--guides') opts.guides = true;
+    else if (a === '--split') split = true;
+    else if (a.startsWith('-')) fail(`Unknown option ${a}`);
+    else if (!file) file = a;
+    else fail(`Unexpected argument ${a}`);
+  }
+  if (!file) fail('Give a .kerf file.');
+  const source = readFileSync(file, 'utf8');
+  const base = dirname(resolve(file));
+  const resolveLib = (p: string) => {
+    for (const candidate of [join(base, p), join(base, p + '.kerf')])
+      if (existsSync(candidate)) return readFileSync(candidate, 'utf8');
+    return undefined;
+  };
+
+  if (cmd === 'params') {
+    process.stdout.write(JSON.stringify(parameters(source), null, 2) + '\n');
+    return;
+  }
+  const result = render(source, {
+    ...opts,
+    params,
+    fonts: Object.keys(fonts).length ? fonts : undefined,
+    resolve: resolveLib,
+  });
+  for (const e of result.echoes) process.stderr.write(`ECHO: ${e}\n`);
+  for (const w of result.warnings) process.stderr.write(`WARNING: ${w}\n`);
+  if (cmd === 'check') {
+    for (const p of result.parts)
+      process.stdout.write(
+        `${p.name}${p.qty > 1 ? ` x${p.qty}` : ''}: ${p.width} x ${p.height} mm, ${p.thickness} mm ${p.material}, cut ${p.cutLength} mm\n`,
+      );
+    process.stdout.write(`${result.sheets.length} sheet${result.sheets.length === 1 ? '' : 's'}\n`);
+    return;
+  }
+  const target = out || file.replace(/\.kerf$/i, '') + '.svg';
+  const ext = extname(target).toLowerCase();
+  const body = (s: (typeof result.sheets)[number]) => (ext === '.dxf' ? s.dxf : s.svg);
+  if (ext === '.json') {
+    writeFileSync(
+      target,
+      JSON.stringify(
+        {
+          parts: result.parts,
+          warnings: result.warnings,
+          echoes: result.echoes,
+          sheets: result.sheets.map((s) => ({
+            width: s.width,
+            height: s.height,
+            material: s.material,
+            thickness: s.thickness,
+          })),
+        },
+        null,
+        2,
+      ),
+    );
+  } else if (split && result.sheets.length > 1) {
+    result.sheets.forEach((s, i) =>
+      writeFileSync(target.replace(/(\.[^.]+)$/, `-${i + 1}$1`), body(s)),
+    );
+  } else if (ext === '.dxf') {
+    if (result.sheets.length > 1)
+      process.stderr.write(
+        'WARNING: DXF holds the first sheet only; use --split for all sheets.\n',
+      );
+    writeFileSync(target, result.sheets[0]?.dxf ?? '');
+  } else writeFileSync(target, result.svg);
+  process.stderr.write(`Wrote ${target}\n`);
+}
+
+try {
+  main(process.argv.slice(2));
+} catch (e) {
+  if (e instanceof KerfError) {
+    for (const m of e.echoes)
+      process.stderr.write(`ECHO: ${m}
+`);
+    fail(`ERROR: ${e.message}`);
+  }
+  throw e;
+}

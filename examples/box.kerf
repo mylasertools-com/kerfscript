@@ -1,0 +1,20 @@
+// Finger-jointed box with a lid.
+use <kerf/box>
+
+/* [Size] */
+// Outer width
+width = 120; // [40:5:400]
+// Outer depth
+depth = 80; // [40:5:400]
+// Outer height
+height = 50; // [20:5:300]
+// Closed box with a lid
+lid = true;
+
+/* [Material] */
+// Sheet thickness
+$thickness = 3; // [1.5:0.5:10]
+// Beam width, compensated on every cut
+$kerf = 0.15; // [0:0.01:0.5]
+
+box([width, depth, height], lid = lid);

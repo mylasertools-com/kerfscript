@@ -1,0 +1,9 @@
+// Luggage tag built from a reusable module with children().
+module hang_hole(d = 5) {
+  difference() {
+    children();
+    translate([0, -d * 1.5]) circle(d = d);
+  }
+}
+
+translate([0, 30]) hang_hole() translate([-20, -60]) rect([40, 60], r = 5);

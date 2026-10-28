@@ -1,0 +1,24 @@
+// kerf/box: finger-jointed boxes.
+// Copyright (c) 2026 MyLaserTools. AGPL-3.0-only or MyLaserTools commercial licence.
+
+// Box from its outer size [width, depth, height] in the current material.
+// Edges pair "out" with "in", and the bottom owns every bottom corner,
+// so the six panels interlock without gaps.
+module box(size, lid = false, finger = undef) {
+  w = size[0];
+  d = size[1];
+  h = size[2];
+  top = lid ? "in" : "flat";
+  part("bottom") finger_rect([w, d], "out", finger = finger);
+  if (lid) part("lid") finger_rect([w, d], "out", finger = finger);
+  part("front") finger_rect([w, h], ["in", "out", top, "out"], finger = finger);
+  part("back") finger_rect([w, h], ["in", "out", top, "out"], finger = finger);
+  part("left") finger_rect([d, h], ["in", "in", top, "in"], finger = finger);
+  part("right") finger_rect([d, h], ["in", "in", top, "in"], finger = finger);
+}
+
+// Divider that slides between two walls: tabs on both sides drop into
+// finger_holes() cut in the walls.
+module divider(size, finger = undef) {
+  finger_rect(size, ["flat", "out", "flat", "out"], finger = finger);
+}

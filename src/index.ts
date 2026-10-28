@@ -1,0 +1,18 @@
+// Copyright (c) 2026 MyLaserTools. SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-MyLaserTools-Commercial
+
+export {
+  render,
+  type RenderOptions,
+  type RenderResult,
+  type PartInfo,
+  type Sheet,
+} from './render.js';
+export { parameters, type Parameter } from './customizer.js';
+export { parse } from './parser.js';
+export { tokenize, KerfError } from './lexer.js';
+export { DEFAULT_LAYERS, type LayerDef } from './evaluator.js';
+export type { FontSource } from './text.js';
+export type { Value } from './values.js';
+
+export const VERSION = '0.1.0';
+export const LANGUAGE_VERSION = '0.1';

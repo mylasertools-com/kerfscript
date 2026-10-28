@@ -1,0 +1,9 @@
+// A coaster with a hole, an engraved ring and a scored border.
+size = 90; // [60:5:120]
+
+difference() {
+  circle(d = size);
+  circle(d = 6);
+}
+engrave() difference() { circle(d = size - 16); circle(d = size - 22); }
+score() circle(d = size - 6);

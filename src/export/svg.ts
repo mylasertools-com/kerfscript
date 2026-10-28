@@ -1,0 +1,56 @@
+// Copyright (c) 2026 MyLaserTools. SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-MyLaserTools-Commercial
+
+import type { LayerDef } from '../evaluator.js';
+import { area, type Poly } from '../geometry.js';
+import type { Placed } from '../render.js';
+
+export const n = (v: number) => {
+  const r = Math.round(v * 1000) / 1000;
+  return Object.is(r, -0) ? '0' : String(r);
+};
+
+const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+
+const d = (p: Poly, closed: boolean) =>
+  `M${p.map(([x, y]) => `${n(x)} ${n(y)}`).join('L')}${closed ? 'Z' : ''}`;
+
+export function toSvg(items: Placed[], width: number, height: number, layers: LayerDef[]): string {
+  const out: string[] = [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    `<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" width="${n(width)}mm" height="${n(height)}mm" viewBox="0 0 ${n(width)} ${n(height)}">`,
+  ];
+  for (const def of layers) {
+    const inner: string[] = [];
+    const outer: string[] = [];
+    for (const it of items) {
+      const l = it.layers.get(def.name);
+      if (!l) continue;
+      const tag = ` data-part="${esc(it.part)}"`;
+      if (def.mode === 'fill') {
+        if (l.regions.length)
+          outer.push(`<path${tag} d="${l.regions.map((p) => d(p, true)).join('')}"/>`);
+        for (const p of l.lines)
+          outer.push(
+            `<path${tag} fill="none" stroke="${def.color}" stroke-width="0.1" d="${d(p, false)}"/>`,
+          );
+        continue;
+      }
+      for (const p of l.lines) inner.push(`<path${tag} d="${d(p, false)}"/>`);
+      for (const p of l.regions)
+        (area(p) < 0 ? inner : outer).push(`<path${tag} d="${d(p, true)}"/>`);
+    }
+    if (!inner.length && !outer.length) continue;
+    const paint =
+      def.mode === 'fill'
+        ? `fill="${def.color}" fill-rule="evenodd" stroke="none"`
+        : `fill="none" stroke="${def.color}" stroke-width="0.1"${def.mode === 'guide' ? ' stroke-dasharray="1 1"' : ''}`;
+    out.push(
+      `<g id="${esc(def.name)}" inkscape:groupmode="layer" inkscape:label="${esc(def.name)}" data-mode="${def.mode}" ${paint}>`,
+      ...inner,
+      ...outer,
+      '</g>',
+    );
+  }
+  out.push('</svg>', '');
+  return out.join('\n');
+}

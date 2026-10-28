@@ -1,0 +1,14 @@
+// Name sign: plate sized to the text, with two hanging holes.
+name = "Atkinson"; // Name on the sign
+size = 22; // [10:1:60]
+margin = 8; // [4:1:30]
+
+w = text_width(name, size) + 2 * margin;
+h = size * 1.4 + 2 * margin;
+
+difference() {
+  rect([w, h], r = 6, center = true);
+  for (x = [-1, 1]) translate([x * (w / 2 - margin / 2 - 2), h / 2 - margin / 2 - 2]) circle(d = 4);
+}
+engrave() text(name, size, halign = "center", valign = "center");
+score() offset(delta = -2) rect([w, h], r = 6, center = true);

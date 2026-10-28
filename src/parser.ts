@@ -1,0 +1,401 @@
+// Copyright (c) 2026 MyLaserTools. SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-MyLaserTools-Commercial
+
+import type { Arg, Assign, Expr, ListItem, Param, Program, Stmt } from './ast.js';
+import { KerfError, tokenize, type Comment, type Token } from './lexer.js';
+
+const KEYWORDS = new Set([
+  'module',
+  'function',
+  'if',
+  'else',
+  'for',
+  'let',
+  'each',
+  'use',
+  'include',
+  'true',
+  'false',
+  'undef',
+]);
+
+export function parse(src: string): { program: Program; comments: Comment[] } {
+  const { tokens, comments } = tokenize(src);
+  const p = new Parser(tokens);
+  const body: Stmt[] = [];
+  while (!p.at('eof')) body.push(...p.statement());
+  return { program: { body }, comments };
+}
+
+class Parser {
+  private i = 0;
+  constructor(private tokens: Token[]) {}
+
+  peek(o = 0): Token {
+    return this.tokens[Math.min(this.i + o, this.tokens.length - 1)];
+  }
+  at(type: Token['type'], value?: string, o = 0): boolean {
+    const t = this.peek(o);
+    return t.type === type && (value === undefined || t.value === value);
+  }
+  isP(value: string, o = 0): boolean {
+    return this.at('punct', value, o);
+  }
+  isK(value: string, o = 0): boolean {
+    return this.at('id', value, o);
+  }
+  next(): Token {
+    return this.tokens[this.i++];
+  }
+  fail(msg: string, t = this.peek()): never {
+    const near = t.type === 'eof' ? 'end of file' : `"${t.value}"`;
+    throw new KerfError(`${msg}, found ${near}`, t.pos);
+  }
+  expectP(value: string): Token {
+    if (!this.isP(value)) this.fail(`Expected "${value}"`);
+    return this.next();
+  }
+  ident(): Token {
+    const t = this.peek();
+    if (t.type !== 'id' || KEYWORDS.has(t.value)) this.fail('Expected a name');
+    return this.next();
+  }
+
+  statement(): Stmt[] {
+    const t = this.peek();
+    if (this.isP(';')) {
+      this.next();
+      return [];
+    }
+    if (this.isP('{')) {
+      this.next();
+      const body: Stmt[] = [];
+      while (!this.isP('}')) {
+        if (this.at('eof')) this.fail('Expected "}"');
+        body.push(...this.statement());
+      }
+      this.next();
+      return [{ kind: 'block', body, pos: t.pos }];
+    }
+    if (this.isK('module')) {
+      this.next();
+      const name = this.ident().value;
+      const params = this.params();
+      return [{ kind: 'module', name, params, body: this.body(), pos: t.pos }];
+    }
+    if (this.isK('function') && this.at('id', undefined, 1)) {
+      this.next();
+      const name = this.ident().value;
+      const params = this.params();
+      this.expectP('=');
+      const body = this.expr();
+      this.expectP(';');
+      return [{ kind: 'function', name, params, body, pos: t.pos }];
+    }
+    if (this.isK('use') || this.isK('include')) {
+      this.next();
+      const path = this.peek();
+      if (path.type !== 'str') this.fail('Expected a library path like <kerf/box>');
+      this.next();
+      if (this.isP(';')) this.next();
+      return [{ kind: 'use', path: path.value, include: t.value === 'include', pos: t.pos }];
+    }
+    if (this.isK('for')) {
+      this.next();
+      const assigns = this.assigns();
+      return [{ kind: 'for', assigns, body: this.body(), pos: t.pos }];
+    }
+    if (this.isK('if')) {
+      this.next();
+      this.expectP('(');
+      const cond = this.expr();
+      this.expectP(')');
+      const then = this.body();
+      let otherwise: Stmt[] = [];
+      if (this.isK('else')) {
+        this.next();
+        otherwise = this.body();
+      }
+      return [{ kind: 'if', cond, then, else: otherwise, pos: t.pos }];
+    }
+    if (this.isK('let') && this.isP('(', 1)) {
+      this.next();
+      const assigns = this.assigns();
+      return [{ kind: 'let', assigns, body: this.body(), pos: t.pos }];
+    }
+    if (t.type === 'id' && this.isP('=', 1)) {
+      const name = this.ident().value;
+      this.next();
+      const value = this.expr();
+      this.expectP(';');
+      return [{ kind: 'assign', name, value, pos: t.pos }];
+    }
+    let modifier: string | null = null;
+    if (this.isP('*') || this.isP('!') || this.isP('#') || this.isP('%'))
+      modifier = this.next().value;
+    const nameTok = this.peek();
+    if (nameTok.type !== 'id' || KEYWORDS.has(nameTok.value)) this.fail('Expected a statement');
+    this.next();
+    const args = this.args();
+    const children = this.body();
+    return [{ kind: 'call', name: nameTok.value, args, children, modifier, pos: nameTok.pos }];
+  }
+
+  body(): Stmt[] {
+    if (this.isP(';')) {
+      this.next();
+      return [];
+    }
+    if (this.isP('{')) {
+      this.next();
+      const body: Stmt[] = [];
+      while (!this.isP('}')) {
+        if (this.at('eof')) this.fail('Expected "}"');
+        body.push(...this.statement());
+      }
+      this.next();
+      return body;
+    }
+    return this.statement();
+  }
+
+  params(): Param[] {
+    this.expectP('(');
+    const out: Param[] = [];
+    while (!this.isP(')')) {
+      const name = this.ident().value;
+      let def: Expr | null = null;
+      if (this.isP('=')) {
+        this.next();
+        def = this.expr();
+      }
+      out.push({ name, default: def });
+      if (!this.isP(')')) this.expectP(',');
+    }
+    this.next();
+    return out;
+  }
+
+  args(): Arg[] {
+    this.expectP('(');
+    const out: Arg[] = [];
+    while (!this.isP(')')) {
+      let name: string | null = null;
+      if (this.at('id') && this.isP('=', 1)) {
+        name = this.next().value;
+        this.next();
+      }
+      out.push({ name, value: this.expr() });
+      if (!this.isP(')')) this.expectP(',');
+    }
+    this.next();
+    return out;
+  }
+
+  assigns(): Assign[] {
+    this.expectP('(');
+    const out: Assign[] = [];
+    while (!this.isP(')')) {
+      const t = this.ident();
+      this.expectP('=');
+      out.push({ name: t.value, value: this.expr(), pos: t.pos });
+      if (!this.isP(')')) this.expectP(',');
+    }
+    this.next();
+    return out;
+  }
+
+  expr(): Expr {
+    const t = this.peek();
+    if (this.isK('function') && this.isP('(', 1)) {
+      this.next();
+      const params = this.params();
+      return { kind: 'lambda', params, body: this.expr(), pos: t.pos };
+    }
+    if (this.isK('let') && this.isP('(', 1)) {
+      this.next();
+      const assigns = this.assigns();
+      return { kind: 'let', assigns, body: this.expr(), pos: t.pos };
+    }
+    const cond = this.binary(0);
+    if (this.isP('?')) {
+      this.next();
+      const then = this.expr();
+      this.expectP(':');
+      const otherwise = this.expr();
+      return { kind: 'ternary', cond, then, else: otherwise, pos: t.pos };
+    }
+    return cond;
+  }
+
+  private static LEVELS = [
+    ['||'],
+    ['&&'],
+    ['==', '!='],
+    ['<', '<=', '>', '>='],
+    ['+', '-'],
+    ['*', '/', '%'],
+  ];
+
+  binary(level: number): Expr {
+    if (level >= Parser.LEVELS.length) return this.unary();
+    let left = this.binary(level + 1);
+    while (this.at('punct') && Parser.LEVELS[level].includes(this.peek().value)) {
+      const op = this.next();
+      const right = this.binary(level + 1);
+      left = { kind: 'binary', op: op.value, left, right, pos: op.pos };
+    }
+    return left;
+  }
+
+  unary(): Expr {
+    if (this.isP('-') || this.isP('!') || this.isP('+')) {
+      const op = this.next();
+      return { kind: 'unary', op: op.value, arg: this.unary(), pos: op.pos };
+    }
+    return this.power();
+  }
+
+  power(): Expr {
+    const base = this.postfix();
+    if (this.isP('^')) {
+      const op = this.next();
+      return { kind: 'binary', op: '^', left: base, right: this.unary(), pos: op.pos };
+    }
+    return base;
+  }
+
+  postfix(): Expr {
+    let e = this.primary();
+    for (;;) {
+      const t = this.peek();
+      if (this.isP('(')) {
+        e = { kind: 'call', callee: e, args: this.args(), pos: t.pos };
+      } else if (this.isP('[')) {
+        this.next();
+        const index = this.expr();
+        this.expectP(']');
+        e = { kind: 'index', target: e, index, pos: t.pos };
+      } else if (this.isP('.')) {
+        this.next();
+        e = { kind: 'member', target: e, name: this.ident().value, pos: t.pos };
+      } else return e;
+    }
+  }
+
+  primary(): Expr {
+    const t = this.peek();
+    if (t.type === 'num') {
+      this.next();
+      return { kind: 'num', value: Number(t.value), pos: t.pos };
+    }
+    if (t.type === 'str') {
+      this.next();
+      return { kind: 'str', value: t.value, pos: t.pos };
+    }
+    if (t.type === 'id') {
+      if (t.value === 'true' || t.value === 'false') {
+        this.next();
+        return { kind: 'bool', value: t.value === 'true', pos: t.pos };
+      }
+      if (t.value === 'undef') {
+        this.next();
+        return { kind: 'undef', pos: t.pos };
+      }
+      if (KEYWORDS.has(t.value)) this.fail('Expected a value');
+      this.next();
+      return { kind: 'var', name: t.value, pos: t.pos };
+    }
+    if (this.isP('(')) {
+      this.next();
+      const e = this.expr();
+      this.expectP(')');
+      return e;
+    }
+    if (this.isP('[')) return this.list();
+    this.fail('Expected a value');
+  }
+
+  list(): Expr {
+    const open = this.expectP('[');
+    if (this.isP(']')) {
+      this.next();
+      return { kind: 'list', items: [], pos: open.pos };
+    }
+    if (
+      !this.isK('for') &&
+      !this.isK('if') &&
+      !this.isK('each') &&
+      !(this.isK('let') && this.isP('(', 1))
+    ) {
+      const first = this.expr();
+      if (this.isP(':')) {
+        this.next();
+        let step: Expr | null = null;
+        let end = this.expr();
+        if (this.isP(':')) {
+          this.next();
+          step = end;
+          end = this.expr();
+        }
+        this.expectP(']');
+        return { kind: 'range', start: first, step, end, pos: open.pos };
+      }
+      const items: ListItem[] = [{ kind: 'item', expr: first }];
+      return this.listRest(items, open.pos);
+    }
+    return this.listRest([], open.pos);
+  }
+
+  listRest(items: ListItem[], pos: Token['pos']): Expr {
+    if (items.length) {
+      if (this.isP(']')) {
+        this.next();
+        return { kind: 'list', items, pos };
+      }
+      this.expectP(',');
+    }
+    while (!this.isP(']')) {
+      items.push(this.listItem());
+      if (!this.isP(']')) this.expectP(',');
+    }
+    this.next();
+    return { kind: 'list', items, pos };
+  }
+
+  listItem(): ListItem {
+    if (this.isK('for') && this.isP('(', 1)) {
+      this.next();
+      const assigns = this.assigns();
+      return { kind: 'for', assigns, body: this.listItem() };
+    }
+    if (this.isK('if') && this.isP('(', 1)) {
+      this.next();
+      this.expectP('(');
+      const cond = this.expr();
+      this.expectP(')');
+      const then = this.listItem();
+      let otherwise: ListItem | null = null;
+      if (this.isK('else')) {
+        this.next();
+        otherwise = this.listItem();
+      }
+      return { kind: 'if', cond, then, else: otherwise };
+    }
+    if (this.isK('let') && this.isP('(', 1)) {
+      this.next();
+      const assigns = this.assigns();
+      return { kind: 'let', assigns, body: this.listItem() };
+    }
+    if (this.isK('each')) {
+      this.next();
+      return { kind: 'each', expr: this.expr() };
+    }
+    if (this.isP('(') && (this.isK('for', 1) || this.isK('if', 1))) {
+      this.next();
+      const inner = this.listItem();
+      this.expectP(')');
+      return inner;
+    }
+    return { kind: 'item', expr: this.expr() };
+  }
+}

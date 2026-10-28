@@ -1,0 +1,7 @@
+// Card with a living hinge down the middle and a scored fold guide.
+width = 160; // [80:5:300]
+height = 100; // [50:5:200]
+hinge = 24; // [10:1:60]
+
+rect([width, height], r = 4);
+translate([(width - hinge) / 2, 0]) living_hinge([hinge, height], spacing = 1.5);
