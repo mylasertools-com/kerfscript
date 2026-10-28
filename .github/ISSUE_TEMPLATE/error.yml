@@ -1,0 +1,29 @@
+name: Error or crash
+description: A program stops with an error you did not expect, or the interpreter crashes.
+labels: [bug]
+body:
+  - type: textarea
+    id: source
+    attributes:
+      label: KerfScript code
+      render: kerf
+    validations:
+      required: true
+  - type: textarea
+    id: error
+    attributes:
+      label: The error
+      render: text
+    validations:
+      required: true
+  - type: input
+    id: where
+    attributes:
+      label: Where you ran it
+      placeholder: playground, kerf command on Windows, MyLaserTools Studio, ...
+  - type: input
+    id: version
+    attributes:
+      label: KerfScript version
+    validations:
+      required: true

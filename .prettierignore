@@ -3,3 +3,5 @@ out/
 LICENSE
 src/stdlib.ts
 site/dist
+site/.astro
+site/public/assets/kerfscript.js

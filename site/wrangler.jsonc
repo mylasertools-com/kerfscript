@@ -1,0 +1,17 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "kerfscript-site",
+  "compatibility_date": "2026-10-01",
+  // Static-assets-only Worker: the built Astro site, no server code.
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "404-page",
+  },
+  "routes": [{ "pattern": "kerfscript.mylasertools.com", "custom_domain": true }],
+  "observability": {
+    "logs": {
+      "enabled": true,
+      "head_sampling_rate": 0.1,
+    },
+  },
+}

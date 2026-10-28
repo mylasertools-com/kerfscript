@@ -1,0 +1,34 @@
+---
+import Base from '../../layouts/Base.astro';
+import { GUIDES, markdown } from '../../lib/site.mjs';
+
+const guides = GUIDES.map(([slug, label]) => ({ slug, label, lead: markdown(`docs/${slug}.md`).lead }));
+---
+
+<Base
+  title="KerfScript documentation"
+  description="Learn KerfScript: getting started, layers, kerf, parts and sheets, settings, the command line, the JavaScript API, OpenSCAD differences and the language reference."
+>
+  <div class="page-head">
+    <h1>Documentation</h1>
+    <p class="lede">
+      Start with the first guide if KerfScript is new to you. The <a href="/docs/reference/"
+        >language reference</a
+      > lists every statement, module and function.
+    </p>
+  </div>
+  <ol class="guide-list">
+    {
+      guides.map((g) => (
+        <li>
+          <a href={`/docs/${g.slug}/`}>{g.label}</a>
+          <p>{g.lead}</p>
+        </li>
+      ))
+    }
+    <li>
+      <a href="/docs/reference/">Language reference</a>
+      <p>Values, expressions, statements, layers, parts and sheets, built-in modules and functions.</p>
+    </li>
+  </ol>
+</Base>

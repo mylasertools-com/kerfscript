@@ -1,0 +1,20 @@
+name: Language idea
+description: New syntax, a built-in module or function, or a change to how programs behave.
+labels: [language]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What you are trying to make
+      description: The design or task, and what is hard about it today.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you would like to write
+      render: kerf
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: How you do it now

@@ -1,0 +1,23 @@
+{
+  "name": "kerfscript-site",
+  "type": "module",
+  "private": true,
+  "description": "kerfscript.mylasertools.com",
+  "scripts": {
+    "prepare-assets": "node scripts/prepare.mjs",
+    "dev": "npm run prepare-assets && astro dev",
+    "build": "npm run prepare-assets && astro build",
+    "preview": "astro preview",
+    "test": "node scripts/compat.mjs",
+    "deploy": "npm run build && wrangler deploy"
+  },
+  "dependencies": {
+    "@astrojs/sitemap": "3.7.3",
+    "astro": "5.18.2",
+    "marked": "15.0.12"
+  },
+  "devDependencies": {
+    "@resvg/resvg-js": "2.6.2",
+    "wrangler": "4.110.0"
+  }
+}

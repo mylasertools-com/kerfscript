@@ -1,0 +1,64 @@
+---
+import Base from '../layouts/Base.astro';
+import { LANGUAGE_VERSION, REPO_URL, SOURCE_PUBLIC, VERSION } from '../lib/site.mjs';
+---
+
+<Base
+  title="About KerfScript"
+  description="Who makes KerfScript, what it is for, how mature it is, where the source lives and how to report a problem."
+>
+  <article class="prose narrow">
+    <h1>About KerfScript</h1>
+    <p>
+      KerfScript is a small programming language for laser cutting. You describe flat parts in code, and it
+      writes an SVG or DXF file with cut, score and engrave layers, compensated for the width of the beam
+      and laid out on your sheet. Its syntax follows OpenSCAD, so people who already write parametric
+      models can read it straight away.
+    </p>
+
+    <h2>Who makes it</h2>
+    <p>
+      KerfScript is designed and maintained by <a href="https://mylasertools.com">MyLaserTools</a>, a
+      website of design tools for laser cutting and 3D printing. It started in 2026 because the generators
+      on MyLaserTools needed a language that understood layers, kerf and joinery instead of solids. The same
+      interpreter runs the generators on MyLaserTools, this site's playground, and the <code>kerf</code> command.
+    </p>
+
+    <h2>How mature it is</h2>
+    <p>
+      This is KerfScript {VERSION}, language version {LANGUAGE_VERSION}. It is young. The language may still
+      change before 1.0, and the <a href="/docs/versions/">versions page</a> explains what we promise to keep
+      working in the meantime. The <a href="/docs/compatibility/">laser software page</a> lists what has
+      been checked in which programs and what has not been tested yet.
+    </p>
+
+    <h2>Source and licence</h2>
+    <p>
+      The interpreter is free software under the GNU AGPL 3.0, with an extra permission that makes your
+      designs and the files they produce yours. Commercial licences are available for closed products.
+      <a href="/licence/">Licence details</a>.
+    </p>
+    {
+      SOURCE_PUBLIC ? (
+        <p>
+          The source, issue tracker and releases are on <a href={REPO_URL}>GitHub</a>. Install it with
+          <code>npm install @mylasertools/kerfscript</code>.
+        </p>
+      ) : (
+        <p>
+          The source repository and the npm package open with the first public release. Until then the
+          playground on this site runs the current version.
+        </p>
+      )
+    }
+
+    <h2>Reporting a problem</h2>
+    <p>
+      If a file does not cut the way the code says, we want to know. Send the <code>.kerf</code> file, the
+      program you opened the output in, and what went wrong to <a href="mailto:julia@mylasertools.com"
+        >julia@mylasertools.com</a
+      >{SOURCE_PUBLIC && <>, or open an issue on <a href={`${REPO_URL}/issues`}>GitHub</a></>}. Security
+      problems go to the same address; please do not post them in public.
+    </p>
+  </article>
+</Base>

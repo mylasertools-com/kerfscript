@@ -1,0 +1,104 @@
+---
+import Base from '../../../layouts/Base.astro';
+import { VERSION, code, fmt, models } from '../../../lib/site.mjs';
+
+export function getStaticPaths() {
+  return models.map((model) => ({ params: { slug: model.slug }, props: { model } }));
+}
+
+const { model: m } = Astro.props;
+const laser = m.laser.replace(/^<\?xml[^>]*>\s*/, '').replace(/ width="[^"]+mm" height="[^"]+mm"/, '');
+
+function rangeText(p) {
+  if (p.options) return p.options.map((o) => o.name).join(', ');
+  if (p.min !== undefined && p.max !== undefined) return `${p.min} to ${p.max}`;
+  if (p.type === 'boolean') return 'on or off';
+  return '';
+}
+---
+
+<Base
+  title={`${m.title}, made with KerfScript`}
+  description={`${m.summary} A parametric laser cutting model written in KerfScript, with source, settings and cut files.`}
+  scripts={['/assets/views.js']}
+  type="article"
+>
+  <p class="crumbs"><a href="/models/">Models</a> / {m.title}</p>
+  <div class="model-head">
+    <h1>{m.title}</h1>
+    <p class="lede">{m.summary}</p>
+  </div>
+  <div class="model-layout">
+    <section class="model-figure" data-views>
+      <div class="view-switch" role="tablist" aria-label="View">
+        <button role="tab" aria-selected="true" data-view="material">Material</button>
+        <button role="tab" aria-selected="false" data-view="laser">Laser file</button>
+      </div>
+      <figure class="sheet" data-panel="material" set:html={m.display} />
+      <figure class="sheet laser" data-panel="laser" hidden set:html={laser} />
+      <p class="figure-note">
+        Rendered by KerfScript {VERSION} from the source below. {fmt(m.width)} × {fmt(m.height)} mm.
+      </p>
+    </section>
+    <aside class="model-facts">
+      <div class="actions">
+        <a class="button primary" href={`/playground/?model=${m.slug}`}>Open in playground</a>
+        <a class="button" href={`/models/${m.slug}/${m.slug}.kerf`} download>{m.slug}.kerf</a>
+        <a class="button" href={`/models/${m.slug}/${m.slug}.svg`} download>SVG</a>
+        {m.dxf && <a class="button" href={`/models/${m.slug}/${m.slug}.dxf`} download>DXF</a>}
+      </div>
+      <h2>Parts</h2>
+      <table class="parts">
+        <thead><tr><th>Part</th><th>Qty</th><th>Size</th></tr></thead>
+        <tbody>
+          {
+            m.parts.map((p) => (
+              <tr>
+                <td>{p.name}</td>
+                <td>{p.qty}</td>
+                <td>
+                  {fmt(p.width)} × {fmt(p.height)} mm
+                </td>
+              </tr>
+            ))
+          }
+        </tbody>
+      </table>
+      {
+        m.params.length > 0 && (
+          <>
+            <h2>Settings</h2>
+            <table class="params">
+              <thead>
+                <tr><th>Setting</th><th>Default</th><th>Range</th></tr>
+              </thead>
+              <tbody>
+                {m.params.map((p) => (
+                  <tr>
+                    <td>
+                      <code>{p.name}</code>
+                      {p.caption && <span>{p.caption}</span>}
+                    </td>
+                    <td>
+                      <code>{JSON.stringify(p.initial)}</code>
+                    </td>
+                    <td>{rangeText(p)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )
+      }
+      <p class="facts-note">
+        Check cut order, power, speed and material settings in your laser software before cutting. <a
+          href="/docs/compatibility/">Laser software notes</a
+        >
+      </p>
+    </aside>
+  </div>
+  <section class="source">
+    <h2>Source <span class="meta">{m.lines} lines</span></h2>
+    <Fragment set:html={code(m.source, { numbers: true })} />
+  </section>
+</Base>

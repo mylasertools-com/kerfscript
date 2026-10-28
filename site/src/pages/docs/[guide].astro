@@ -1,0 +1,49 @@
+---
+import Base from '../../layouts/Base.astro';
+import { GUIDES, markdown } from '../../lib/site.mjs';
+
+export function getStaticPaths() {
+  return [
+    ...GUIDES.map(([slug], i) => ({
+      params: { guide: slug },
+      props: { file: `docs/${slug}.md`, prev: GUIDES[i - 1], next: GUIDES[i + 1] ?? ['reference', 'Language reference'] },
+    })),
+    { params: { guide: 'reference' }, props: { file: 'LANGUAGE.md', prev: GUIDES[GUIDES.length - 1], next: undefined } },
+  ];
+}
+
+const { file, prev, next } = Astro.props;
+const doc = markdown(file);
+const reference = file === 'LANGUAGE.md';
+const title = reference ? 'KerfScript language reference' : `${doc.title}, KerfScript`;
+const description = reference
+  ? 'The KerfScript language reference: values, expressions, modules, layers, parts and sheets, built-in modules and functions, customizer comments and output.'
+  : doc.lead.slice(0, 200);
+const toc = doc.toc.filter((t) => reference || t.level === 2);
+---
+
+<Base title={title} description={description} type="article">
+  <div class="docs">
+    <nav class="toc" aria-label="Contents">
+      <p><a href="/docs/">Docs</a></p>
+      {
+        toc.length > 0 && (
+          <ol>
+            {toc.map((t) => (
+              <li class={`l${t.level}`}>
+                <a href={`#${t.id}`}>{t.text}</a>
+              </li>
+            ))}
+          </ol>
+        )
+      }
+    </nav>
+    <article class="prose">
+      <Fragment set:html={doc.html} />
+      <nav class="pager" aria-label="More guides">
+        {prev ? <a href={`/docs/${prev[0]}/`}>← {prev[1]}</a> : <span />}
+        {next && <a href={`/docs/${next[0]}/`}>{next[1]} →</a>}
+      </nav>
+    </article>
+  </div>
+</Base>

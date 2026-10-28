@@ -1,0 +1,52 @@
+---
+import Base from '../layouts/Base.astro';
+import { models } from '../lib/site.mjs';
+---
+
+<Base
+  title="KerfScript playground"
+  description="Write KerfScript in your browser and see the cut file as you type. Change settings, then download SVG or DXF."
+  wide
+  scripts={['/assets/playground.js']}
+>
+  <div class="playground" data-playground>
+    <div class="pg-bar">
+      <label class="pg-select"
+        >Start from <select data-examples>
+          {models.map((m) => <option value={m.slug}>{m.title}</option>)}
+        </select></label
+      >
+      <span class="pg-status" data-status aria-live="polite"></span>
+      <span class="pg-actions">
+        <button class="button" data-download="kerf">.kerf</button>
+        <button class="button" data-download="svg" disabled>SVG</button>
+        <button class="button" data-download="dxf" disabled>DXF</button>
+        <button class="button" data-share>Copy link</button>
+      </span>
+    </div>
+    <div class="pg-main">
+      <div class="pg-editor">
+        <div class="editor" data-editor>
+          <pre class="code editor-view" aria-hidden="true"><code data-view></code></pre>
+          <textarea
+            data-input
+            spellcheck="false"
+            autocapitalize="off"
+            autocomplete="off"
+            aria-label="KerfScript code"></textarea>
+        </div>
+        <div class="pg-console" data-console aria-live="polite"></div>
+      </div>
+      <div class="pg-side">
+        <div class="view-switch" role="tablist" aria-label="View">
+          <button role="tab" aria-selected="true" data-view="material">Material</button>
+          <button role="tab" aria-selected="false" data-view="laser">Laser file</button>
+        </div>
+        <figure class="sheet" data-figure></figure>
+        <p class="figure-note" data-size></p>
+        <div class="pg-settings" data-settings></div>
+        <div class="pg-parts" data-parts></div>
+      </div>
+    </div>
+  </div>
+</Base>

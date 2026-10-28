@@ -1,0 +1,163 @@
+---
+import Base from '../layouts/Base.astro';
+import ModelCard from '../components/ModelCard.astro';
+import { LANGUAGE_VERSION, SOURCE_PUBLIC, code, highlight, models } from '../lib/site.mjs';
+
+const hero = models.find((m) => m.slug === 'clock-face');
+const featured = ['gears', 'box', 'jigsaw', 'snowflake', 'phone-stand', 'sunflower-panel'].map(
+  (s) => models.find((m) => m.slug === s),
+);
+
+const FEATURES = [
+  [
+    'Layers',
+    'engrave() text("Oak", 12);',
+    'Anything inside <code>engrave()</code>, <code>score()</code> or <code>cut()</code> lands on that machine layer. Engraving is clipped to the material, so nothing gets marked over a hole.',
+    '/docs/layers/',
+  ],
+  [
+    'Kerf',
+    '$kerf = 0.15;',
+    'Cuts are offset by half the beam width when the file is written. Parts come out the size you typed, and holes stay the size of the bolt.',
+    '/docs/kerf/',
+  ],
+  [
+    'Parts and sheets',
+    'part("lid", qty = 2) lid();',
+    'Name the pieces and say how many. KerfScript packs them onto sheets by material and thickness, and turns a part 90° when that makes it fit.',
+    '/docs/parts-and-sheets/',
+  ],
+  [
+    'Joinery',
+    'finger_rect([120, 50], "out");',
+    'Finger joints, slots, T-slots and living hinges read <code>$thickness</code>. A box drawn for 3 mm plywood still closes when you switch to 6 mm.',
+    '/docs/reference/#joinery',
+  ],
+  [
+    'Settings',
+    'width = 120; // [40:5:400]',
+    "A comment after a variable turns it into a slider or a menu. It is OpenSCAD's customizer format, so tools that read those settings read these.",
+    '/docs/customizer/',
+  ],
+  [
+    'Output',
+    'kerf render box.kerf -o box.svg',
+    'SVG in millimetres with one layer per operation, and DXF R12 for CAD. Holes and inner cuts come before outer outlines.',
+    '/docs/compatibility/',
+  ],
+];
+---
+
+<Base
+  title="KerfScript, a programming language for laser cutting"
+  description="KerfScript describes laser cut parts as code: cut, score and engrave layers, kerf compensation, finger joints and sheet layout are part of the language."
+  scripts={['/assets/home.js']}
+>
+  <section class="hero">
+    <div class="hero-text">
+      <p class="eyebrow">Language version {LANGUAGE_VERSION}</p>
+      <h1>A programming language for laser cutting.</h1>
+      <p class="lede">
+        Describe a part in a few lines of code. KerfScript puts it on cut, score and engrave layers,
+        offsets it for the width of the beam, and lays the pieces out on your sheet. Change a number and
+        you have a new cut file.
+      </p>
+      <p class="hero-actions">
+        <a class="button primary" href="/playground/">Open the playground</a>
+        <a class="button" href="/docs/getting-started/">Get started</a>
+      </p>
+      <p class="hero-note">If you have written OpenSCAD, you can already read it.</p>
+    </div>
+    <div class="hero-demo" data-demo data-model={hero.slug}>
+      <div class="demo-tab"><span>{hero.slug}.kerf</span><span class="demo-time" data-time></span></div>
+      <div class="demo-code" set:html={code(hero.source)} />
+      <div class="demo-controls" data-controls></div>
+      <figure class="demo-figure" data-figure set:html={hero.display} />
+    </div>
+  </section>
+
+  <section class="features">
+    <h2>What the language knows about lasers</h2>
+    <dl>
+      {
+        FEATURES.map(([t, snippet, text, href]) => (
+          <div>
+            <dt>
+              <a href={href}>{t}</a>
+            </dt>
+            <dd>
+              <pre class="code inline"><code set:html={highlight(snippet)} /></pre>
+              <p set:html={text} />
+            </dd>
+          </div>
+        ))
+      }
+    </dl>
+  </section>
+
+  <section class="showcase">
+    <div class="section-head">
+      <h2>Made with KerfScript</h2>
+      <a href="/models/">All {models.length} models</a>
+    </div>
+    <div class="model-grid">{featured.map((m) => <ModelCard model={m} />)}</div>
+  </section>
+
+  <section class="compare">
+    <div>
+      <h2>OpenSCAD syntax, laser output</h2>
+      <p>
+        Modules, functions, <code>for</code> loops, list comprehensions, <code>children()</code> and
+        <code>$</code> variables work the way OpenSCAD users expect. The difference is what comes out:
+        OpenSCAD makes a solid, KerfScript makes a cut file with the right layers in the right order.
+      </p>
+      <p>
+        There is no 3D in KerfScript, and OpenSCAD files do not run unchanged. Everything it has is for
+        flat parts, which keeps programs short. <a href="/docs/openscad/">What is the same and what is not</a>
+      </p>
+    </div>
+    <Fragment
+      set:html={code(`use <kerf/box>\n\n$thickness = 3;\n$kerf = 0.15;\n\nbox([120, 80, 50], lid = true);`)}
+    />
+  </section>
+
+  <section class="where">
+    <h2>Where it runs</h2>
+    <div class="where-grid">
+      <div>
+        <h3>In the browser</h3>
+        <p>
+          The <a href="/playground/">playground</a> runs the real interpreter in your browser. Your code is
+          not uploaded anywhere.
+        </p>
+      </div>
+      <div>
+        <h3>On MyLaserTools</h3>
+        <p>
+          Write a generator in the MyLaserTools Studio, publish it, and anyone can change its settings and
+          download the cut file.
+        </p>
+      </div>
+      <div>
+        <h3>On your computer</h3>
+        <p>
+          The <code>kerf</code> command renders files to SVG or DXF. Settings can be changed with
+          <code>-D width=200</code>.
+          {!SOURCE_PUBLIC && 'It ships on npm with the first public release.'}
+        </p>
+        <pre class="code plain"><code>kerf render box.kerf -o box.svg</code></pre>
+      </div>
+    </div>
+  </section>
+
+  <section class="licence-note">
+    <h2>Free software, with your designs kept yours</h2>
+    <p>
+      The interpreter is licensed under the GNU AGPL 3.0. The programs you write and the files they produce
+      belong to you, under any licence you choose, including selling them. Companies that want KerfScript
+      inside a closed product can get a commercial licence from MyLaserTools. <a href="/licence/"
+        >How the licence works</a
+      >
+    </p>
+  </section>
+</Base>

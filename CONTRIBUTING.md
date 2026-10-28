@@ -13,6 +13,29 @@ Thanks for helping make KerfScript better.
   language stays one consistent standard. Bug fixes, docs, examples and
   standard library modules can go straight to a pull request.
 
+## The CLA in plain words
+
+This is a summary, not a replacement for [CLA.md](CLA.md).
+
+- You keep the copyright in what you contribute.
+- You give MyLaserTools a permanent licence to use your contribution in any
+  way, **including under licences other than the AGPL**: commercial licences
+  we sell, and other open source licences. That is how KerfScript can be both
+  free software and a product companies pay for.
+- You confirm the work is yours to give, and give a patent licence for it.
+- We are not required to use your contribution.
+
+If you are not comfortable with MyLaserTools relicensing your work, please
+open an issue instead of a pull request; reports and ideas need no CLA.
+
+## What to expect
+
+- We read every issue and pull request and aim to answer within a week.
+- Bugs where the output would cut something other than what the code says
+  come first.
+- Good first issues are labelled `good first issue`.
+- Security problems: see [SECURITY.md](SECURITY.md), not the issue tracker.
+
 ## Setup
 
 ```sh

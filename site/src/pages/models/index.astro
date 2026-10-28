@@ -1,0 +1,20 @@
+---
+import Base from '../../layouts/Base.astro';
+import ModelCard from '../../components/ModelCard.astro';
+import { models } from '../../lib/site.mjs';
+---
+
+<Base
+  title="Models made with KerfScript"
+  description="Laser cutting models written in KerfScript: boxes, gears, puzzles, signs and more. Every picture is rendered from the source."
+>
+  <div class="page-head">
+    <h1>Models</h1>
+    <p class="lede">
+      Each of these is a short KerfScript program. The pictures are rendered from the source when the site
+      is built, so what you see is what the file cuts. Open one to read the code, change its settings in
+      the playground, or download the cut file.
+    </p>
+  </div>
+  <div class="model-grid">{models.map((m) => <ModelCard model={m} />)}</div>
+</Base>

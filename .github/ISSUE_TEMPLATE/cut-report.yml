@@ -1,0 +1,38 @@
+name: Cut report
+description: You cut a KerfScript design. Tell us how it went, good or bad.
+labels: [cut report]
+body:
+  - type: input
+    id: model
+    attributes:
+      label: Design
+      description: A model from the site, or attach your .kerf file below.
+    validations:
+      required: true
+  - type: input
+    id: machine
+    attributes:
+      label: Machine and software
+      placeholder: xTool S1 20 W, xTool Creative Space 2.x
+    validations:
+      required: true
+  - type: input
+    id: material
+    attributes:
+      label: Material, measured thickness, and $kerf used
+      placeholder: birch plywood, 3.1 mm, $kerf = 0.15
+    validations:
+      required: true
+  - type: textarea
+    id: result
+    attributes:
+      label: What you measured and how it fit
+      description: Measured sizes, joint fit, anything that went wrong. Photos are welcome.
+    validations:
+      required: true
+  - type: checkboxes
+    id: publish
+    attributes:
+      label: Sharing
+      options:
+        - label: MyLaserTools may quote this report and show my photos on kerfscript.mylasertools.com

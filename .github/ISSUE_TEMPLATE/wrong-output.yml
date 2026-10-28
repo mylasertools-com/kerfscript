@@ -1,0 +1,31 @@
+name: The output is wrong
+description: A file that renders, but would not cut what the code says.
+labels: [output]
+body:
+  - type: textarea
+    id: source
+    attributes:
+      label: KerfScript code
+      description: The smallest program that shows the problem.
+      render: kerf
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected, and what you got
+      description: Sizes, missing or extra lines, wrong layer, and so on. Screenshots help.
+    validations:
+      required: true
+  - type: input
+    id: software
+    attributes:
+      label: Laser or CAD software and version
+      placeholder: LightBurn 1.7.03, Inkscape 1.4.2, ...
+  - type: input
+    id: version
+    attributes:
+      label: KerfScript version
+      description: '`kerf --version`, or the version in the site footer.'
+    validations:
+      required: true

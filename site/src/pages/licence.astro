@@ -1,0 +1,18 @@
+---
+import Base from '../layouts/Base.astro';
+import { markdown } from '../lib/site.mjs';
+
+const licence = markdown('COMMERCIAL-LICENSE.md').html;
+const trademarks = markdown('TRADEMARKS.md').html;
+---
+
+<Base
+  title="KerfScript licence"
+  description="KerfScript is free software under the GNU AGPL 3.0 with an extra permission that keeps your designs yours. Commercial licences are available."
+>
+  <article class="prose narrow">
+    <Fragment set:html={licence} />
+    <hr />
+    <Fragment set:html={trademarks} />
+  </article>
+</Base>
