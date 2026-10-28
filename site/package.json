@@ -9,7 +9,8 @@
     "build": "npm run prepare-assets && astro build",
     "preview": "astro preview",
     "test": "node scripts/compat.mjs",
-    "deploy": "npm run build && wrangler deploy"
+    "deploy": "npm run build && wrangler deploy",
+    "indexnow": "node scripts/indexnow.mjs"
   },
   "dependencies": {
     "@astrojs/sitemap": "3.7.3",
