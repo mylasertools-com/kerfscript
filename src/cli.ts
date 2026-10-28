@@ -2,7 +2,7 @@
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, dirname, extname, join, resolve } from 'node:path';
-import { parameters, render, KerfError, VERSION, type Value } from './index.js';
+import { parameters, render, KerfError, LANGUAGE_VERSION, VERSION, type Value } from './index.js';
 import { parse } from './parser.js';
 import { Evaluator } from './evaluator.js';
 
@@ -47,7 +47,7 @@ function main(argv: string[]) {
     return;
   }
   if (argv.includes('-v') || argv.includes('--version')) {
-    process.stdout.write(VERSION + '\n');
+    process.stdout.write(`${VERSION} (language ${LANGUAGE_VERSION})\n`);
     return;
   }
   const cmd = argv[0];
@@ -128,6 +128,11 @@ function main(argv: string[]) {
         `${p.name}${p.qty > 1 ? ` x${p.qty}` : ''}: ${p.width} x ${p.height} mm, ${p.thickness} mm ${p.material}, cut ${p.cutLength} mm\n`,
       );
     process.stdout.write(`${result.sheets.length} sheet${result.sheets.length === 1 ? '' : 's'}\n`);
+    result.sheets.forEach((s, i) =>
+      process.stdout.write(
+        `  sheet ${i + 1}: ${s.width} x ${s.height} mm, ${s.thickness} mm ${s.material}, ${s.items.length} piece${s.items.length === 1 ? '' : 's'}\n`,
+      ),
+    );
     return;
   }
   const target = out || file.replace(/\.kerf$/i, '') + '.svg';
@@ -162,7 +167,13 @@ function main(argv: string[]) {
         'WARNING: DXF holds the first sheet only; use --split for all sheets.\n',
       );
     writeFileSync(target, result.sheets[0]?.dxf ?? '');
-  } else writeFileSync(target, result.svg);
+  } else {
+    if (result.sheets.length > 1)
+      process.stderr.write(
+        `WARNING: ${result.sheets.length} sheets are stacked in one file for preview; use --split to write one file per sheet to cut.\n`,
+      );
+    writeFileSync(target, result.svg);
+  }
   process.stderr.write(`Wrote ${target}\n`);
 }
 

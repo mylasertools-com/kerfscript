@@ -4,6 +4,7 @@ import { Evaluator, type LayerDef } from './evaluator.js';
 import { toDxf } from './export/dxf.js';
 import { layerPaths, toSvg, type LayerPath } from './export/svg.js';
 import {
+  area,
   clipLines,
   intersection,
   layerBounds,
@@ -174,8 +175,15 @@ export function render(source: string, options: RenderOptions = {}): RenderResul
     };
     if (kerf > 0)
       for (const [k, l] of layers)
-        if (mode(k) === 'cut')
+        if (mode(k) === 'cut') {
+          const holes = l.regions.filter((r) => area(r) < 0).length;
           l.regions = offset(l.regions, kerf / 2, 'round', Math.min(0.01, kerf / 20));
+          const closed = holes - l.regions.filter((r) => area(r) < 0).length;
+          if (closed > 0)
+            warnings.push(
+              `Part "${p.name}": ${closed} hole${closed === 1 ? ' is' : 's are'} narrower than the ${kerf} mm kerf and will not be cut.`,
+            );
+        }
     infos.push(info);
     ready.push({ info, layers });
   }

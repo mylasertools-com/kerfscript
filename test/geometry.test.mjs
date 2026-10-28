@@ -304,3 +304,10 @@ test('dxf export has layers and closed polylines', () => {
   assert.equal((dxf.match(/\nPOLYLINE\n/g) ?? []).length, 2);
   assert.match(dxf, /\nEOF\n$/);
 });
+
+test('a hole narrower than the kerf is reported', () => {
+  const src = (d) =>
+    `$kerf = 0.3; difference() { rect(20); translate([10, 10]) circle(d = ${d}); }`;
+  assert.match(render(src(0.2)).warnings.join('\n'), /1 hole is narrower than the 0.3 mm kerf/);
+  assert.deepEqual(render(src(2)).warnings, []);
+});

@@ -67,3 +67,18 @@ test('uses libraries next to the file', () => {
   assert.equal(r.status, 0, r.stderr);
   assert.match(r.stdout, /30 x 10 mm/);
 });
+
+test('check lists each sheet, and a stacked SVG suggests --split', () => {
+  const two = join(dir, 'two.kerf');
+  writeFileSync(
+    two,
+    'material(thickness = 3, name = "ply") part("a") rect(50);\nmaterial(thickness = 2, name = "acrylic") part("b", qty = 2) rect(30);\n',
+  );
+  const check = run('check', two);
+  assert.equal(check.status, 0, check.stderr);
+  assert.match(check.stdout, /sheet 1: [\d.]+ x [\d.]+ mm, 3 mm ply, 1 piece/);
+  assert.match(check.stdout, /sheet 2: [\d.]+ x [\d.]+ mm, 2 mm acrylic, 2 pieces/);
+  const svg = run('render', two);
+  assert.match(svg.stderr, /2 sheets are stacked .* --split/);
+  assert.doesNotMatch(run('render', input).stderr, /stacked/);
+});
