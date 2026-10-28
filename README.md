@@ -82,7 +82,7 @@ result.parts; // [{ name, qty, width, height, pieces, cutLength, thickness, kerf
 result.warnings; // e.g. a part that falls apart, or one bigger than the sheet
 result.echoes; // echo() output
 
-parameters(source).parameters; // [{ name, caption, group, type, initial, min, max, step, options }]
+parameters(source).parameters; // [{ name, caption, group, type, initial, min, max, step, options, span }]
 ```
 
 Errors are thrown as `KerfError` with `line` and `col`.

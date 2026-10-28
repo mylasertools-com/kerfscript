@@ -130,6 +130,26 @@ secret = 1;
   );
 });
 
+test('parameter spans point at the top-level value only', () => {
+  const src = `module tag() {
+  size = 5;
+  rect(size);
+}
+size = 30; // [10:100]
+label = "a; b"; // Text
+offset = [-2, 4];
+tag();
+`;
+  const ps = parameters(src).parameters;
+  const at = (name) => src.slice(...ps.find((p) => p.name === name).span);
+  assert.equal(at('size'), '30');
+  assert.equal(at('label'), '"a; b"');
+  assert.equal(at('offset'), '[-2, 4]');
+  const [start, end] = ps.find((p) => p.name === 'size').span;
+  const next = src.slice(0, start) + '45' + src.slice(end);
+  assert.ok(next.includes('  size = 5;') && next.includes('size = 45; // [10:100]'));
+});
+
 test('use <kerf/box> loads the standard library', () => {
   const r = render('use <kerf/box>\nbox([100, 60, 40], lid = true);');
   assert.deepEqual(r.parts.map((p) => p.name).sort(), [

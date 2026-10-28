@@ -269,6 +269,20 @@ test('layer paths describe every layer for host apps', () => {
   assert.equal(two.paths[0].d.match(/M/g).length, 2);
 });
 
+test('layer paths keep filled regions apart from open lines', () => {
+  const r = render(
+    'engrave() { difference() { rect(20); translate([10, 10]) circle(4); } line([0, 25], [20, 25]); }',
+    { margin: 0 },
+  );
+  const engrave = r.paths.find((p) => p.name === 'engrave');
+  assert.equal(engrave.lines.match(/M/g).length, 1);
+  assert.ok(!engrave.lines.includes('Z'));
+  assert.equal(engrave.regions.match(/M/g).length, 2);
+  assert.equal(engrave.regions.match(/Z/g).length, 2);
+  assert.equal(engrave.d, engrave.lines + engrave.regions);
+  assert.match(r.svg, /<g id="engrave"[^>]* fill="#000000" fill-rule="evenodd" stroke="none">/);
+});
+
 test('margin sets the sheet border apart from the gap between parts', () => {
   const one = render('rect([70, 30]);', { margin: 0 });
   assert.deepEqual([one.width, one.height], [70, 30]);

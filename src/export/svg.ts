@@ -19,25 +19,30 @@ export interface LayerPath {
   mode: LayerDef['mode'];
   color: string;
   d: string;
+  regions: string;
+  lines: string;
 }
 
 export function layerPaths(items: Placed[], layers: LayerDef[]): LayerPath[] {
   const out: LayerPath[] = [];
   for (const def of layers) {
-    const inner: string[] = [];
-    const outer: string[] = [];
+    const lines: string[] = [];
+    const holes: string[] = [];
+    const shapes: string[] = [];
     for (const it of items) {
       const l = it.layers.get(def.name);
       if (!l) continue;
-      for (const p of l.lines) inner.push(d(p, false));
-      for (const p of l.regions) (area(p) < 0 ? inner : outer).push(d(p, true));
+      for (const p of l.lines) lines.push(d(p, false));
+      for (const p of l.regions) (area(p) < 0 ? holes : shapes).push(d(p, true));
     }
-    if (inner.length || outer.length)
+    if (lines.length || holes.length || shapes.length)
       out.push({
         name: def.name,
         mode: def.mode,
         color: def.color,
-        d: [...inner, ...outer].join(''),
+        d: [...lines, ...holes, ...shapes].join(''),
+        regions: [...holes, ...shapes].join(''),
+        lines: lines.join(''),
       });
   }
   return out;

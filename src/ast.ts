@@ -43,7 +43,7 @@ export interface Assign {
 }
 
 export type Stmt =
-  | { kind: 'assign'; name: string; value: Expr; pos: Pos }
+  | { kind: 'assign'; name: string; value: Expr; span: [number, number]; pos: Pos }
   | { kind: 'module'; name: string; params: Param[]; body: Stmt[]; pos: Pos }
   | { kind: 'function'; name: string; params: Param[]; body: Expr; pos: Pos }
   | { kind: 'call'; name: string; args: Arg[]; children: Stmt[]; modifier: string | null; pos: Pos }

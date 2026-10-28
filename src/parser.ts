@@ -125,9 +125,10 @@ class Parser {
     if (t.type === 'id' && this.isP('=', 1)) {
       const name = this.ident().value;
       this.next();
+      const start = this.peek().pos.offset;
       const value = this.expr();
-      this.expectP(';');
-      return [{ kind: 'assign', name, value, pos: t.pos }];
+      const end = this.expectP(';').pos.offset;
+      return [{ kind: 'assign', name, value, span: [start, end], pos: t.pos }];
     }
     let modifier: string | null = null;
     if (this.isP('*') || this.isP('!') || this.isP('#') || this.isP('%'))

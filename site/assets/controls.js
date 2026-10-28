@@ -2,6 +2,8 @@
 
 // Builds form controls from KerfScript customizer parameters.
 
+import { parameters } from './kerfscript.js';
+
 const el = (tag, attrs = {}, ...kids) => {
   const node = document.createElement(tag);
   for (const [k, v] of Object.entries(attrs)) {
@@ -110,13 +112,23 @@ export function buildControls(container, params, values, onChange) {
   }
 }
 
-// Writes a value back into the assignment line, so code and controls agree.
+// Writes a value back into its top-level assignment, so code and controls
+// agree. Only the value the parser found is replaced.
 export function setInSource(source, name, value) {
+  let found;
+  try {
+    found = parameters(source)
+      .parameters.filter((p) => p.name === name)
+      .pop();
+  } catch {
+    return source;
+  }
+  if (!found) return source;
   const literal = Array.isArray(value)
     ? `[${value.join(', ')}]`
     : typeof value === 'string'
       ? JSON.stringify(value)
       : String(value);
-  const re = new RegExp(`^(\\s*${name.replace(/[$]/g, '\\$')}\\s*=\\s*)([^;]*)(;)`, 'm');
-  return source.replace(re, (_, a, _b, c) => `${a}${literal}${c}`);
+  const [start, end] = found.span;
+  return source.slice(0, start) + literal + source.slice(end);
 }

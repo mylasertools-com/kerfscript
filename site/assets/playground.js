@@ -22,10 +22,13 @@ const settings = $('[data-settings]');
 const partsBox = $('[data-parts]');
 const status = $('[data-status]');
 const picker = $('[data-examples]');
+const svgButton = $('[data-download="svg"]');
+const dxfButton = $('[data-download="dxf"]');
 const run = createEngine();
 const examples = await (await fetch('/assets/examples.json')).json();
 
 let last = null;
+let ready = null;
 let mode = 'material';
 let paramKey = '';
 let errorLine = 0;
@@ -39,6 +42,22 @@ function paint() {
   view.innerHTML = lines
     .map((l, i) => `<span class="ln${i + 1 === errorLine ? ' error' : ''}">${l || ' '}</span>`)
     .join('\n');
+}
+
+function setReady(result, source) {
+  ready = result ? { result, source } : null;
+  svgButton.disabled = !ready;
+  dxfButton.disabled = !ready?.result.dxf;
+}
+
+function current() {
+  return ready && ready.source === input.value ? ready.result : null;
+}
+
+function edited() {
+  setReady(null);
+  paint();
+  saveDraft();
 }
 
 function syncScroll() {
@@ -105,8 +124,7 @@ function updateSettings() {
     const next = setInSource(input.value, name, value);
     if (next === input.value) return;
     input.value = next;
-    paint();
-    saveDraft();
+    edited();
     schedule(60);
   });
   if (!params.length)
@@ -123,13 +141,15 @@ function showConsole(lines) {
 async function update() {
   updateSettings();
   status.textContent = 'Rendering…';
-  const reply = await run(input.value, {});
-  if (reply.stale) return;
+  const source = input.value;
+  const reply = await run(source, {});
+  if (reply.stale || source !== input.value) return;
   const echoes = (reply.ok ? reply.result.echoes : (reply.echoes ?? [])).map((e) => [
     'echo',
     `ECHO: ${e}`,
   ]);
   if (!reply.ok) {
+    setReady(null);
     errorLine = reply.line ?? 0;
     paint();
     showConsole([...echoes, ['error', reply.error]]);
@@ -155,7 +175,7 @@ async function update() {
         )
         .join('')}</tbody></table>`
     : '';
-  root.querySelector('[data-download="dxf"]').disabled = !last.dxf;
+  setReady(last, source);
   status.textContent = `Rendered in ${Math.max(1, Math.round(reply.ms))} ms`;
 }
 
@@ -166,6 +186,7 @@ function schedule(delay = 250) {
 
 function load(text) {
   input.value = text;
+  setReady(null);
   errorLine = 0;
   paramKey = '';
   input.scrollTop = 0;
@@ -175,8 +196,7 @@ function load(text) {
 }
 
 input.addEventListener('input', () => {
-  paint();
-  saveDraft();
+  edited();
   schedule();
 });
 input.addEventListener('scroll', syncScroll);
@@ -211,11 +231,13 @@ function download(name, text, type) {
 root
   .querySelector('[data-download="kerf"]')
   .addEventListener('click', () => download('design.kerf', input.value, 'text/plain'));
-root.querySelector('[data-download="svg"]').addEventListener('click', () => {
-  if (last) download('design.svg', last.svg, 'image/svg+xml');
+svgButton.addEventListener('click', () => {
+  const result = current();
+  if (result) download('design.svg', result.svg, 'image/svg+xml');
 });
-root.querySelector('[data-download="dxf"]').addEventListener('click', () => {
-  if (last?.dxf) download('design.dxf', last.dxf, 'application/dxf');
+dxfButton.addEventListener('click', () => {
+  const result = current();
+  if (result?.dxf) download('design.dxf', result.dxf, 'application/dxf');
 });
 root.querySelector('[data-share]').addEventListener('click', async (e) => {
   const url = `${location.origin}${location.pathname}#code=${encode(input.value)}`;

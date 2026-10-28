@@ -14,6 +14,7 @@ export interface Parameter {
   max?: number;
   step?: number;
   options?: { name: string; value: number | string }[];
+  span: [number, number];
 }
 
 function literal(e: Expr): { ok: boolean; value?: Value } {
@@ -78,6 +79,7 @@ export function parameters(source: string): { parameters: Parameter[] } {
             ? 'boolean'
             : 'string',
       initial: v,
+      span: s.span,
     };
     const m = inline ? /^\[(.*)\]$/.exec(inline.trim()) : null;
     if (m) {
