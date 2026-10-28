@@ -14,6 +14,7 @@ export { LANGUAGE_VERSION, VERSION, highlight };
 
 const repo = join(process.cwd(), '..');
 export const BASE = 'https://kerfscript.mylasertools.com';
+export const MLT_URL = 'https://www.mylasertools.com';
 export const REPO_URL = 'https://github.com/mylasertools-com/kerfscript';
 // Flip when the repository is public and the package is on npm: pages then
 // link to both instead of saying they are coming.
@@ -165,7 +166,9 @@ export const models = JSON.parse(read('site/models.json')).map((m) => {
       ? render(source, { ...FONTS, margin: 0, gap: 6, sheet: tidySheet(first.parts) })
       : first;
   const file = render(source, FONTS);
-  if (shown.warnings.length) throw new Error(`${m.file}: ${shown.warnings.join('; ')}`);
+  if (file.warnings.length) throw new Error(`${m.file}: ${file.warnings.join('; ')}`);
+  const count = file.parts.reduce((s, p) => s + p.qty, 0);
+  const only = file.parts.length === 1 && count === 1 ? file.parts[0] : null;
   return {
     ...m,
     slug: m.file,
@@ -173,11 +176,16 @@ export const models = JSON.parse(read('site/models.json')).map((m) => {
     summary: summary(source),
     lines: source.trim().split('\n').length,
     params: parameters(source).parameters,
-    parts: shown.parts,
-    pieces: shown.parts.reduce((s, p) => s + p.qty, 0),
-    display: displaySvg(shown, { defs: false }),
-    width: shown.width,
-    height: shown.height,
+    parts: file.parts,
+    count,
+    // One part: its own size. Several: how many, since the card picture is
+    // a compact arrangement, not the layout of the cut file.
+    cardMeta: only ? `${fmt(only.width)} × ${fmt(only.height)} mm` : `${count} parts`,
+    thumb: displaySvg(shown, { defs: false }),
+    display: displaySvg(file, { defs: false }),
+    width: file.width,
+    height: file.height,
+    sheets: file.sheets.length,
     laser: file.svg,
     dxf: file.sheets.length === 1 ? file.sheets[0].dxf : null,
   };

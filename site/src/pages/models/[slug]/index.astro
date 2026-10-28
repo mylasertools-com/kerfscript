@@ -1,6 +1,6 @@
 ---
 import Base from '../../../layouts/Base.astro';
-import { VERSION, code, fmt, models } from '../../../lib/site.mjs';
+import { MLT_URL, VERSION, code, fmt, models } from '../../../lib/site.mjs';
 
 export function getStaticPaths() {
   return models.map((model) => ({ params: { slug: model.slug }, props: { model } }));
@@ -37,8 +37,22 @@ function rangeText(p) {
       <figure class="sheet" data-panel="material" set:html={m.display} />
       <figure class="sheet laser" data-panel="laser" hidden set:html={laser} />
       <p class="figure-note">
-        Rendered by KerfScript {VERSION} from the source below. {fmt(m.width)} × {fmt(m.height)} mm.
+        The cut file as the downloads lay it out: {fmt(m.width)} × {fmt(m.height)} mm, {m.count}
+        {m.count === 1 ? 'part' : 'parts'} on {m.sheets} {m.sheets === 1 ? 'sheet' : 'sheets'}. Rendered by KerfScript {VERSION}
+        from the source below; the material view is a drawing, not a photo.
       </p>
+      {
+        m.photo && (
+          <figure class="photo">
+            <img src={`/photos/${m.slug}.webp`} alt={m.photo.alt} loading="lazy" width="900" height="600" />
+            <figcaption>
+              Photo: {m.photo.alt.charAt(0).toLowerCase() + m.photo.alt.slice(1)}, cut on our laser with the
+              MyLaserTools <a href={`${MLT_URL}/${m.photo.tool}`}>{m.photo.toolName}</a>. It shows the same kind
+              of part; it was not cut from this KerfScript file.
+            </figcaption>
+          </figure>
+        )
+      }
     </section>
     <aside class="model-facts">
       <div class="actions">

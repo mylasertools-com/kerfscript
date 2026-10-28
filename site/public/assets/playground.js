@@ -166,7 +166,7 @@ async function update() {
   showFigure();
   showConsole([...echoes, ...last.warnings.map((w) => ['warning', `WARNING: ${w}`])]);
   const pieces = last.parts.reduce((s, p) => s + p.qty, 0);
-  sizeNote.textContent = `${fmt(last.width)} × ${fmt(last.height)} mm, ${pieces} ${pieces === 1 ? 'piece' : 'pieces'} on ${last.sheets.length} ${last.sheets.length === 1 ? 'sheet' : 'sheets'}`;
+  sizeNote.textContent = `${fmt(last.width)} × ${fmt(last.height)} mm, ${pieces} ${pieces === 1 ? 'part' : 'parts'} on ${last.sheets.length} ${last.sheets.length === 1 ? 'sheet' : 'sheets'}`;
   partsBox.innerHTML = last.parts.length
     ? `<table class="parts"><thead><tr><th>Part</th><th>Qty</th><th>Size</th><th>Cut length</th></tr></thead><tbody>${last.parts
         .map(

@@ -16,8 +16,6 @@ self.onmessage = async (event) => {
       params,
       fonts: { Atkinson: await font },
       defaultFont: 'Atkinson',
-      margin: 0,
-      gap: 6,
     });
     self.postMessage({
       id,

@@ -1,20 +1,97 @@
 [
-  { "file": "box", "title": "Finger-jointed box", "tags": ["joinery", "parts", "library"] },
-  { "file": "gears", "title": "Spur gear pair", "tags": ["math", "parts"] },
-  { "file": "jigsaw", "title": "Jigsaw puzzle", "tags": ["cut lines", "random"] },
-  { "file": "clock-face", "title": "Clock face", "tags": ["engrave", "score", "text"] },
-  { "file": "snowflake", "title": "Snowflake ornament", "tags": ["symmetry", "random"] },
+  {
+    "file": "box",
+    "title": "Finger-jointed box",
+    "tags": ["joinery", "parts", "library"],
+    "photo": {
+      "alt": "A finger-jointed lantern box",
+      "tool": "box-generator",
+      "toolName": "Box generator"
+    }
+  },
+  {
+    "file": "gears",
+    "title": "Spur gear pair",
+    "tags": ["math", "parts"],
+    "photo": {
+      "alt": "A pair of plywood gears",
+      "tool": "gear-generator",
+      "toolName": "Gear generator"
+    }
+  },
+  {
+    "file": "jigsaw",
+    "title": "Jigsaw puzzle",
+    "tags": ["cut lines", "random"],
+    "photo": {
+      "alt": "Wooden puzzle pieces",
+      "tool": "puzzle-generator",
+      "toolName": "Puzzle generator"
+    }
+  },
+  {
+    "file": "clock-face",
+    "title": "Clock face",
+    "tags": ["engrave", "score", "text"],
+    "photo": {
+      "alt": "An engraved clock face on an acrylic ring",
+      "tool": "clock-face-generator",
+      "toolName": "Clock face generator"
+    }
+  },
+  {
+    "file": "snowflake",
+    "title": "Snowflake ornament",
+    "tags": ["symmetry", "random"]
+  },
   {
     "file": "phone-stand",
     "title": "Slot-together phone stand",
     "tags": ["joinery", "parts", "material"]
   },
-  { "file": "guilloche-coaster", "title": "Guilloche coaster", "tags": ["score", "curves"] },
-  { "file": "sunflower-panel", "title": "Sunflower lamp panel", "tags": ["math", "holes"] },
-  { "file": "honeycomb-trivet", "title": "Honeycomb trivet", "tags": ["pattern", "holes"] },
-  { "file": "ruler", "title": "Engraved ruler", "tags": ["score", "text"] },
-  { "file": "hinge-card", "title": "Living hinge card", "tags": ["flex", "cut lines"] },
-  { "file": "name-sign", "title": "Name sign", "tags": ["text", "measuring"] },
-  { "file": "calibration-square", "title": "Calibration square", "tags": ["calibration", "kerf"] },
-  { "file": "kerf-test", "title": "Kerf and fit test", "tags": ["calibration", "kerf", "joinery"] }
+  {
+    "file": "guilloche-coaster",
+    "title": "Guilloche coaster",
+    "tags": ["score", "curves"]
+  },
+  {
+    "file": "sunflower-panel",
+    "title": "Sunflower lamp panel",
+    "tags": ["math", "holes"]
+  },
+  {
+    "file": "honeycomb-trivet",
+    "title": "Honeycomb trivet",
+    "tags": ["pattern", "holes"]
+  },
+  {
+    "file": "ruler",
+    "title": "Engraved ruler",
+    "tags": ["score", "text"],
+    "photo": {
+      "alt": "An engraved ruler",
+      "tool": "ruler-generator",
+      "toolName": "Ruler generator"
+    }
+  },
+  {
+    "file": "hinge-card",
+    "title": "Living hinge card",
+    "tags": ["flex", "cut lines"]
+  },
+  {
+    "file": "name-sign",
+    "title": "Name sign",
+    "tags": ["text", "measuring"]
+  },
+  {
+    "file": "calibration-square",
+    "title": "Calibration square",
+    "tags": ["calibration", "kerf"]
+  },
+  {
+    "file": "kerf-test",
+    "title": "Kerf and fit test",
+    "tags": ["calibration", "kerf", "joinery"]
+  }
 ]

@@ -1,12 +1,14 @@
 ---
 import Base from '../layouts/Base.astro';
 import ModelCard from '../components/ModelCard.astro';
-import { LANGUAGE_VERSION, SOURCE_PUBLIC, code, highlight, models } from '../lib/site.mjs';
+import { LANGUAGE_VERSION, MLT_URL, SOURCE_PUBLIC, code, highlight, models } from '../lib/site.mjs';
 
 const hero = models.find((m) => m.slug === 'clock-face');
 const featured = ['gears', 'box', 'jigsaw', 'snowflake', 'phone-stand', 'sunflower-panel'].map(
   (s) => models.find((m) => m.slug === s),
 );
+
+const photos = ['box', 'clock-face', 'gears', 'jigsaw'].map((s) => models.find((m) => m.slug === s));
 
 const FEATURES = [
   [
@@ -64,15 +66,67 @@ const FEATURES = [
       </p>
       <p class="hero-actions">
         <a class="button primary" href="/playground/">Open the playground</a>
-        <a class="button" href="/docs/getting-started/">Get started</a>
+        <a class="button" href="/models/">Browse the models</a>
       </p>
-      <p class="hero-note">If you have written OpenSCAD, you can already read it.</p>
+      <p class="hero-note">
+        No code needed to start: pick a model and move the sliders. If you have written OpenSCAD, you can
+        already read the code.
+      </p>
     </div>
     <div class="hero-demo" data-demo data-model={hero.slug}>
       <div class="demo-tab"><span>{hero.slug}.kerf</span><span class="demo-time" data-time></span></div>
       <div class="demo-code" set:html={code(hero.source)} />
       <div class="demo-controls" data-controls></div>
       <figure class="demo-figure" data-figure set:html={hero.display} />
+    </div>
+  </section>
+
+  <section class="steps">
+    <h2>Make something without writing code</h2>
+    <ol>
+      <li>
+        <h3>Choose a model</h3>
+        <p>Pick one from the <a href="/models/">models</a>: a box, a sign, a clock face, a puzzle, a test piece for your laser.</p>
+      </li>
+      <li>
+        <h3>Change its settings</h3>
+        <p>
+          Open it in the playground and move the sliders: size, material thickness, kerf, text. The code changes
+          as you go, so you can read along when you are curious.
+        </p>
+      </li>
+      <li>
+        <h3>Download the cut file</h3>
+        <p>
+          SVG or DXF, with cut, score and engrave on separate layers. Read the <a href="/docs/compatibility/"
+            >notes for your laser software</a
+          > before you cut.
+        </p>
+      </li>
+    </ol>
+  </section>
+
+  <section class="photos">
+    <div class="section-head">
+      <h2>Cut on a real laser</h2>
+    </div>
+    <p class="section-note">
+      Photos of the same kinds of parts as these models, cut on our own laser with
+      <a href={MLT_URL}>MyLaserTools</a> generators. They were not cut from the KerfScript files; every other
+      picture on this site is a drawing rendered from KerfScript.
+    </p>
+    <div class="photo-grid">
+      {
+        photos.map((m) => (
+          <figure class="photo">
+            <img src={`/photos/${m.slug}.webp`} alt={m.photo.alt} loading="lazy" width="900" height="600" />
+            <figcaption>
+              {m.photo.alt}, cut with the <a href={`${MLT_URL}/${m.photo.tool}`}>{m.photo.toolName}</a>.
+              KerfScript model: <a href={`/models/${m.slug}/`}>{m.title}</a>.
+            </figcaption>
+          </figure>
+        ))
+      }
     </div>
   </section>
 

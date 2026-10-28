@@ -1,17 +1,12 @@
 ---
-import { fmt } from '../lib/site.mjs';
-
 const { model: m } = Astro.props;
 ---
 
 <a class="model-card" href={`/models/${m.slug}/`}>
-  <figure set:html={m.display} />
+  <figure set:html={m.thumb} />
   <div class="model-card-text">
     <h3>{m.title}</h3>
     <p>{m.summary}</p>
-    <p class="meta">
-      {m.lines} lines · {m.pieces}
-      {m.pieces === 1 ? 'piece' : 'pieces'} · {fmt(m.width)} × {fmt(m.height)} mm
-    </p>
+    <p class="meta">{m.lines} lines · {m.cardMeta}</p>
   </div>
 </a>

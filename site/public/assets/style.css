@@ -363,7 +363,7 @@ main.wide {
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
   gap: 56px;
   align-items: start;
-  padding: 64px 0 40px;
+  padding: 40px 0 40px;
 }
 
 .eyebrow {
@@ -426,7 +426,7 @@ main.wide {
   border: 0;
   border-radius: 0;
   font-size: 12.5px;
-  max-height: 330px;
+  max-height: min(210px, 24vh);
 }
 
 .demo-controls {
@@ -452,7 +452,7 @@ main.wide {
 .demo-figure {
   margin: 0;
   border-top: 1px solid var(--rule);
-  padding: 18px;
+  padding: 12px;
   background-color: #f8f5ee;
   background-image:
     linear-gradient(var(--rule-2) 1px, transparent 1px),
@@ -464,7 +464,7 @@ main.wide {
   display: block;
   width: 100%;
   height: auto;
-  max-height: 340px;
+  max-height: min(320px, 36vh);
 }
 
 .features {
@@ -1205,5 +1205,110 @@ td {
 
   .guide-list p {
     grid-column: 2;
+  }
+}
+
+/* Home: steps and photos */
+
+.steps {
+  padding: 24px 0 8px;
+}
+
+.steps ol {
+  list-style: none;
+  counter-reset: step;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0 40px;
+  margin: 24px 0 0;
+  padding: 0;
+}
+
+.steps li {
+  counter-increment: step;
+  border-top: 1px solid var(--ink);
+  padding: 16px 0 8px;
+}
+
+.steps li::before {
+  content: counter(step);
+  font: 500 14px var(--mono);
+  color: var(--red);
+}
+
+.steps h3 {
+  font: 600 20px var(--cond);
+  margin: 6px 0 8px;
+}
+
+.steps p {
+  margin: 0;
+  font-size: 15.5px;
+  color: var(--ink-2);
+}
+
+.photos {
+  padding: 40px 0 8px;
+}
+
+.section-note {
+  max-width: 46em;
+  margin: 8px 0 20px;
+  color: var(--ink-2);
+  font-size: 15.5px;
+}
+
+.photo-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.photo {
+  margin: 0;
+}
+
+.photo img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 3 / 2;
+  object-fit: cover;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: var(--paper-2);
+}
+
+.photo figcaption {
+  margin-top: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.model-figure .photo {
+  margin-top: 28px;
+}
+
+.pg-help {
+  align-self: center;
+  margin-right: 4px;
+  font-size: 14px;
+  color: var(--ink-2);
+}
+
+@media (max-width: 960px) {
+  .photo-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .steps ol {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .photo-grid {
+    gap: 14px;
   }
 }
