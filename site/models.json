@@ -4,9 +4,7 @@
     "title": "Finger-jointed box",
     "tags": ["joinery", "parts", "library"],
     "photo": {
-      "alt": "A finger-jointed lantern box",
-      "tool": "box-generator",
-      "toolName": "Box generator"
+      "alt": "A finger-jointed lantern box"
     }
   },
   {
@@ -14,9 +12,7 @@
     "title": "Spur gear pair",
     "tags": ["math", "parts"],
     "photo": {
-      "alt": "A pair of plywood gears",
-      "tool": "gear-generator",
-      "toolName": "Gear generator"
+      "alt": "A pair of plywood gears"
     }
   },
   {
@@ -24,9 +20,7 @@
     "title": "Jigsaw puzzle",
     "tags": ["cut lines", "random"],
     "photo": {
-      "alt": "Wooden puzzle pieces",
-      "tool": "puzzle-generator",
-      "toolName": "Puzzle generator"
+      "alt": "Wooden puzzle pieces"
     }
   },
   {
@@ -34,9 +28,7 @@
     "title": "Clock face",
     "tags": ["engrave", "score", "text"],
     "photo": {
-      "alt": "An engraved clock face on an acrylic ring",
-      "tool": "clock-face-generator",
-      "toolName": "Clock face generator"
+      "alt": "An engraved clock face on an acrylic ring"
     }
   },
   {
@@ -69,9 +61,7 @@
     "title": "Engraved ruler",
     "tags": ["score", "text"],
     "photo": {
-      "alt": "An engraved ruler",
-      "tool": "ruler-generator",
-      "toolName": "Ruler generator"
+      "alt": "An engraved ruler"
     }
   },
   {

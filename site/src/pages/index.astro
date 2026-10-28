@@ -1,7 +1,7 @@
 ---
 import Base from '../layouts/Base.astro';
 import ModelCard from '../components/ModelCard.astro';
-import { LANGUAGE_VERSION, MLT_URL, SOURCE_PUBLIC, code, highlight, models } from '../lib/site.mjs';
+import { LANGUAGE_VERSION, SOURCE_PUBLIC, code, highlight, models } from '../lib/site.mjs';
 
 const hero = models.find((m) => m.slug === 'clock-face');
 const featured = ['gears', 'box', 'jigsaw', 'snowflake', 'phone-stand', 'sunflower-panel'].map(
@@ -110,19 +110,13 @@ const FEATURES = [
     <div class="section-head">
       <h2>Cut on a real laser</h2>
     </div>
-    <p class="section-note">
-      Photos of the same kinds of parts as these models, cut on our own laser with
-      <a href={MLT_URL}>MyLaserTools</a> generators. They were not cut from the KerfScript files; every other
-      picture on this site is a drawing rendered from KerfScript.
-    </p>
     <div class="photo-grid">
       {
         photos.map((m) => (
           <figure class="photo">
             <img src={`/photos/${m.slug}.webp`} alt={m.photo.alt} loading="lazy" width="900" height="600" />
             <figcaption>
-              {m.photo.alt}, cut with the <a href={`${MLT_URL}/${m.photo.tool}`}>{m.photo.toolName}</a>.
-              KerfScript model: <a href={`/models/${m.slug}/`}>{m.title}</a>.
+              <a href={`/models/${m.slug}/`}>{m.title}</a>
             </figcaption>
           </figure>
         ))
