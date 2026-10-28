@@ -1,0 +1,22 @@
+// A 100 mm square with a 20 mm hole, for checking size and kerf.
+// Measure both after cutting. If the square is small and the hole is big,
+// raise $kerf by the difference; if it is the other way round, lower it.
+
+/* [Size] */
+// Outside of the square
+size = 100; // [20:5:300]
+// Diameter of the hole
+hole = 20; // [2:1:100]
+
+/* [Material] */
+$kerf = 0.15; // [0:0.01:0.5]
+
+difference() {
+  rect(size, center = true);
+  circle(d = hole);
+}
+score() rect(size / 2, center = true);
+engrave() {
+  translate([0, -size / 2 + 6]) text(str(size, " mm"), size = 4, halign = "center");
+  translate([0, hole / 2 + 4]) text(str("hole ", hole, " mm, kerf ", $kerf), size = 3, halign = "center");
+}

@@ -1,0 +1,30 @@
+// Slots from a little narrower to a little wider than the material.
+// Push a scrap of the same sheet into each slot: if the one marked 0 is
+// snug, $kerf and $thickness are right. If a + slot fits best, your
+// material is thicker than you said; if a - slot does, it is thinner.
+
+/* [Material] */
+$thickness = 3; // [1:0.5:10]
+$kerf = 0.15; // [0:0.01:0.5]
+
+/* [Slots] */
+// How many slots
+steps = 7; // [3:2:11]
+// Change in width from one slot to the next
+step = 0.1; // [0.05:0.05:0.3]
+// How deep the slots go
+depth = 15; // [8:1:30]
+
+pitch = $thickness + 8;
+width = steps * pitch + 4;
+deltas = [for (i = [0:steps - 1]) round((i - (steps - 1) / 2) * step * 100) / 100];
+
+difference() {
+  rect([width, depth + 12], r = 2);
+  for (i = [0:steps - 1])
+    translate([pitch / 2 + 2 + i * pitch - ($thickness + deltas[i]) / 2, 12])
+      rect([$thickness + deltas[i], depth + 1]);
+}
+engrave() for (i = [0:steps - 1])
+  translate([pitch / 2 + 2 + i * pitch, 4])
+    text(str(deltas[i] > 0 ? "+" : "", deltas[i]), size = 3.5, halign = "center");

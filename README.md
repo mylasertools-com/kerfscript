@@ -27,8 +27,10 @@ box([width, depth, height], lid = lid);
 npx @mylasertools/kerfscript render box.kerf -o box.svg -D width=200
 ```
 
-That writes all six panels packed on a sheet, kerf compensated, with red cut
-lines that LightBurn, xTool Creative Space, Inkscape and RDWorks read directly.
+That writes all six panels packed on a sheet, kerf compensated, as a
+millimetre SVG with one layer per operation. Output is checked automatically
+in Inkscape; see [docs/compatibility.md](docs/compatibility.md) for what has
+and has not been tested in other laser software.
 
 ## Why a new language
 
@@ -89,16 +91,41 @@ Errors are thrown as `KerfError` with `line` and `col`.
 
 ## Learn the language
 
+- [Getting started](docs/getting-started.md), then the guides on
+  [layers](docs/layers.md), [kerf](docs/kerf.md),
+  [parts and sheets](docs/parts-and-sheets.md), [settings](docs/customizer.md),
+  the [command line](docs/cli.md) and the [JavaScript API](docs/javascript.md)
+- [Coming from OpenSCAD](docs/openscad.md): what is the same and what is not
 - [LANGUAGE.md](LANGUAGE.md): the full language reference
-- [examples/](examples): a box, a living hinge card, a name sign sized to
-  its text
+- [Versions](docs/versions.md): language and package versions, and what stays
+  stable before 1.0
+- [examples/](examples): every model on the website, including a
+  calibration square and a kerf test
 
 ## Website
 
-The site for kerfscript.mylasertools.com lives in [site/](site). `npm run site`
-builds it into `site/dist` (every model picture is rendered from
-[examples/](examples) by this version of KerfScript), and `npm run site:serve`
-serves it on http://127.0.0.1:4321 for a look before publishing.
+kerfscript.mylasertools.com is an Astro site in [site/](site), deployed to
+Cloudflare as a static assets Worker. Every model picture and the guides are
+built from [examples/](examples), [docs/](docs) and LANGUAGE.md by this
+version of KerfScript.
+
+```sh
+npm --prefix site install
+npm run site          # build KerfScript, then the site into site/dist
+npm run site:serve    # preview on http://localhost:4321
+npm --prefix site run deploy
+```
+
+## Checking output
+
+`npm run compat` renders a reference set of models and opens every SVG and
+DXF in Inkscape to check sizes, layers and fills.
+
+## Community
+
+Bug reports, cut reports and ideas are welcome; see
+[CONTRIBUTING.md](CONTRIBUTING.md), the [roadmap](ROADMAP.md),
+[SECURITY.md](SECURITY.md) and the [code of conduct](CODE_OF_CONDUCT.md).
 
 ## Licence
 

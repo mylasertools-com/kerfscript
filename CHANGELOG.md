@@ -17,6 +17,12 @@
 - A setting's caption comes only from a comment on its own line above it,
   not from the end-of-line comment of the setting before.
 - `text_width()` and `text_metrics()` errors report their line and column.
+- A warning when kerf compensation closes a hole narrower than the kerf.
+- `kerf check` lists every sheet with its material, thickness and pieces;
+  `kerf render` warns when several sheets are stacked in one SVG, and
+  `kerf --version` shows the language version too.
+- Guides in `docs/`, calibration square and kerf test examples, and
+  `npm run compat`, which checks SVG and DXF output in Inkscape.
 
 ## 0.1.0 (unreleased)
 
