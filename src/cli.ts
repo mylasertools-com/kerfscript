@@ -21,6 +21,7 @@ Options:
   --kerf <mm>             override kerf compensation for all parts
   --sheet <W>x<H>         sheet size for packing, in mm
   --gap <mm>              space between packed parts
+  --margin <mm>           space between the parts and the sheet edge (default: gap)
   --no-pack               keep parts where the program placed them
   --guides                include guide layer geometry
   --split                 write one file per sheet (out-1.svg, out-2.svg, ...)
@@ -60,6 +61,7 @@ function main(argv: string[]) {
     kerf?: number;
     sheet?: [number, number];
     gap?: number;
+    margin?: number;
     layout?: 'pack' | 'none';
     guides?: boolean;
   } = {};
@@ -91,6 +93,7 @@ function main(argv: string[]) {
       if (!m) fail('--sheet needs WxH, like 600x400');
       opts.sheet = [Number(m[1]), Number(m[2])];
     } else if (a === '--gap') opts.gap = Number(next());
+    else if (a === '--margin') opts.margin = Number(next());
     else if (a === '--no-pack') opts.layout = 'none';
     else if (a === '--guides') opts.guides = true;
     else if (a === '--split') split = true;

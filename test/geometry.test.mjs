@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { render } from '../dist/index.js';
+import { KerfError, render } from '../dist/index.js';
 
 const font = readFileSync(new URL('./fixtures/AtkinsonHyperlegible-Regular.ttf', import.meta.url));
 
@@ -221,7 +221,65 @@ test('text renders with a font and text_width measures it', () => {
   assert.ok(w > 20 && w < 35);
   assert.ok(Math.abs(r.parts[0].width - w) < 2);
   assert.throws(() => render('text("x");'), /needs a font/);
-  assert.throws(() => render('text("x", font = "nope");', { fonts }), /Font "nope" is not loaded/);
+  assert.throws(
+    () => render('text("x", font = "nope");', { fonts }),
+    /Font "nope" is not available\. Available fonts: atkinson/,
+  );
+});
+
+test('errors list the fonts a host still has to load', () => {
+  const missing = (src, opts) => {
+    try {
+      render(src, opts);
+    } catch (e) {
+      return e.missingFonts;
+    }
+  };
+  assert.deepEqual(missing('text("x", font = "Serif");', { fonts: { atkinson: font } }), ['Serif']);
+  assert.deepEqual(missing('echo(text_width("x", 5));', { fonts: {}, defaultFont: 'Sans' }), [
+    'Sans',
+  ]);
+  assert.deepEqual(missing('text("x");', { fonts: {} }), ['']);
+  assert.equal(missing('x = undef + 1;', { fonts: {} }), undefined);
+  assert.throws(
+    () => render('\necho(text_width("x", 5));', { fonts: {} }),
+    (e) => e instanceof KerfError && e.line === 2,
+  );
+});
+
+test('layer paths describe every layer for host apps', () => {
+  const r = render(
+    'difference() { rect(20); translate([10, 5]) circle(3); } engrave() rect(4); score() line([2, 10], [18, 10]);',
+  );
+  assert.deepEqual(
+    r.paths.map((p) => [p.name, p.mode, p.color]),
+    [
+      ['engrave', 'fill', '#000000'],
+      ['score', 'line', '#0000ff'],
+      ['cut', 'cut', '#ff0000'],
+    ],
+  );
+  const cut = r.paths.find((p) => p.name === 'cut').d;
+  assert.equal(cut.match(/M/g).length, 2);
+  assert.ok(cut.indexOf('M') === 0 && r.svg.includes(cut.split('Z')[0]));
+  assert.deepEqual([r.width, r.height], [r.sheets[0].width, r.sheets[0].height]);
+  const two = render('part("a") rect(300); part("b") rect(300);', { sheet: [320, 320] });
+  assert.equal(two.sheets.length, 2);
+  assert.ok(two.height > two.sheets[0].height * 2);
+  assert.equal(two.paths[0].d.match(/M/g).length, 2);
+});
+
+test('margin sets the sheet border apart from the gap between parts', () => {
+  const one = render('rect([70, 30]);', { margin: 0 });
+  assert.deepEqual([one.width, one.height], [70, 30]);
+  assert.deepEqual(
+    [render('rect([70, 30]);').width, render('rect([70, 30]);', { gap: 5 }).width],
+    [76, 80],
+  );
+  const two = render('part("a") rect(20); part("b") rect(20);', { margin: 0, gap: 4 });
+  assert.deepEqual([two.width, two.height], [44, 20]);
+  const loose = render('rect(10);', { layout: 'none', margin: 1 });
+  assert.equal(loose.width, 12);
 });
 
 test('dxf export has layers and closed polylines', () => {

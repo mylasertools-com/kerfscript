@@ -95,7 +95,7 @@ width = 120; // [40:5:400]
 depth = 80; // [100]
 shape = "round"; // [round:Round, square:Square]
 count = 3; // [2, 3, 4]
-lid = true;
+lid = true; // [ignored]
 size = [10, 20];
 label = str("x", 1);
 /* [Hidden] */
@@ -109,10 +109,15 @@ secret = 1;
       ['shape', 'Size', 'string'],
       ['count', 'Size', 'number'],
       ['lid', 'Size', 'boolean'],
-      ['size', 'Size', 'vector'],
+      ['size', 'Size', 'number'],
     ],
   );
+  assert.deepEqual(ps[5].initial, [10, 20]);
   assert.equal(ps[0].caption, 'Outer width');
+  assert.deepEqual(
+    ps.slice(1).map((p) => p.caption),
+    ['', '', '', '', ''],
+  );
   assert.deepEqual([ps[0].min, ps[0].step, ps[0].max], [40, 5, 400]);
   assert.equal(ps[1].max, 100);
   assert.deepEqual(ps[2].options, [

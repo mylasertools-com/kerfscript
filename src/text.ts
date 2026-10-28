@@ -16,6 +16,7 @@ interface OtFont {
 
 export class FontBook {
   private parsed = new Map<string, OtFont>();
+  readonly missing = new Set<string>();
   constructor(
     private sources: Record<string, FontSource>,
     private fallback?: string,
@@ -27,17 +28,21 @@ export class FontBook {
 
   get(name: string): OtFont {
     const key = name || this.fallback || Object.keys(this.sources)[0];
-    if (!key)
+    if (!key) {
+      this.missing.add('');
       throw new Error(
         'text() needs a font. Pass fonts to render(), or --font on the command line.',
       );
+    }
     const hit = this.parsed.get(key);
     if (hit) return hit;
     const src = this.sources[key];
-    if (!src)
+    if (!src) {
+      this.missing.add(key);
       throw new Error(
-        `Font "${key}" is not loaded. Loaded fonts: ${this.names().join(', ') || 'none'}`,
+        `Font "${key}" is not available.${this.names().length ? ` Available fonts: ${this.names().join(', ')}` : ''}`,
       );
+    }
     const buf =
       src instanceof Uint8Array
         ? src.buffer.slice(src.byteOffset, src.byteOffset + src.byteLength)

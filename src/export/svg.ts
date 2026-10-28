@@ -14,6 +14,35 @@ const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replac
 const d = (p: Poly, closed: boolean) =>
   `M${p.map(([x, y]) => `${n(x)} ${n(y)}`).join('L')}${closed ? 'Z' : ''}`;
 
+export interface LayerPath {
+  name: string;
+  mode: LayerDef['mode'];
+  color: string;
+  d: string;
+}
+
+export function layerPaths(items: Placed[], layers: LayerDef[]): LayerPath[] {
+  const out: LayerPath[] = [];
+  for (const def of layers) {
+    const inner: string[] = [];
+    const outer: string[] = [];
+    for (const it of items) {
+      const l = it.layers.get(def.name);
+      if (!l) continue;
+      for (const p of l.lines) inner.push(d(p, false));
+      for (const p of l.regions) (area(p) < 0 ? inner : outer).push(d(p, true));
+    }
+    if (inner.length || outer.length)
+      out.push({
+        name: def.name,
+        mode: def.mode,
+        color: def.color,
+        d: [...inner, ...outer].join(''),
+      });
+  }
+  return out;
+}
+
 export function toSvg(items: Placed[], width: number, height: number, layers: LayerDef[]): string {
   const out: string[] = [
     '<?xml version="1.0" encoding="UTF-8"?>',

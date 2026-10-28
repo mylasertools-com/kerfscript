@@ -18,12 +18,14 @@ export interface Comment {
   text: string;
   line: number;
   block: boolean;
+  own: boolean;
 }
 
 export class KerfError extends Error {
   line?: number;
   col?: number;
   echoes: string[] = [];
+  missingFonts?: string[];
   constructor(message: string, pos?: Pos) {
     super(pos ? `${message} (line ${pos.line}, column ${pos.col})` : message);
     this.name = 'KerfError';
@@ -90,7 +92,8 @@ export function tokenize(src: string): { tokens: Token[]; comments: Comment[] } 
     if (c === '/' && src[i + 1] === '/') {
       const end = src.indexOf('\n', i);
       const stop = end < 0 ? src.length : end;
-      comments.push({ text: src.slice(i + 2, stop).trim(), line, block: false });
+      const own = /^[ \t]*$/.test(src.slice(src.lastIndexOf('\n', i - 1) + 1, i));
+      comments.push({ text: src.slice(i + 2, stop).trim(), line, block: false, own });
       i = stop;
       continue;
     }
@@ -98,7 +101,12 @@ export function tokenize(src: string): { tokens: Token[]; comments: Comment[] } 
       const start = pos();
       const end = src.indexOf('*/', i + 2);
       if (end < 0) throw new KerfError('Unclosed block comment', start);
-      comments.push({ text: src.slice(i + 2, end).trim(), line: start.line, block: true });
+      comments.push({
+        text: src.slice(i + 2, end).trim(),
+        line: start.line,
+        block: true,
+        own: true,
+      });
       advance(end + 2 - i);
       continue;
     }

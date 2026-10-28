@@ -2,7 +2,7 @@
 
 import { Evaluator, type LayerDef } from './evaluator.js';
 import { toDxf } from './export/dxf.js';
-import { toSvg } from './export/svg.js';
+import { layerPaths, toSvg, type LayerPath } from './export/svg.js';
 import {
   clipLines,
   intersection,
@@ -29,6 +29,7 @@ export interface RenderOptions {
   layout?: 'pack' | 'none';
   sheet?: [number, number];
   gap?: number;
+  margin?: number;
   guides?: boolean;
   maxSteps?: number;
 }
@@ -58,12 +59,16 @@ export interface Sheet {
   material: string;
   thickness: number;
   items: Placed[];
+  paths: LayerPath[];
   svg: string;
   dxf: string;
 }
 
 export interface RenderResult {
   sheets: Sheet[];
+  width: number;
+  height: number;
+  paths: LayerPath[];
   svg: string;
   parts: PartInfo[];
   layers: LayerDef[];
@@ -98,7 +103,10 @@ export function render(source: string, options: RenderOptions = {}): RenderResul
       e instanceof RangeError && /call stack/i.test(e.message)
         ? new KerfError('Recursion too deep: the program calls itself without stopping')
         : e;
-    if (err instanceof KerfError) err.echoes = ev.echoes;
+    if (err instanceof KerfError) {
+      err.echoes = ev.echoes;
+      if (fonts?.missing.size) err.missingFonts = [...fonts.missing];
+    }
     throw err;
   }
   const g = (name: string) => res.globals.get(name).value;
@@ -180,6 +188,7 @@ export function render(source: string, options: RenderOptions = {}): RenderResul
   )
     throw new KerfError('$sheet must be [width, height]');
   const gap = options.gap ?? Number(g('$gap') ?? 3);
+  const margin = options.margin ?? gap;
   const layoutMode = options.layout ?? (g('$layout') === 'none' ? 'none' : 'pack');
   const order = [
     'engrave',
@@ -215,9 +224,11 @@ export function render(source: string, options: RenderOptions = {}): RenderResul
         all.set(k, t);
       }
     const b = exportBounds(all);
-    const shift: Matrix = [1, 0, 0, 1, gap - b[0], gap - b[1]];
+    const shift: Matrix = [1, 0, 0, 1, margin - b[0], margin - b[1]];
     for (const it of items) it.layers = moved(it.layers, shift);
-    sheets.push(finishSheet(items, b[2] - b[0] + 2 * gap, b[3] - b[1] + 2 * gap, ready[0]?.info));
+    sheets.push(
+      finishSheet(items, b[2] - b[0] + 2 * margin, b[3] - b[1] + 2 * margin, ready[0]?.info),
+    );
   } else {
     const groups = new Map<string, typeof ready>();
     for (const r of ready) {
@@ -240,14 +251,18 @@ export function render(source: string, options: RenderOptions = {}): RenderResul
         let w = b[2] - b[0],
           h = b[3] - b[1];
         let rotated = false;
-        if ((w > W - 2 * gap || h > H - 2 * gap) && h <= W - 2 * gap && w <= H - 2 * gap) {
+        if (
+          (w > W - 2 * margin || h > H - 2 * margin) &&
+          h <= W - 2 * margin &&
+          w <= H - 2 * margin
+        ) {
           layers = moved(layers, [0, 1, -1, 0, 0, 0]);
           b = exportBounds(layers);
           w = b[2] - b[0];
           h = b[3] - b[1];
           rotated = true;
         }
-        if (w > W - 2 * gap || h > H - 2 * gap)
+        if (w > W - 2 * margin || h > H - 2 * margin)
           warnings.push(
             `Part "${r.info.name}" (${round2(w)} x ${round2(h)} mm) is bigger than the ${W} x ${H} mm sheet.`,
           );
@@ -257,30 +272,35 @@ export function render(source: string, options: RenderOptions = {}): RenderResul
       }
       queue.sort((a, b) => b.h - a.h || b.w - a.w);
       let items: Placed[] = [];
-      let x = gap,
-        y = gap,
+      let x = margin,
+        y = margin,
         shelf = 0,
         usedW = 0,
         usedH = 0;
       const flush = () => {
         if (items.length)
           sheets.push(
-            finishSheet(items, Math.max(usedW + gap, 1), Math.max(usedH + gap, 1), group[0].info),
+            finishSheet(
+              items,
+              Math.max(usedW + margin, 1),
+              Math.max(usedH + margin, 1),
+              group[0].info,
+            ),
           );
         items = [];
-        x = gap;
-        y = gap;
+        x = margin;
+        y = margin;
         shelf = 0;
         usedW = 0;
         usedH = 0;
       };
       for (const q of queue) {
-        if (x > gap && x + q.w > W - gap) {
-          x = gap;
+        if (x > margin && x + q.w > W - margin) {
+          x = margin;
           y += shelf + gap;
           shelf = 0;
         }
-        if (items.length && y + q.h > H - gap) flush();
+        if (items.length && y + q.h > H - margin) flush();
         items.push({
           part: q.info.name,
           copy: q.copy,
@@ -305,25 +325,35 @@ export function render(source: string, options: RenderOptions = {}): RenderResul
       material: info?.material ?? 'material',
       thickness: info?.thickness ?? 0,
       items,
+      paths: layerPaths(items, layerList),
       svg: toSvg(items, w, h, layerList),
       dxf: toDxf(items, w, h, layerList),
     };
   }
 
-  const svg =
-    sheets.length === 1
-      ? sheets[0].svg
-      : toSvg(
-          sheets.flatMap((s, i) => {
-            const dy = sheets.slice(0, i).reduce((acc, p) => acc + p.height + 10, 0);
-            return s.items.map((it) => ({ ...it, layers: moved(it.layers, [1, 0, 0, 1, 0, dy]) }));
-          }),
-          round2(Math.max(1, ...sheets.map((s) => s.width))),
-          round2(
-            sheets.reduce((acc, s) => acc + s.height, 0) + 10 * Math.max(0, sheets.length - 1),
-          ),
-          layerList,
-        );
+  const single = sheets.length === 1 ? sheets[0] : undefined;
+  const stacked = single
+    ? []
+    : sheets.flatMap((s, i) => {
+        const dy = sheets.slice(0, i).reduce((acc, p) => acc + p.height + 10, 0);
+        return s.items.map((it) => ({ ...it, layers: moved(it.layers, [1, 0, 0, 1, 0, dy]) }));
+      });
+  const width = round2(Math.max(1, ...sheets.map((s) => s.width)));
+  const height = round2(
+    Math.max(1, sheets.reduce((acc, s) => acc + s.height, 0) + 10 * Math.max(0, sheets.length - 1)),
+  );
+  const svg = single ? single.svg : toSvg(stacked, width, height, layerList);
+  const paths = single ? single.paths : layerPaths(stacked, layerList);
 
-  return { sheets, svg, parts: infos, layers: layerList, warnings, echoes: res.echoes };
+  return {
+    sheets,
+    width: single?.width ?? width,
+    height: single?.height ?? height,
+    paths,
+    svg,
+    parts: infos,
+    layers: layerList,
+    warnings,
+    echoes: res.echoes,
+  };
 }

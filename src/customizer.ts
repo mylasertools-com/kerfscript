@@ -8,7 +8,7 @@ export interface Parameter {
   name: string;
   caption: string;
   group: string;
-  type: 'number' | 'string' | 'boolean' | 'vector';
+  type: 'number' | 'string' | 'boolean';
   initial: Value;
   min?: number;
   max?: number;
@@ -48,7 +48,10 @@ function parseNumber(s: string): number | undefined {
 export function parameters(source: string): { parameters: Parameter[] } {
   const { program, comments } = parse(source);
   const groups = comments.filter((c) => c.block && /^\[[^\]]+\]$/.test(c.text));
-  const lineComments = new Map(comments.filter((c) => !c.block).map((c) => [c.line, c.text]));
+  const inlineComments = new Map(
+    comments.filter((c) => !c.block && !c.own).map((c) => [c.line, c.text]),
+  );
+  const captions = new Map(comments.filter((c) => !c.block && c.own).map((c) => [c.line, c.text]));
   const out: Parameter[] = [];
   for (const s of program.body) {
     if (s.kind !== 'assign' || /^\$f[nas]$/.test(s.name)) continue;
@@ -61,21 +64,19 @@ export function parameters(source: string): { parameters: Parameter[] } {
         ?.text.slice(1, -1)
         .trim() ?? 'Parameters';
     if (group.toLowerCase() === 'hidden') continue;
-    const inline = lineComments.get(s.pos.line);
-    const caption = lineComments.has(s.pos.line - 1) ? lineComments.get(s.pos.line - 1)! : '';
+    const inline = inlineComments.get(s.pos.line);
+    const caption = captions.get(s.pos.line - 1) ?? '';
     const v = lit.value;
     const p: Parameter = {
       name: s.name,
       caption,
       group,
       type:
-        typeof v === 'number'
+        typeof v === 'number' || Array.isArray(v)
           ? 'number'
           : typeof v === 'boolean'
             ? 'boolean'
-            : Array.isArray(v)
-              ? 'vector'
-              : 'string',
+            : 'string',
       initial: v,
     };
     const m = inline ? /^\[(.*)\]$/.exec(inline.trim()) : null;

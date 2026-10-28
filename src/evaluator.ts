@@ -707,7 +707,12 @@ export class Evaluator {
         a.at,
       );
     const text = String(this.arg(a, 'text', 0, ''));
-    return textMetrics(this.opts.fonts, text, this.textOpts(a, env));
+    try {
+      return textMetrics(this.opts.fonts, text, this.textOpts(a, env));
+    } catch (e) {
+      if (e instanceof KerfError) throw e;
+      throw new KerfError((e as Error).message, a.at);
+    }
   }
 
   private textOpts(a: Args, env: Env) {

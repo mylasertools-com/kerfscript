@@ -11,8 +11,9 @@ export { parameters, type Parameter } from './customizer.js';
 export { parse } from './parser.js';
 export { tokenize, KerfError } from './lexer.js';
 export { DEFAULT_LAYERS, type LayerDef } from './evaluator.js';
+export type { LayerPath } from './export/svg.js';
 export type { FontSource } from './text.js';
 export type { Value } from './values.js';
 
-export const VERSION = '0.1.0';
+export const VERSION = '0.2.0';
 export const LANGUAGE_VERSION = '0.1';
