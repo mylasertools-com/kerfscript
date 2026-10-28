@@ -1,0 +1,65 @@
+// A pair of spur gears with involute teeth, cut from one sheet.
+
+/* [Gears] */
+// Teeth on the large gear
+teeth_large = 32; // [12:1:80]
+// Teeth on the small gear
+teeth_small = 14; // [8:1:40]
+// Tooth size (module) in mm
+tooth = 3; // [1.5:0.25:6]
+// Pressure angle
+pressure = 20; // [14.5, 20, 25]
+
+/* [Hub] */
+// Shaft hole diameter
+bore = 6; // [2:0.5:20]
+// Lightening holes in gears with this many teeth or more
+spokes_from = 24; // [12:1:100]
+
+/* [Hidden] */
+$fn = 96;
+
+function rad(d) = d * PI / 180;
+function deg(r) = r * 180 / PI;
+function inv(a) = tan(a) - rad(a);
+
+// Point on the involute of a circle of radius rb, at roll parameter t (radians).
+function flank_angle(t) = t - atan(t) * PI / 180;
+
+module gear(z) {
+  rp = tooth * z / 2;
+  rb = rp * cos(pressure);
+  ra = rp + tooth;
+  rd = rp - 1.25 * tooth;
+  half = 90 / z + deg(inv(pressure));
+  t0 = rd > rb ? sqrt(pow(rd / rb, 2) - 1) : 0;
+  t1 = sqrt(pow(ra / rb, 2) - 1);
+  steps = 8;
+  flank = [for (i = [0:steps]) let (t = t0 + (t1 - t0) * i / steps)
+    [rb * sqrt(1 + t * t), deg(flank_angle(t))]];
+  tooth_pts = concat(
+    rd < rb ? [[rd, -half]] : [],
+    [for (p = flank) [p[0], -half + p[1]]],
+    [for (i = [steps:-1:0]) [flank[i][0], half - flank[i][1]]],
+    rd < rb ? [[rd, half]] : []
+  );
+  pts = [for (k = [0:z - 1], p = tooth_pts)
+    let (a = p[1] + k * 360 / z) [p[0] * cos(a), p[0] * sin(a)]];
+  difference() {
+    polygon(pts);
+    circle(d = bore);
+    if (z >= spokes_from) {
+      r_in = bore + 4;
+      r_out = rd - 2.5 * tooth;
+      for (k = [0:4]) rotate(k * 72 + 36)
+        hull() {
+          translate([r_in + 4, 0]) circle(r = 2.5);
+          rotate(-22) translate([r_out - 2.5, 0]) circle(r = 2.5);
+          rotate(22) translate([r_out - 2.5, 0]) circle(r = 2.5);
+        }
+    }
+  }
+}
+
+part("large gear") gear(teeth_large);
+part("small gear") gear(teeth_small);

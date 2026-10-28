@@ -93,6 +93,13 @@ Errors are thrown as `KerfError` with `line` and `col`.
 - [examples/](examples): a box, a living hinge card, a name sign sized to
   its text
 
+## Website
+
+The site for kerfscript.mylasertools.com lives in [site/](site). `npm run site`
+builds it into `site/dist` (every model picture is rendered from
+[examples/](examples) by this version of KerfScript), and `npm run site:serve`
+serves it on http://127.0.0.1:4321 for a look before publishing.
+
 ## Licence
 
 Copyright (c) 2026 MyLaserTools.

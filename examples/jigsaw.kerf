@@ -1,0 +1,42 @@
+// A jigsaw puzzle. Every edge between two pieces gets a knob that points
+// one way or the other, picked by the seed.
+
+/* [Puzzle] */
+// Pieces across
+cols = 5; // [2:1:12]
+// Pieces down
+rows = 4; // [2:1:12]
+// Size of one piece
+piece = 30; // [15:1:60]
+// Knob size, as a share of the edge
+knob = 0.22; // [0.15:0.01:0.3]
+// Different seeds give different knob directions
+seed = 3; // [1:1:99]
+
+/* [Hidden] */
+w = cols * piece;
+h = rows * piece;
+flips = rands(0, 1, 2 * cols * rows, seed);
+
+// One edge from [0, 0] to [len, 0] with a knob on side s (1 or -1).
+function edge(len, s) = let (
+  rr = knob * len / 2,
+  c = [len / 2, s * (rr * 1.65)],
+  n = 24
+) concat(
+  [[0, 0], [len / 2 - rr * 1.1, 0], [len / 2 - rr * 0.75, s * rr * 0.55]],
+  [for (i = [0:n]) let (a = 235 - i * 290 / n) [c[0] + rr * cos(a), c[1] + s * rr * sin(a)]],
+  [[len / 2 + rr * 0.75, s * rr * 0.55], [len / 2 + rr * 1.1, 0], [len, 0]]
+);
+
+function side(i) = flips[i] < 0.5 ? -1 : 1;
+
+rect([w, h], r = 3);
+
+// Edges between columns.
+for (c = [1:cols - 1], r = [0:rows - 1])
+  translate([c * piece, r * piece]) rotate(90) polyline(edge(piece, side(c * rows + r)));
+
+// Edges between rows.
+for (r = [1:rows - 1], c = [0:cols - 1])
+  translate([c * piece, r * piece]) polyline(edge(piece, side(cols * rows + r * cols + c)));

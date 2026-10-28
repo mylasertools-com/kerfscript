@@ -1,0 +1,50 @@
+// A phone stand from three parts that slot together without glue.
+// The slots follow the sheet thickness, so changing it keeps the fit.
+
+/* [Stand] */
+// Gap between the two sides
+span = 64; // [40:1:120]
+// Lean of the phone, in degrees from flat
+lean = 66; // [50:1:80]
+// Height of the front lip
+lip = 20; // [10:1:40]
+// Engraved text on the brace
+label = "KerfScript"; // 16
+
+/* [Material] */
+// Sheet thickness
+thickness = 4; // [2:0.5:8]
+// Slot clearance, added to the thickness
+clearance = 0.1; // [0:0.05:0.4]
+
+/* [Hidden] */
+$fn = 40;
+slot = thickness + clearance;
+rest = 100;
+top = [14 + rest * cos(lean), 12 + rest * sin(lean)];
+foot = top[0] + top[1] / tan(70);
+brace_x = foot * 0.62;
+brace_h = 30;
+
+module rounded(r) offset(r = r) offset(delta = -r) children();
+
+module side() difference() {
+  rounded(2) polygon([
+    [0, 0], [foot, 0], [top[0] + 6, top[1]], [top[0] - 2, top[1]],
+    [14, 12], [14, lip], [6, lip], [0, lip - 6]
+  ]);
+  translate([brace_x - slot / 2, -1]) rect([slot, brace_h / 2 + 1]);
+}
+
+module brace() difference() {
+  rect([span + 2 * thickness + 24, brace_h], r = 3);
+  for (x = [12, 12 + span + thickness]) translate([x - clearance / 2, brace_h / 2]) rect([slot, brace_h / 2 + 1]);
+}
+
+material(thickness = thickness, kerf = 0.1, name = "plywood") {
+  part("side", qty = 2) side();
+  part("brace") {
+    brace();
+    engrave() translate([(span + 2 * thickness + 24) / 2, brace_h * 0.28]) text(label, 6, halign = "center", valign = "center");
+  }
+}

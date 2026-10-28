@@ -1,0 +1,32 @@
+// A lamp panel with holes on a sunflower spiral. Every hole sits at the
+// golden angle from the one before, which packs them evenly.
+
+/* [Panel] */
+// Panel width
+width = 150; // [80:5:300]
+// Panel height
+height = 150; // [80:5:300]
+// Number of holes
+count = 260; // [50:10:800]
+// Smallest hole
+min_hole = 1.6; // [1:0.1:5]
+// Largest hole
+max_hole = 6.5; // [3:0.5:12]
+// Margin without holes
+margin = 9; // [4:1:30]
+
+/* [Hidden] */
+$fn = 24;
+golden = 180 * (3 - sqrt(5));
+reach = min(width, height) / 2 - margin - max_hole / 2;
+spacing = reach / sqrt(count);
+
+difference() {
+  rect([width, height], r = 4, center = true);
+  for (i = [1:count]) {
+    rr = spacing * sqrt(i);
+    d = lerp(min_hole, max_hole, i / count);
+    rotate(i * golden) translate([rr, 0]) circle(d = d);
+  }
+}
+score() rect([width - 2 * margin + 4, height - 2 * margin + 4], r = 3, center = true);

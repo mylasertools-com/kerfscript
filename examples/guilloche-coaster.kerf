@@ -1,0 +1,35 @@
+// A round coaster with a guilloche pattern: the same wavy ring drawn
+// several times, each copy shifted a little, so the lines weave.
+
+/* [Coaster] */
+// Diameter
+size = 95; // [60:1:140]
+// Waves around the outer band
+waves = 18; // [6:1:40]
+// Copies of each band
+copies = 7; // [2:1:14]
+// Petals in the centre rosette
+petals = 9; // [3:1:24]
+
+/* [Hidden] */
+$fn = 120;
+R = size / 2;
+steps = 720;
+
+function band(r0, amp, k, phase) =
+  [for (i = [0:steps - 1]) let (a = i * 360 / steps, r = r0 + amp * sin(k * a + phase))
+    [r * cos(a), r * sin(a)]];
+
+function rosette(r0, k, phase) =
+  [for (i = [0:steps - 1]) let (a = i * 360 / steps, r = r0 * (0.55 + 0.45 * pow(cos(k * a / 2 + phase), 2)))
+    [r * cos(a), r * sin(a)]];
+
+circle(r = R);
+
+score() {
+  for (j = [0:copies - 1]) polyline(band(R * 0.76, R * 0.09, waves, j * 360 / copies), closed = true);
+  for (j = [0:copies - 1]) polyline(rosette(R * 0.5, petals, j * 180 / (copies * petals)), closed = true);
+  circle(r = R * 0.9);
+  circle(r = R * 0.6);
+}
+engrave() circle(r = R * 0.06);

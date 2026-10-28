@@ -1,0 +1,18 @@
+[
+  { "file": "box", "title": "Finger-jointed box", "tags": ["joinery", "parts", "library"] },
+  { "file": "gears", "title": "Spur gear pair", "tags": ["math", "parts"] },
+  { "file": "jigsaw", "title": "Jigsaw puzzle", "tags": ["cut lines", "random"] },
+  { "file": "clock-face", "title": "Clock face", "tags": ["engrave", "score", "text"] },
+  { "file": "snowflake", "title": "Snowflake ornament", "tags": ["symmetry", "random"] },
+  {
+    "file": "phone-stand",
+    "title": "Slot-together phone stand",
+    "tags": ["joinery", "parts", "material"]
+  },
+  { "file": "guilloche-coaster", "title": "Guilloche coaster", "tags": ["score", "curves"] },
+  { "file": "sunflower-panel", "title": "Sunflower lamp panel", "tags": ["math", "holes"] },
+  { "file": "honeycomb-trivet", "title": "Honeycomb trivet", "tags": ["pattern", "holes"] },
+  { "file": "ruler", "title": "Engraved ruler", "tags": ["score", "text"] },
+  { "file": "hinge-card", "title": "Living hinge card", "tags": ["flex", "cut lines"] },
+  { "file": "name-sign", "title": "Name sign", "tags": ["text", "measuring"] }
+]

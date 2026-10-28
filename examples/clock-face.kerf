@@ -1,0 +1,18 @@
+// A clock face: cut outline, scored minute marks, engraved hours.
+
+size = 150; // [100:5:300]
+marks = 60; // [12:12:120]
+hole = 8; // [5:0.5:12]
+
+r = size / 2;
+difference() {
+  circle(r = r, $fn = 180);
+  circle(d = hole);
+}
+score() for (i = [0:marks - 1]) {
+  long = i % (marks / 12) == 0;
+  rotate(i * 360 / marks) line([r - (long ? 12 : 7), 0], [r - 4, 0]);
+}
+engrave() for (h = [1:12])
+  rotate(90 - h * 30) translate([r - 22, 0]) rotate(h * 30 - 90)
+    text(str(h), r / 7, halign = "center", valign = "center");

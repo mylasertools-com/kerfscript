@@ -1,0 +1,122 @@
+// Copyright (c) 2026 MyLaserTools. SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-MyLaserTools-Commercial
+
+// Builds form controls from KerfScript customizer parameters.
+
+const el = (tag, attrs = {}, ...kids) => {
+  const node = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (v === undefined || v === false) continue;
+    if (k === 'text') node.textContent = v;
+    else node.setAttribute(k, v === true ? '' : String(v));
+  }
+  node.append(...kids);
+  return node;
+};
+
+const label = (name) => name.replace(/_+/g, ' ').replace(/^./, (c) => c.toUpperCase());
+
+export function buildControls(container, params, values, onChange) {
+  container.replaceChildren();
+  let group = null;
+  let box = container;
+  const set = (name, value) => {
+    values[name] = value;
+    onChange(name, value);
+  };
+  for (const p of params) {
+    if (p.group !== group) {
+      group = p.group;
+      box = el('fieldset', { class: 'control-group' }, el('legend', { text: group }));
+      container.append(box);
+    }
+    const id = `ctl-${p.name}`;
+    const row = el('div', { class: 'control' });
+    const title = el(
+      'label',
+      { for: id },
+      el('span', { class: 'control-name', text: label(p.name) }),
+    );
+    if (p.caption) title.append(el('span', { class: 'control-caption', text: p.caption }));
+    const value = values[p.name] ?? p.initial;
+    if (p.options) {
+      const select = el('select', { id });
+      for (const o of p.options) {
+        const opt = el('option', { value: String(o.value), text: o.name });
+        if (String(o.value) === String(value)) opt.selected = true;
+        select.append(opt);
+      }
+      select.addEventListener('change', () => {
+        const o = p.options.find((x) => String(x.value) === select.value);
+        set(p.name, o ? o.value : select.value);
+      });
+      row.append(title, select);
+    } else if (p.type === 'boolean') {
+      const box2 = el('input', { id, type: 'checkbox' });
+      box2.checked = Boolean(value);
+      box2.addEventListener('change', () => set(p.name, box2.checked));
+      row.classList.add('toggle');
+      row.append(box2, title);
+    } else if (p.type === 'string') {
+      const input = el('input', { id, type: 'text', value: String(value) });
+      input.addEventListener('input', () => set(p.name, input.value));
+      row.append(title, input);
+    } else if (Array.isArray(p.initial)) {
+      const list = el('div', { class: 'vector' });
+      const current = [...value];
+      current.forEach((v, i) => {
+        const input = el('input', {
+          type: 'number',
+          value: v,
+          step: p.step ?? 'any',
+          min: p.min,
+          max: p.max,
+          'aria-label': `${label(p.name)} ${i + 1}`,
+        });
+        if (i === 0) input.id = id;
+        input.addEventListener('input', () => {
+          const n = Number(input.value);
+          if (!Number.isFinite(n)) return;
+          current[i] = n;
+          set(p.name, [...current]);
+        });
+        list.append(input);
+      });
+      row.append(title, list);
+    } else if (p.min !== undefined && p.max !== undefined) {
+      const out = el('output', { for: id, text: String(value) });
+      const range = el('input', {
+        id,
+        type: 'range',
+        min: p.min,
+        max: p.max,
+        step: p.step ?? 'any',
+        value,
+      });
+      range.addEventListener('input', () => {
+        out.textContent = range.value;
+        set(p.name, Number(range.value));
+      });
+      title.append(out);
+      row.append(title, range);
+    } else {
+      const input = el('input', { id, type: 'number', value, step: p.step ?? 'any' });
+      input.addEventListener('input', () => {
+        const n = Number(input.value);
+        if (Number.isFinite(n)) set(p.name, n);
+      });
+      row.append(title, input);
+    }
+    box.append(row);
+  }
+}
+
+// Writes a value back into the assignment line, so code and controls agree.
+export function setInSource(source, name, value) {
+  const literal = Array.isArray(value)
+    ? `[${value.join(', ')}]`
+    : typeof value === 'string'
+      ? JSON.stringify(value)
+      : String(value);
+  const re = new RegExp(`^(\\s*${name.replace(/[$]/g, '\\$')}\\s*=\\s*)([^;]*)(;)`, 'm');
+  return source.replace(re, (_, a, _b, c) => `${a}${literal}${c}`);
+}

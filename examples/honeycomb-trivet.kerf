@@ -1,0 +1,32 @@
+// A hexagonal trivet with a honeycomb of hexagon holes.
+
+/* [Trivet] */
+// Width across the corners
+size = 180; // [100:5:300]
+// Hole size, corner to corner
+cell = 16; // [8:1:40]
+// Wall between holes
+wall = 3; // [2:0.5:8]
+// Solid border
+border = 10; // [5:1:30]
+// Corner rounding
+round = 8; // [0:1:20]
+
+/* [Hidden] */
+R = size / 2;
+r = cell / 2;
+dx = 1.5 * r + wall * sqrt(3) / 2;
+dy = sqrt(3) * r + wall;
+n = ceil(R / dx) + 1;
+apothem = R * sqrt(3) / 2 - border;
+
+// Distance from the centre to p, measured across the flats of the outer hexagon.
+function flat_distance(p) = max([for (k = [0:2]) abs(p[0] * cos(k * 60) + p[1] * sin(k * 60))]);
+
+difference() {
+  offset(r = round) offset(delta = -round) rotate(30) regular_polygon(6, R);
+  for (i = [-n:n], j = [-n:n]) {
+    p = [i * dx, j * dy + (abs(i) % 2) * dy / 2];
+    if (flat_distance(p) + r <= apothem) translate(p) regular_polygon(6, r);
+  }
+}

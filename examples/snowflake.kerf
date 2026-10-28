@@ -1,0 +1,50 @@
+// A six-armed snowflake ornament. Each arm is one branch, repeated.
+
+/* [Snowflake] */
+// Width across the arms
+size = 90; // [40:5:200]
+// Side branches on each arm
+branches = 3; // [1:1:5]
+// Arm thickness
+arm = 3.2; // [2:0.2:6]
+// Angle of the side branches
+spread = 52; // [30:1:70]
+// Different seeds give different snowflakes
+seed = 7; // [1:1:99]
+
+/* [Hanging] */
+loop = true;
+// Hole diameter
+hole = 3.5; // [2:0.5:6]
+
+/* [Hidden] */
+$fn = 48;
+r = size / 2;
+lengths = rands(0.35, 0.8, branches, seed);
+spots = rands(0.25, 0.85, branches, seed + 1);
+
+module bar(a, b, w) hull() {
+  translate(a) circle(d = w);
+  translate(b) circle(d = w);
+}
+
+module arm() {
+  bar([0, 0], [r - arm, 0], arm);
+  translate([r - arm * 1.6, 0]) rotate(45) rect(arm * 1.8, center = true);
+  for (i = [0:branches - 1]) {
+    x = r * spots[i];
+    len = (r - x) * lengths[i];
+    for (s = [-1, 1]) bar([x, 0], [x + len * cos(spread), s * len * sin(spread)], arm * 0.8);
+  }
+}
+
+difference() {
+  union() {
+    for (k = [0:5]) rotate(90 + k * 60) arm();
+    regular_polygon(6, r * 0.22);
+    if (loop) translate([0, r - arm]) circle(d = hole + 2 * arm);
+  }
+  regular_polygon(6, r * 0.1);
+  if (loop) translate([0, r - arm]) circle(d = hole);
+}
+engrave() rotate(30) for (k = [0:5]) rotate(k * 60) translate([r * 0.16, 0]) circle(d = r * 0.035);

@@ -2,3 +2,4 @@ dist/
 out/
 LICENSE
 src/stdlib.ts
+site/dist

@@ -3,3 +3,4 @@ dist/
 out/
 *.tgz
 .DS_Store
+site/dist/

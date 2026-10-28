@@ -13,6 +13,7 @@ Units are millimetres and degrees. The y axis points up.
 
 ```kerf
 // A coaster with a hole, an engraved ring and a scored border.
+
 size = 90; // [60:5:120]
 
 difference() {

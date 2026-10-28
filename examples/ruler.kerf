@@ -1,0 +1,33 @@
+// A ruler with scored millimetre ticks and engraved numbers.
+
+/* [Ruler] */
+// Measuring length in cm
+length_cm = 15; // [5:1:30]
+// Ruler width
+width = 28; // [18:1:50]
+// Engraved label at the right end
+label = "KERF"; // 12
+// Hole for hanging
+hole = true;
+
+/* [Hidden] */
+$fn = 40;
+lead = 8;
+len = length_cm * 10;
+total = len + 2 * lead + (hole ? 10 : 0);
+
+difference() {
+  rect([total, width], r = 3);
+  if (hole) translate([total - 7, width / 2]) circle(d = 5);
+}
+
+score() for (mm = [0:len]) let (
+  tick = mm % 10 == 0 ? width * 0.42 : mm % 5 == 0 ? width * 0.3 : width * 0.2
+) line([lead + mm, width], [lead + mm, width - tick]);
+
+engrave() {
+  for (cm = [0:length_cm])
+    translate([lead + cm * 10, width * 0.5 - 1]) text(str(cm), 4.2, halign = "center", valign = "top");
+  translate([lead + len - 2, 3]) text(label, 3.4, halign = "right", spacing = 1.3);
+  translate([lead, 3]) text("cm", 3.4);
+}
