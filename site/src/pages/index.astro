@@ -1,7 +1,7 @@
 ---
 import Base from '../layouts/Base.astro';
 import ModelCard from '../components/ModelCard.astro';
-import { LANGUAGE_VERSION, SOURCE_PUBLIC, code, highlight, models } from '../lib/site.mjs';
+import { LANGUAGE_VERSION, NPM_URL, SOURCE_PUBLIC, code, highlight, models } from '../lib/site.mjs';
 
 const hero = models.find((m) => m.slug === 'clock-face');
 const featured = ['gears', 'box', 'jigsaw', 'snowflake', 'phone-stand', 'sunflower-panel'].map(
@@ -191,9 +191,18 @@ const FEATURES = [
         <p>
           The <code>kerf</code> command renders files to SVG or DXF. Settings can be changed with
           <code>-D width=200</code>.
-          {!SOURCE_PUBLIC && 'It ships on npm with the first public release.'}
+          {
+            SOURCE_PUBLIC ? (
+              <>
+                Install it from <a href={NPM_URL}>npm</a>.
+              </>
+            ) : (
+              'It ships on npm with the first public release.'
+            )
+          }
         </p>
-        <pre class="code plain"><code>kerf render box.kerf -o box.svg</code></pre>
+        <pre class="code plain"><code>npm install --global @mylasertools/kerfscript
+kerf render box.kerf -o box.svg</code></pre>
       </div>
     </div>
   </section>

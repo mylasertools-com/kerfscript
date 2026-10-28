@@ -1,6 +1,6 @@
 ---
 import { DISPLAY_DEFS } from '../../public/assets/display.js';
-import { BASE, LANGUAGE_VERSION, LOGO, REPO_URL, SOURCE_PUBLIC, VERSION } from '../lib/site.mjs';
+import { BASE, LANGUAGE_VERSION, LOGO, NPM_URL, REPO_URL, SOURCE_PUBLIC, VERSION } from '../lib/site.mjs';
 
 interface Props {
   title: string;
@@ -76,6 +76,7 @@ const identity = {
               </a>
             ))
           }
+          {SOURCE_PUBLIC && <a href={REPO_URL}>GitHub</a>}
         </nav>
       </div>
     </header>
@@ -84,6 +85,17 @@ const identity = {
     </main>
     <footer class="site-footer">
       <div class:list={['bar', { wide }]}>
+        {
+          SOURCE_PUBLIC && (
+            <p class="footer-links">
+              <a href={REPO_URL}>Source on GitHub</a>
+              <a href={NPM_URL}>npm package</a>
+              <a href={`${REPO_URL}/issues`}>Report a problem</a>
+              <a href={`${REPO_URL}/blob/main/CHANGELOG.md`}>Changelog</a>
+              <a href={`${REPO_URL}/blob/main/CONTRIBUTING.md`}>Contributing</a>
+            </p>
+          )
+        }
         <p>
           KerfScript {VERSION}, language version {LANGUAGE_VERSION}. Made by <a
             href="https://mylasertools.com">MyLaserTools</a

@@ -1,0 +1,56 @@
+{
+  "name": "kerfscript",
+  "version": "0.2.0",
+  "description": "KerfScript: a programming language for laser cutting. Same package as @mylasertools/kerfscript.",
+  "type": "module",
+  "license": "AGPL-3.0-only",
+  "author": "MyLaserTools",
+  "homepage": "https://kerfscript.mylasertools.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mylasertools-com/kerfscript.git",
+    "directory": "alias"
+  },
+  "bugs": "https://github.com/mylasertools-com/kerfscript/issues",
+  "keywords": [
+    "kerfscript",
+    "laser-cutting",
+    "parametric",
+    "cad",
+    "programming-language",
+    "svg",
+    "dxf"
+  ],
+  "main": "./index.cjs",
+  "module": "./index.js",
+  "types": "./index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./index.d.ts",
+        "default": "./index.js"
+      },
+      "require": {
+        "types": "./index.d.ts",
+        "default": "./index.cjs"
+      }
+    }
+  },
+  "bin": {
+    "kerf": "cli.js"
+  },
+  "files": [
+    "index.js",
+    "index.cjs",
+    "index.d.ts",
+    "cli.js",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@mylasertools/kerfscript": "0.2.0"
+  }
+}

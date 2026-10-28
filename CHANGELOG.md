@@ -1,6 +1,8 @@
 # Changelog
 
-## 0.2.0 (unreleased)
+## 0.2.0 (2026-10-28)
+
+First public release.
 
 - `render()` returns `paths` (path data per layer), `width` and `height`, and
   every sheet has `paths`, so host apps can draw layers without parsing SVG.
@@ -24,7 +26,7 @@
 - Guides in `docs/`, calibration square and kerf test examples, and
   `npm run compat`, which checks SVG and DXF output in Inkscape.
 
-## 0.1.0 (unreleased)
+## 0.1.0 (not published)
 
 First version of the KerfScript language (language version 0.1).
 

@@ -17,7 +17,8 @@ export const BASE = 'https://kerfscript.mylasertools.com';
 export const REPO_URL = 'https://github.com/mylasertools-com/kerfscript';
 // Flip when the repository is public and the package is on npm: pages then
 // link to both instead of saying they are coming.
-export const SOURCE_PUBLIC = false;
+export const SOURCE_PUBLIC = true;
+export const NPM_URL = 'https://www.npmjs.com/package/@mylasertools/kerfscript';
 export const read = (path) => readFileSync(join(repo, path), 'utf8').replace(/\r\n/g, '\n');
 
 export const esc = (s) =>
