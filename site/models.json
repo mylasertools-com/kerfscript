@@ -32,6 +32,24 @@
     }
   },
   {
+    "file": "hadal",
+    "title": "Hadal skeleton sculpture",
+    "tags": ["sculpture", "joinery", "parts"],
+    "photo": {
+      "alt": "The Hadal skeleton assembled on its stand"
+    }
+  },
+  {
+    "file": "solstice",
+    "title": "Solstice lantern",
+    "tags": ["lantern", "tabs", "holes"]
+  },
+  {
+    "file": "winterlight",
+    "title": "Winterlight ornaments",
+    "tags": ["ornament", "score", "christmas"]
+  },
+  {
     "file": "snowflake",
     "title": "Snowflake ornament",
     "tags": ["symmetry", "random"]

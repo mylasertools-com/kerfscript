@@ -1,0 +1,167 @@
+// Winterlight: three Christmas ornaments, a snow crystal, a fir grove under
+// the moon and an eight-point star. Each is one piece with its own cord loop.
+
+/* [Ornaments] */
+// Make all three or just one
+selection = "all"; // [all:All three, frost:Frost, grove:Grove, nova:Nova]
+// Diameter of the round ornaments; everything scales with it
+body_size = 84; // [76:2:100]
+// Scored frost, branch and facet lines
+score_detail = true;
+
+/* [Material] */
+// Sheet thickness
+$thickness = 3; // [2.5:0.1:4]
+// Beam width
+$kerf = 0.15; // [0:0.01:0.3]
+
+/* [Hidden] */
+$material = "birch plywood";
+$sheet = [340, 150];
+$gap = 6;
+$fn = 144;
+s = body_size / 84;
+cord_hole = 4.5;
+
+module round_blank() union() {
+  circle(r = 42);
+  translate([-6.5, 38]) rect([13, 9]);
+  translate([0, 47]) circle(r = 6.5);
+}
+
+module round_frame() difference() {
+  round_blank();
+  circle(r = 36);
+}
+
+module hanger_hole(y = 47) translate([0, y * s]) circle(d = cord_hole);
+
+module rim_detail() {
+  outline() circle(r = 39);
+  for (a = [0:30:330]) rotate(a) line([37.5, 0], [40.5, 0]);
+  translate([0, 47]) outline() circle(r = 4.5);
+}
+
+// Frost: six spines with two pairs of branches each, inside a ring.
+module frost() {
+  difference() {
+    scale(s) union() {
+      round_frame();
+      circle(r = 7.5);
+      for (a = [30:60:330]) rotate(a) {
+        stroke(3.8) line([0, 0], [38, 0]);
+        for (side = [-1, 1]) {
+          stroke(3.4) line([16, 0], [25, side * 8.7]);
+          stroke(3.4) line([26, 0], [37, side * 7.5]);
+        }
+      }
+    }
+    hanger_hole();
+    scale(s) regular_polygon(6, 3.4);
+  }
+  if (score_detail) scale(s) score() {
+    rim_detail();
+    outline() regular_polygon(6, 5.5);
+    for (a = [30:60:330]) rotate(a) {
+      line([7.8, 0], [37.3, 0]);
+      for (side = [-1, 1]) {
+        line([16, 0], [24.3, side * 8]);
+        line([26, 0], [36.4, side * 6.9]);
+      }
+    }
+  }
+}
+
+// Grove: three firs on a snowy hill, with a crescent moon joined to the rim.
+module fir(w, h) offset(r = 0.6) offset(delta = -0.6) polygon([
+  [0, h], [w * 0.52, h * 0.71], [w * 0.26, h * 0.71],
+  [w * 0.82, h * 0.43], [w * 0.46, h * 0.43], [w, h * 0.13],
+  [2.4, h * 0.13], [2.4, 0], [-2.4, 0], [-2.4, h * 0.13],
+  [-w, h * 0.13], [-w * 0.46, h * 0.43], [-w * 0.82, h * 0.43],
+  [-w * 0.26, h * 0.71], [-w * 0.52, h * 0.71]
+]);
+
+module fir_lines(w, h) {
+  line([0, 2], [0, h - 5]);
+  for (p = [[0.71, 0.39], [0.43, 0.67], [0.13, 0.84]])
+    polyline([[-w * p[1], h * p[0] + 1.4], [0, h * p[0] + 3.4], [w * p[1], h * p[0] + 1.4]]);
+}
+
+module grove() {
+  difference() {
+    scale(s) union() {
+      round_frame();
+      intersection() {
+        circle(r = 42);
+        union() {
+          path("M -44 -25 Q -22 -14 0 -25 Q 22 -20 44 -23 L 44 -44 L -44 -44 Z");
+          translate([-20, -29]) fir(10, 38);
+          translate([1, -32]) fir(13.4, 59);
+          translate([22, -33]) fir(10, 44);
+          translate([-17, 23]) difference() {
+            circle(r = 12);
+            translate([4.5, 2.2]) circle(r = 10.2);
+          }
+        }
+      }
+    }
+    hanger_hole();
+  }
+  if (score_detail) scale(s) score() {
+    rim_detail();
+    translate([-20, -29]) fir_lines(10, 38);
+    translate([1, -32]) fir_lines(13.4, 59);
+    translate([22, -33]) fir_lines(10, 44);
+    path("M -24 -25 Q -12 -23 0 -29 Q 12 -33 24 -25");
+    path("M -17 -31 Q 0 -39 17 -31");
+    // Small stars scored on the rim
+    for (a = [35, 55, 75, 105, 155, 175]) rotate(a) {
+      line([37.8, -0.9], [40.2, 0.9]);
+      line([37.8, 0.9], [40.2, -0.9]);
+    }
+    translate([-17, 23]) arc(r = 9, start = 130, end = 270);
+  }
+}
+
+// Nova: an eight-point star, four long rays and four short ones.
+module nova_blank() union() {
+  offset(r = 0.65) offset(delta = -0.65) polygon([
+    [0, 44], [8, 18], [24, 24], [18, 8], [38, 0], [18, -8],
+    [24, -24], [8, -18], [0, -43], [-8, -18], [-24, -24], [-18, -8],
+    [-38, 0], [-18, 8], [-24, 24], [-8, 18]
+  ]);
+  hull() {
+    translate([0, 34]) circle(r = 5.3);
+    translate([0, 44]) circle(r = 6.5);
+  }
+}
+
+module nova_windows() {
+  for (a = [0, 180]) rotate(a) polygon([[0, 12], [3.5, 20], [0, 32], [-3.5, 20]]);
+  for (a = [90, 270]) rotate(a) polygon([[0, 12], [3.2, 19], [0, 28], [-3.2, 19]]);
+  for (a = [0:90:270]) rotate(a) polygon([[10.8, 10.8], [16.5, 13.3], [19, 19], [13.3, 16.5]]);
+  star(8, 5.6, 3.1);
+}
+
+module nova() {
+  difference() {
+    scale(s) difference() {
+      nova_blank();
+      nova_windows();
+    }
+    hanger_hole(44);
+  }
+  if (score_detail) scale(s) score() {
+    outline() star(8, 9.1, 6.8);
+    for (a = [0:90:270]) rotate(a) {
+      line([0, 9.3], [0, 40]);
+      line([7, 7], [22, 22]);
+      polyline([[6.6, 15], [9, 9], [15, 6.6]]);
+    }
+    translate([0, 44]) outline() circle(r = 4.5);
+  }
+}
+
+if (selection == "all" || selection == "frost") part("Frost") frost();
+if (selection == "all" || selection == "grove") part("Grove") grove();
+if (selection == "all" || selection == "nova") part("Nova") nova();

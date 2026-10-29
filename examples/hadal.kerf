@@ -1,0 +1,163 @@
+// Hadal: the skeleton of an imagined deep-sea ray on a display stand. Nine
+// ribs slot onto a spine, which sits in two cradles on a plinth. The ribs
+// lean more along the body, so the flat pieces look like a turning animal.
+
+/* [Specimen] */
+// Length from nose to tail
+length = 270; // [250:10:300]
+// The sculpture, or two pieces to test the slot fit first
+output = "sculpture"; // [sculpture:Sculpture, fit:Fit test]
+// Scored veins, rib numbers and plinth markings
+score_detail = true;
+
+/* [Material] */
+// Sheet thickness
+$thickness = 3; // [2.5:0.1:4]
+// Added to the slot width
+clearance = 0.15; // [0.05:0.05:0.25]
+// Beam width
+$kerf = 0.15; // [0:0.01:0.3]
+
+/* [Hidden] */
+$material = "plywood";
+$sheet = [600, 400];
+$gap = 6;
+$fn = 96;
+s = length / 270;
+t = $thickness;
+sw = t + clearance;
+// Per rib: position on the spine, slot depth, half width, height and lean
+xs = [35, 55, 75, 95, 115, 135, 155, 175, 195];
+zs = [75, 79, 83, 85, 86, 85, 82, 78, 73];
+ws = [29, 49, 74, 94, 88, 69, 49, 32, 20];
+hs = [20, 27, 32, 34, 31, 27, 23, 20, 17];
+leans = [-0.22, -0.17, -0.09, 0, 0.12, 0.21, 0.27, 0.30, 0.30];
+cradle_x = [65, 165];
+cradle_z = [74, 72];
+
+module rib_envelope(i) multmatrix([[1, 0, 0], [leans[i], 1, 0]]) scale([ws[i] * s, hs[i] * s])
+  path("M 0 1 C 0.42 1 0.65 0.55 1 0.25 Q 1.07 0.11 0.94 -0.04 C 0.55 -0.28 0.38 -0.67 0 -0.65 C -0.38 -0.67 -0.55 -0.28 -0.94 -0.04 Q -1.07 0.11 -1 0.25 C -0.65 0.55 -0.42 1 0 1 Z");
+
+module rib_bone(i) difference() {
+  intersection() {
+    rib_envelope(i);
+    union() {
+      if (i == 8) rib_envelope(i);
+      else difference() {
+        rib_envelope(i);
+        offset(delta = -6 * s) rib_envelope(i);
+      }
+      translate([-7 * s, -100 * s]) rect([14 * s, 200 * s]);
+      // Cross braces run past the shell before clipping, so no thin tips are left
+      if (ws[i] >= 45) for (side = [-1, 1]) stroke(5 * s)
+        line([side * 4 * s, 0], [side * ws[i] * 1.10 * s, (hs[i] * 0.12 + leans[i] * side * ws[i] * 1.10) * s]);
+    }
+  }
+  // Slot from below, onto the spine
+  translate([-sw / 2, -200 * s]) rect([sw, 200 * s]);
+}
+
+module rib(i) {
+  rib_bone(i);
+  if (score_detail) score() {
+    outline() offset(delta = -3 * s) rib_envelope(i);
+    for (side = [-1, 1])
+      line([side * 9 * s, 0], [side * ws[i] * 0.97 * s, (hs[i] * 0.105 + leans[i] * side * ws[i] * 0.97) * s]);
+    translate([0, hs[i] * 0.62 * s]) text(str(i + 1), size = 3.5 * s, halign = "center", valign = "center");
+  }
+}
+
+module spine_envelope() scale(s)
+  path("M 0 77 Q 7 89 16 93 L 13 111 Q 13 118 18 113 L 30 91 C 77 103 137 106 195 87 C 218 84 238 104 263 124 Q 270 128 270 122 C 253 97 232 73 210 63 Q 200 59 190 59 C 136 78 72 75 31 60 Q 15 53 6 64 Q 0 68 0 77 Z");
+
+module spine() {
+  difference() {
+    spine_envelope();
+    // Rib slots from above, cradle slots from below
+    for (i = [0:8]) translate([xs[i] * s - sw / 2, zs[i] * s]) rect([sw, 100 * s]);
+    for (j = [0:1]) translate([cradle_x[j] * s - sw / 2, -10 * s]) rect([sw, (cradle_z[j] + 10) * s]);
+    translate([15 * s, 76 * s]) ellipse([5.5 * s, 4 * s]);
+    scale(s) path("M 215 74 Q 236 84 253 108 Q 233 91 215 81 Z");
+  }
+  if (score_detail) score() scale(s) {
+    path("M 6 78 Q 12 88 23 86");
+    path("M 20 66 C 70 82 139 85 188 68");
+    path("M 213 69 Q 238 81 260 115");
+    for (j = [0:1]) translate([cradle_x[j] - 7, cradle_z[j] + 9]) text(j == 0 ? "A" : "B", size = 3, halign = "center");
+    for (i = [0:8]) translate([xs[i] + 5, zs[i] - 7]) text(str(i + 1), size = 2.7, halign = "center");
+  }
+}
+
+module cradle_envelope(j) {
+  h = cradle_z[j] * s;
+  union() {
+    hull() {
+      translate([0, h - 3 * s]) circle(r = 9 * s);
+      translate([0, 48 * s]) circle(r = 8 * s);
+    }
+    for (side = [-1, 1]) hull() {
+      translate([0, 52 * s]) circle(r = 8 * s);
+      translate([side * 24 * s, 5 * s]) circle(r = 8 * s);
+    }
+    for (side = [-1, 1]) translate([side * 24 * s - 8 * s, 0]) rect([16 * s, 10 * s]);
+  }
+}
+
+module cradle(j) {
+  difference() {
+    union() {
+      intersection() {
+        cradle_envelope(j);
+        translate([-45 * s, 0]) rect([90 * s, 120 * s]);
+      }
+      // Tabs into the plinth
+      for (side = [-1, 1]) translate([side * 24 * s - 6 * s, -t]) rect([12 * s, t + 0.5]);
+    }
+    translate([-sw / 2, cradle_z[j] * s]) rect([sw, 100 * s]);
+    for (side = [-1, 1]) hull() {
+      translate([side * 22 * s, 12 * s]) circle(r = 2.2 * s);
+      translate([side * 8 * s, 40 * s]) circle(r = 2.2 * s);
+    }
+  }
+  if (score_detail) score() {
+    translate([0, 61 * s]) text(j == 0 ? "A" : "B", size = 4 * s, halign = "center", valign = "center");
+    for (side = [-1, 1]) polyline([[side * 27 * s, 7 * s], [side * 18 * s, 28 * s], [side * 4 * s, 51 * s]]);
+  }
+}
+
+module plinth() {
+  difference() {
+    scale(s) polygon([[20, -35], [38, -53], [192, -53], [210, -35], [210, 35], [192, 53], [38, 53], [20, 35]]);
+    for (j = [0:1], side = [-1, 1]) translate([cradle_x[j] * s, side * 24 * s]) rect([sw, 12 * s + clearance], center = true);
+  }
+  if (score_detail) score() scale(s) {
+    outline() polygon([[25, -33], [40, -48], [190, -48], [205, -33], [205, 33], [190, 48], [40, 48], [25, 33]]);
+    translate([115, -32]) text("H A D A L", size = 7, halign = "center", valign = "center");
+    translate([115, -43]) text("SPECIMEN 09 / ABYSSAL ARCHIVE", size = 2.6, halign = "center", valign = "center");
+    for (x = [75:5:155]) line([x, 39], [x, x % 10 == 0 ? 44 : 42]);
+    for (j = [0:1]) translate([cradle_x[j], 0]) text(j == 0 ? "A" : "B", size = 3.5, halign = "center");
+  }
+}
+
+module fit_test() {
+  for (j = [0:1]) part(j == 0 ? "Fit test, lower" : "Fit test, upper") {
+    difference() {
+      rect([35, 30], r = 2);
+      translate([17.5 - sw / 2, j == 0 ? -1 : 15]) rect([sw, 16]);
+    }
+    if (score_detail) score() translate([7, 12]) text(j == 0 ? "L" : "U", size = 4);
+  }
+}
+
+if (output == "fit") fit_test();
+if (output == "sculpture") {
+  part("Spine") spine();
+  for (i = [0:8]) part(str("Rib ", i + 1)) rib(i);
+  part("Cradle A") cradle(0);
+  part("Cradle B") cradle(1);
+  part("Plinth") plinth();
+}
+
+// Assembly: glue cradles A and B into the plinth, lower the spine into
+// them, then drop ribs 1 to 9 into the numbered slots on top of the spine.
+// Dry fit everything before gluing the joints.

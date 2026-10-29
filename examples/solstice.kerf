@@ -1,0 +1,125 @@
+// Solstice: a lantern with two sun walls and two moon walls, held between a
+// base and an open crown by tabs. For a battery LED, not a candle.
+
+/* [Lantern] */
+// Wall height between base and crown
+height = 170; // [160:5:210]
+// Add a small test piece with three slot widths
+fit_coupon = true;
+// Scored rings and lines
+score_detail = true;
+
+/* [Material] */
+// Sheet thickness
+$thickness = 3; // [2.5:0.1:4]
+// Beam width
+$kerf = 0.15; // [0:0.01:0.3]
+// Added to slot width and length, for a slip fit
+clearance = 0.15; // [0:0.05:0.4]
+
+/* [Hidden] */
+$material = "birch plywood";
+$sheet = [600, 400];
+$gap = 5;
+$fn = 96;
+w = 94;
+span = 100;
+foot = 116;
+tab_w = 10;
+tab_x = 28;
+t = $thickness;
+cy = height * 0.53;
+
+module kite(rx, ry) polygon([[0, ry], [rx, 0], [0, -ry], [-rx, 0]]);
+
+module rosette(moon = false) {
+  if (moon) difference() {
+    circle(r = 10);
+    translate([4, 2]) circle(r = 9);
+  } else star(8, 10, 5.6);
+  for (a = [0:45:315]) rotate(a + (moon ? 22.5 : 0)) {
+    polygon([[14, 0], [19, -5], [24, 0], [19, 5]]);
+    polygon([[28, 0], [32, -5.8], [37, 0], [32, 5.8]]);
+  }
+}
+
+module wall_blank() union() {
+  translate([-w / 2, 0]) rect([w, height]);
+  for (x = [-tab_x, tab_x]) {
+    translate([x - tab_w / 2, -t]) rect([tab_w, t + 0.5]);
+    translate([x - tab_w / 2, height - 0.5]) rect([tab_w, t + 0.5]);
+  }
+}
+
+module wall(moon = false) {
+  difference() {
+    wall_blank();
+    translate([0, cy]) rosette(moon);
+    // A fan of five kites at the top and bottom
+    for (x = [-28, -14, 0, 14, 28]) {
+      translate([x, height - 20 - abs(x) * 0.12]) kite(3.1, 10 - abs(x) * 0.1);
+      translate([x, 21 + abs(x) * 0.12]) kite(3.1, 10 - abs(x) * 0.1);
+    }
+    // Pinhole stars
+    for (x = [-39, 39], y = [25, 45, height - 45, height - 25])
+      translate([x, y]) circle(d = 2.4);
+  }
+  if (score_detail) score() {
+    translate([-42, 6]) outline() rect([84, height - 12]);
+    translate([0, cy]) {
+      outline() circle(r = 11.8);
+      outline() circle(r = 26);
+      outline() circle(r = 39.5);
+      for (a = [0:45:315]) rotate(a + (moon ? 22.5 : 0)) line([10.8, 0], [39.5, 0]);
+    }
+    for (s = [-1, 1])
+      polyline([[-34, cy + s * 44], [-20, cy + s * 52], [0, cy + s * 45], [20, cy + s * 52], [34, cy + s * 44]]);
+  }
+}
+
+module sockets(extra = clearance) {
+  for (a = [0:90:270]) rotate(a)
+    for (x = [-tab_x, tab_x])
+      translate([x, span / 2]) rect([tab_w + extra, t + extra], center = true);
+}
+
+module plate(top = false) {
+  difference() {
+    rect([foot, foot], center = true, r = 6);
+    sockets();
+    if (top) rect([80, 80], center = true, r = 10);
+  }
+  if (score_detail) score() {
+    outline() rect([108, 108], center = true, r = 3);
+    if (top) outline() rect([86, 86], center = true, r = 12);
+    else {
+      outline() circle(d = 48);
+      outline() circle(d = 54);
+      for (a = [0:30:330]) rotate(a) line([29, 0], [34, 0]);
+    }
+  }
+  if (!top) engrave() {
+    translate([0, -37]) text("SOLSTICE", size = 5, halign = "center", valign = "center");
+    translate([0, 37]) text("LED ONLY", size = 3.4, halign = "center", valign = "center");
+  }
+}
+
+part("Sun wall", qty = 2) wall(false);
+part("Moon wall", qty = 2) wall(true);
+part("Base") plate(false);
+part("Crown") plate(true);
+
+if (fit_coupon) part("Fit test") {
+  difference() {
+    rect([68, 26], r = 3);
+    for (i = [0:2]) translate([13 + i * 21, 13])
+      rect([tab_w + clearance, t + clearance + (i - 1) * 0.1], center = true);
+  }
+  engrave() for (i = [0:2]) translate([13 + i * 21, 21])
+    text(str(round(100 * (t + clearance + (i - 1) * 0.1)) / 100), size = 2.8, halign = "center", valign = "center");
+  score() translate([34, 5]) text("SLOT WIDTH / mm", size = 2.5, halign = "center", valign = "center");
+}
+
+// Assembly: plug the four walls into the base, sun walls facing each other,
+// then lower the crown onto the top tabs. Leave the crown loose so the LED
+// can be reached; it sits on the scored circle in the base.
