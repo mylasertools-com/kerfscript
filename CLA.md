@@ -69,5 +69,5 @@ I have read the KerfScript CLA 1.0 and agree to it for my contributions.
 Name: <your name>  GitHub: <your handle>  Date: <YYYY-MM-DD>
 ```
 
-If You contribute on behalf of a company, contact julia@mylasertools.com for
+If You contribute on behalf of a company, contact hi@mylasertools.com for
 the company version first.

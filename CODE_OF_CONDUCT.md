@@ -26,6 +26,6 @@ the KerfScript project.
 
 ## Reporting
 
-Email **julia@mylasertools.com**. Reports are kept confidential. Maintainers
+Email **hi@mylasertools.com**. Reports are kept confidential. Maintainers
 may remove comments, close threads, or block people who break these rules,
 and will tell the person why.

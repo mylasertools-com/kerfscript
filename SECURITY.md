@@ -6,7 +6,7 @@ to read files, reach the network, or keep running after its limits.
 
 ## Reporting a problem
 
-Email **julia@mylasertools.com** with a description and, if you can, a
+Email **hi@mylasertools.com** with a description and, if you can, a
 `.kerf` file that shows it. Please do not open a public issue for security
 problems.
 

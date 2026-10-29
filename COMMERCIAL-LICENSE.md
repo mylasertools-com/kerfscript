@@ -53,7 +53,7 @@ A commercial licence replaces the AGPL obligations with ordinary commercial
 terms: closed source use, use in hosted services, private modifications and
 support options. Terms and pricing are set per agreement.
 
-Contact: julia@mylasertools.com
+Contact: hi@mylasertools.com
 
 ## Trademarks
 

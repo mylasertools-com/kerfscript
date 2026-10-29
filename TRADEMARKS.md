@@ -36,4 +36,4 @@ MyLaserTools through this repository, so there is one KerfScript.
 
 ## Contact
 
-julia@mylasertools.com
+hi@mylasertools.com
