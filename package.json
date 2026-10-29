@@ -72,7 +72,8 @@
     "prepack": "npm run check",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "compat": "node scripts/compat.mjs"
+    "compat": "node scripts/compat.mjs",
+    "readme-images": "npm run build && cd site && node ../scripts/readme-images.mjs"
   },
   "devDependencies": {
     "@types/node": "20.19.43",

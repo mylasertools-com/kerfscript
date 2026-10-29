@@ -1,16 +1,37 @@
-# KerfScript
+<p align="center">
+  <a href="https://kerfscript.mylasertools.com"><img src=".github/readme/banner.png" alt="KerfScript, a programming language for laser cutting" width="840"></a>
+</p>
 
-**A programming language for laser cutting.**
+<p align="center">
+  <a href="https://www.npmjs.com/package/@mylasertools/kerfscript"><img src="https://img.shields.io/npm/v/@mylasertools/kerfscript?color=d8361f&label=npm" alt="npm version"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/licence-AGPL--3.0%20%2B%20commercial-1f1a17" alt="Licence: AGPL-3.0 or commercial"></a>
+  <a href="LANGUAGE.md"><img src="https://img.shields.io/badge/language-0.1-e3c69a" alt="Language version 0.1"></a>
+  <a href="https://kerfscript.mylasertools.com/playground/"><img src="https://img.shields.io/badge/try%20it-playground-5a3519" alt="Try it in the playground"></a>
+</p>
 
-[Website](https://kerfscript.mylasertools.com) ·
-[Playground](https://kerfscript.mylasertools.com/playground/) ·
-[Models](https://kerfscript.mylasertools.com/models/) ·
-[Docs](https://kerfscript.mylasertools.com/docs/)
+<p align="center">
+  <a href="https://kerfscript.mylasertools.com">Website</a> ·
+  <a href="https://kerfscript.mylasertools.com/playground/">Playground</a> ·
+  <a href="https://kerfscript.mylasertools.com/models/">Models</a> ·
+  <a href="https://kerfscript.mylasertools.com/docs/">Docs</a> ·
+  <a href="https://www.npmjs.com/package/@mylasertools/kerfscript">npm</a>
+</p>
 
 Write a part once as code, change a number, and get a new cut file. KerfScript
 is to laser cutters what OpenSCAD is to 3D printers, except it was designed for
 flat parts from the start: cut, score and engrave layers, kerf compensation,
 finger joints, living hinges, parts and sheets are part of the language.
+
+<p align="center">
+  <a href="https://kerfscript.mylasertools.com/playground/?model=fractal-tree"><img src=".github/readme/playground.gif" alt="Moving a slider in the playground changes the number in the code and redraws the fractal tree" width="840"></a>
+  <br><sub>The <a href="https://kerfscript.mylasertools.com/playground/">playground</a> runs the interpreter in your browser. A comment after a number turns it into a slider.</sub>
+</p>
+
+## Example
+
+<table>
+<tr>
+<td width="50%" valign="top">
 
 ```kerf
 use <kerf/box>
@@ -28,6 +49,13 @@ $kerf = 0.15; // [0:0.01:0.5]
 box([width, depth, height], lid = lid);
 ```
 
+</td>
+<td width="50%" valign="top">
+<img src=".github/readme/model-box.png" alt="Six finger-jointed panels of a box, packed on a sheet">
+</td>
+</tr>
+</table>
+
 ```sh
 npx @mylasertools/kerfscript render box.kerf -o box.svg -D width=200
 ```
@@ -36,6 +64,35 @@ That writes all six panels packed on a sheet, kerf compensated, as a
 millimetre SVG with one layer per operation. Output is checked automatically
 in Inkscape; see [docs/compatibility.md](docs/compatibility.md) for what has
 and has not been tested in other laser software.
+
+## Made with KerfScript
+
+Every picture is drawn by KerfScript from the files in [examples/](examples).
+Open one on the website to change its settings and download the SVG or DXF,
+or copy it as the start of your own design.
+
+<table>
+<tr>
+<td width="33%" valign="top"><a href="https://kerfscript.mylasertools.com/models/hadal/"><img src=".github/readme/model-hadal.png" alt="Hadal sculpture"></a><br><b><a href="https://kerfscript.mylasertools.com/models/hadal/">Hadal sculpture</a></b><br><sub>13 slotted parts, ribs computed from lists</sub></td>
+<td width="33%" valign="top"><a href="https://kerfscript.mylasertools.com/models/tilt-maze/"><img src=".github/readme/model-tilt-maze.png" alt="Tilt maze"></a><br><b><a href="https://kerfscript.mylasertools.com/models/tilt-maze/">Tilt maze</a></b><br><sub>a new maze for every seed, by recursion</sub></td>
+<td width="33%" valign="top"><a href="https://kerfscript.mylasertools.com/models/topo-island/"><img src=".github/readme/model-topo-island.png" alt="Layered island"></a><br><b><a href="https://kerfscript.mylasertools.com/models/topo-island/">Layered island</a></b><br><sub>contours traced from a height formula</sub></td>
+</tr>
+<tr>
+<td width="33%" valign="top"><a href="https://kerfscript.mylasertools.com/models/fractal-tree/"><img src=".github/readme/model-fractal-tree.png" alt="Fractal tree"></a><br><b><a href="https://kerfscript.mylasertools.com/models/fractal-tree/">Fractal tree</a></b><br><sub>a module that calls itself</sub></td>
+<td width="33%" valign="top"><a href="https://kerfscript.mylasertools.com/models/round-badge/"><img src=".github/readme/model-round-badge.png" alt="Round badge"></a><br><b><a href="https://kerfscript.mylasertools.com/models/round-badge/">Round badge</a></b><br><sub>text set letter by letter around a circle</sub></td>
+<td width="33%" valign="top"><a href="https://kerfscript.mylasertools.com/models/winterlight/"><img src=".github/readme/model-winterlight.png" alt="Winterlight ornaments"></a><br><b><a href="https://kerfscript.mylasertools.com/models/winterlight/">Winterlight ornaments</a></b><br><sub>one-piece ornaments with scored detail</sub></td>
+</tr>
+<tr>
+<td width="33%" valign="top"><a href="https://kerfscript.mylasertools.com/models/xenospora/"><img src=".github/readme/model-xenospora.png" alt="Xenospora seed pod"></a><br><b><a href="https://kerfscript.mylasertools.com/models/xenospora/">Xenospora seed pod</a></b><br><sub>16 parts on 3 sheets, one file per sheet</sub></td>
+<td width="33%" valign="top"><a href="https://kerfscript.mylasertools.com/models/solstice/"><img src=".github/readme/model-solstice.png" alt="Solstice lantern"></a><br><b><a href="https://kerfscript.mylasertools.com/models/solstice/">Solstice lantern</a></b><br><sub>tabs, slots and a fit test piece</sub></td>
+<td width="33%" valign="top"><a href="https://kerfscript.mylasertools.com/models/box/"><img src=".github/readme/model-box.png" alt="Finger-jointed box"></a><br><b><a href="https://kerfscript.mylasertools.com/models/box/">Finger-jointed box</a></b><br><sub>six panels from one library call</sub></td>
+</tr>
+<tr>
+<td width="33%" valign="top"><a href="https://kerfscript.mylasertools.com/models/gears/"><img src=".github/readme/model-gears.png" alt="Spur gears"></a><br><b><a href="https://kerfscript.mylasertools.com/models/gears/">Spur gears</a></b><br><sub>involute teeth from a formula</sub></td>
+<td width="33%" valign="top"><a href="https://kerfscript.mylasertools.com/models/gift-tags/"><img src=".github/readme/model-gift-tags.png" alt="Gift tags from a list"></a><br><b><a href="https://kerfscript.mylasertools.com/models/gift-tags/">Gift tags from a list</a></b><br><sub>one tag per name, each name fitted</sub></td>
+<td width="33%" valign="top"><a href="https://kerfscript.mylasertools.com/models/clock-face/"><img src=".github/readme/model-clock-face.png" alt="Clock face"></a><br><b><a href="https://kerfscript.mylasertools.com/models/clock-face/">Clock face</a></b><br><sub>cut, score and engrave in 18 lines</sub></td>
+</tr>
+</table>
 
 ## Why a new language
 
@@ -119,6 +176,7 @@ npm --prefix site install
 npm run site          # build KerfScript, then the site into site/dist
 npm run site:serve    # preview on http://localhost:4321
 npm --prefix site run deploy
+npm run readme-images # redraw the model pictures in this README
 ```
 
 ## Checking output
