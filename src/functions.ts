@@ -66,8 +66,8 @@ export const FUNCTIONS: Record<string, Fn> = {
   atan: math1('atan', (x) => Math.atan(x) / RAD),
   atan2: (a) => clean(Math.atan2(num(a[0], 'atan2'), num(a[1], 'atan2')) / RAD),
   pow: (a) => Math.pow(num(a[0], 'pow'), num(a[1], 'pow')),
-  min: (a) => minmax(a, (xs) => Math.min(...xs), 'min'),
-  max: (a) => minmax(a, (xs) => Math.max(...xs), 'max'),
+  min: (a) => minmax(a, (xs) => xs.reduce((m, x) => (x < m ? x : m), Infinity), 'min'),
+  max: (a) => minmax(a, (xs) => xs.reduce((m, x) => (x > m ? x : m), -Infinity), 'max'),
   clamp: (a) => Math.min(Math.max(num(a[0], 'clamp'), num(a[1], 'clamp')), num(a[2], 'clamp')),
   lerp: (a) => {
     const t = num(a[2], 'lerp');
@@ -77,7 +77,7 @@ export const FUNCTIONS: Record<string, Fn> = {
     }
     return num(a[0], 'lerp') + (num(a[1], 'lerp') - num(a[0], 'lerp')) * t;
   },
-  norm: (a) => Math.hypot(...list(a[0], 'norm').map((x) => num(x, 'norm'))),
+  norm: (a) => Math.sqrt(list(a[0], 'norm').reduce((s: number, x) => s + num(x, 'norm') ** 2, 0)),
   cross: (a) => {
     const u = list(a[0], 'cross').map((x) => num(x, 'cross'));
     const v = list(a[1], 'cross').map((x) => num(x, 'cross'));

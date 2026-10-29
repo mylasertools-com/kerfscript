@@ -17,6 +17,18 @@ quantity is one.
 
 Shapes outside a `part()` are collected into a part named `part`.
 
+Transforms and operations such as `translate()`, `difference()` and
+`offset()` can wrap a part and change all of it. Layer wrappers such as
+`score()` and `engrave()` go inside the part instead, since a whole part on
+the score layer would have nothing to cut:
+
+```kerf
+part("tag") {
+  rect([60, 30], r = 3);
+  score() translate([5, 5]) rect([50, 20]);
+}
+```
+
 ## Materials
 
 `material()` sets the thickness, kerf and material name for its parts:

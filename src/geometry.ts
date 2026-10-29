@@ -208,22 +208,35 @@ export function merge(shapes: Shape[]): Shape {
   for (const s of shapes) {
     for (const [k, l] of s.layers) {
       const t = out.layers.get(k) ?? { regions: [], lines: [] };
-      t.regions.push(...l.regions);
-      t.lines.push(...l.lines);
+      for (const p of l.regions) t.regions.push(p);
+      for (const p of l.lines) t.lines.push(p);
       out.layers.set(k, t);
     }
-    out.parts.push(...s.parts);
+    for (const p of s.parts) out.parts.push(p);
   }
   return out;
 }
 
-export function retag(s: Shape, layer: string): Shape {
+function allOn(layers: Map<string, Layer>, layer: string): Map<string, Layer> {
   const all: Layer = { regions: [], lines: [] };
-  for (const l of s.layers.values()) {
-    all.regions.push(...l.regions);
-    all.lines.push(...l.lines);
+  for (const l of layers.values()) {
+    for (const p of l.regions) all.regions.push(p);
+    for (const p of l.lines) all.lines.push(p);
   }
-  return { layers: new Map([[layer, all]]), parts: s.parts };
+  return new Map([[layer, all]]);
+}
+
+// Moves everything onto one layer. A whole part can only become a guide:
+// on any other layer it would lose its cut outline.
+export function retag(s: Shape, layer: string): Shape {
+  if (s.parts.length && layer !== 'guide')
+    throw new Error(
+      `a part cannot go on the ${layer} layer as a whole. Put ${layer}() inside part() instead.`,
+    );
+  return {
+    layers: allOn(s.layers, layer),
+    parts: s.parts.map((p) => ({ ...p, layers: allOn(p.layers, layer) })),
+  };
 }
 
 export function bounds(polys: Poly[]): [number, number, number, number] | null {
@@ -248,7 +261,7 @@ export function layerBounds(
   const all: Poly[] = [];
   for (const [k, l] of layers) {
     if (skip?.(k)) continue;
-    all.push(...l.regions, ...l.lines);
+    for (const p of [...l.regions, ...l.lines]) all.push(p);
   }
   return bounds(all);
 }

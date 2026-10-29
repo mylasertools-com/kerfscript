@@ -62,8 +62,9 @@ export function flatten(cmds: Cmd[], tolerance = 0.02): Flattened {
       last = [c.x, c.y];
     } else {
       finish(true);
+      // Drawing goes on from the start of the closed subpath
       last = start;
-      cur = [];
+      cur = [start];
     }
   }
   finish(false);
@@ -71,6 +72,7 @@ export function flatten(cmds: Cmd[], tolerance = 0.02): Flattened {
 }
 
 export function parseSvgPath(d: string): Cmd[] {
+  const isCommand = (t: string) => /^[a-zA-Z]$/.test(t);
   const tokens = d.match(/[a-zA-Z]|[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?/g) ?? [];
   const out: Cmd[] = [];
   let i = 0;
@@ -86,8 +88,7 @@ export function parseSvgPath(d: string): Cmd[] {
   let prev = '';
   const num = () => {
     const t = tokens[i++];
-    if (t === undefined || /[a-zA-Z]/.test(t))
-      throw new Error(`Bad path data near "${t ?? 'end'}"`);
+    if (t === undefined || isCommand(t)) throw new Error(`Bad path data near "${t ?? 'end'}"`);
     return Number(t);
   };
   const flag = () => {
@@ -101,8 +102,10 @@ export function parseSvgPath(d: string): Cmd[] {
     return Number(t);
   };
   while (i < tokens.length) {
-    if (/[a-zA-Z]/.test(tokens[i])) cmd = tokens[i++];
+    if (isCommand(tokens[i])) cmd = tokens[i++];
     else if (!cmd) throw new Error('Path data must start with a command');
+    else if (cmd === 'Z' || cmd === 'z')
+      throw new Error(`Bad path data near "${tokens[i]}": Z takes no numbers`);
     const rel = cmd === cmd.toLowerCase();
     const C = cmd.toUpperCase();
     const ox = rel ? x : 0,

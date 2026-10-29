@@ -169,6 +169,8 @@ export function render(source: string, options: RenderOptions = {}): RenderResul
       }
     const b = layerBounds(layers) ?? [0, 0, 0, 0];
     const kerf = options.kerf ?? p.kerf;
+    if (!(Number.isFinite(kerf) && kerf >= 0))
+      throw new KerfError('$kerf must be a number, 0 or more');
     const info: PartInfo = {
       name: p.name,
       qty: p.qty,
@@ -212,12 +214,15 @@ export function render(source: string, options: RenderOptions = {}): RenderResul
   const sheetSize = (options.sheet ?? (g('$sheet') as number[])) as [number, number];
   if (
     !Array.isArray(sheetSize) ||
-    typeof sheetSize[0] !== 'number' ||
-    typeof sheetSize[1] !== 'number'
+    !(Number.isFinite(sheetSize[0]) && sheetSize[0] > 0) ||
+    !(Number.isFinite(sheetSize[1]) && sheetSize[1] > 0)
   )
-    throw new KerfError('$sheet must be [width, height]');
+    throw new KerfError('$sheet must be [width, height], both more than 0');
   const gap = options.gap ?? Number(g('$gap') ?? 3);
   const margin = options.margin ?? gap;
+  if (!(Number.isFinite(gap) && gap >= 0)) throw new KerfError('$gap must be a number, 0 or more');
+  if (!(Number.isFinite(margin) && margin >= 0))
+    throw new KerfError('margin must be a number, 0 or more');
   const layoutMode = options.layout ?? (g('$layout') === 'none' ? 'none' : 'pack');
   const order = [
     'engrave',
@@ -248,8 +253,8 @@ export function render(source: string, options: RenderOptions = {}): RenderResul
     for (const it of items)
       for (const [k, l] of it.layers) {
         const t = all.get(k) ?? { regions: [], lines: [] };
-        t.regions.push(...l.regions);
-        t.lines.push(...l.lines);
+        for (const p of l.regions) t.regions.push(p);
+        for (const p of l.lines) t.lines.push(p);
         all.set(k, t);
       }
     const b = exportBounds(all);

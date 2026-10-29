@@ -258,15 +258,28 @@ export class Evaluator {
       if (s.kind === 'module') env.mods.set(s.name, { params: s.params, body: s.body, env });
       else if (s.kind === 'function') env.fns.set(s.name, { params: s.params, body: s.body, env });
       else if (s.kind === 'use' && !s.include) {
-        const lib = this.load(s.path, s.pos);
+        const body = this.included(this.load(s.path, s.pos).body, new Set([s.path]));
         const libEnv = new Env(env);
-        this.hoist(lib.body, libEnv);
-        for (const ls of lib.body)
+        this.hoist(body, libEnv);
+        for (const ls of body)
           if (ls.kind === 'assign') this.assign(ls.name, this.expr(ls.value, libEnv), libEnv);
         for (const [k, v] of libEnv.mods) env.mods.set(k, v);
         for (const [k, v] of libEnv.fns) env.fns.set(k, v);
       }
     }
+  }
+
+  // A library's statements with the files it includes written out in place
+  private included(stmts: Stmt[], seen: Set<string>): Stmt[] {
+    const out: Stmt[] = [];
+    for (const s of stmts) {
+      if (s.kind !== 'use' || !s.include) out.push(s);
+      else if (!seen.has(s.path)) {
+        seen.add(s.path);
+        for (const t of this.included(this.load(s.path, s.pos).body, seen)) out.push(t);
+      }
+    }
+    return out;
   }
 
   private assign(name: string, value: Value, env: Env) {
@@ -567,7 +580,7 @@ export class Evaluator {
         return;
       case 'each': {
         const v = this.expr(it.expr, env);
-        out.push(...this.iterable(v, { line: 0, col: 0, offset: 0 }));
+        for (const x of this.iterable(v, { line: 0, col: 0, offset: 0 })) out.push(x);
         return;
       }
       case 'for':
@@ -727,24 +740,25 @@ export class Evaluator {
   }
 
   private num(v: Value, fn: string, name: string): number {
-    if (typeof v !== 'number' || Number.isNaN(v))
-      throw new Error(`${name} must be a number, got ${show(v)}`);
+    if (typeof v !== 'number' || !Number.isFinite(v))
+      throw new Error(`${name} must be a finite number, got ${show(v)}`);
     return v;
   }
 
   private vec2(v: Value, name: string, scalarBoth = true): Pt {
-    if (typeof v === 'number' && scalarBoth) return [v, v];
-    if (Array.isArray(v) && typeof v[0] === 'number')
-      return [v[0], typeof v[1] === 'number' ? v[1] : 0];
+    const ok = (x: Value) => typeof x === 'number' && Number.isFinite(x);
+    if (ok(v) && scalarBoth) return [v as number, v as number];
+    if (Array.isArray(v) && ok(v[0]) && (v[1] === undefined || ok(v[1])))
+      return [v[0] as number, (v[1] as number | undefined) ?? 0];
     throw new Error(`${name} must be a number or [x, y], got ${show(v)}`);
   }
 
   private points(v: Value, name: string): Pt[] {
     if (!Array.isArray(v)) throw new Error(`${name} must be a list of [x, y] points`);
     return v.map((p, i) => {
-      if (!Array.isArray(p) || typeof p[0] !== 'number' || typeof p[1] !== 'number')
+      if (!Array.isArray(p) || !Number.isFinite(p[0]) || !Number.isFinite(p[1]))
         throw new Error(`${name}[${i}] must be an [x, y] point, got ${show(p)}`);
-      return [p[0], p[1]];
+      return [p[0] as number, p[1] as number];
     });
   }
 
@@ -921,6 +935,10 @@ export class Evaluator {
         const a0 = this.num(this.arg(c.args, 'start', 1, 0), 'arc', 'start');
         const a1 = this.num(this.arg(c.args, 'end', 2, 90), 'arc', 'end');
         const n = Math.max(2, Math.ceil((this.segs(c.env)(r) * Math.abs(a1 - a0)) / 360));
+        if (!(n <= this.limits.maxSegments))
+          throw new Error(
+            `an arc with ${n} segments is more than the limit of ${this.limits.maxSegments}`,
+          );
         const p: Poly = [];
         for (let i = 0; i <= n; i++) {
           const a = ((a0 + ((a1 - a0) * i) / n) * Math.PI) / 180;
@@ -1011,7 +1029,7 @@ export class Evaluator {
             key = k;
             first = false;
           }
-          for (const p of [...l.regions, ...l.lines]) pts.push(...p);
+          for (const p of [...l.regions, ...l.lines]) for (const q of p) pts.push(q);
         }
         const h = hull(pts);
         return {
@@ -1172,14 +1190,21 @@ export class Evaluator {
       const out: Layer = { regions: [], lines: [] };
       for (const s of shapes) {
         if (s.parts.length) throw new Error(`part() can only be the first child of ${fn}()`);
-        for (const l of s.layers.values()) out.regions.push(...l.regions);
+        for (const l of s.layers.values()) for (const p of l.regions) out.regions.push(p);
       }
       return out;
     }
+    // Applies an operation to every layer, inside parts too
     function mapLayers(s: Shape, f: (l: Layer) => Layer): Shape {
-      const layers = new Map<string, Layer>();
-      for (const [k, l] of s.layers) layers.set(k, f(l));
-      return { layers, parts: s.parts };
+      const each = (from: Map<string, Layer>) => {
+        const layers = new Map<string, Layer>();
+        for (const [k, l] of from) layers.set(k, f(l));
+        return layers;
+      };
+      return {
+        layers: each(s.layers),
+        parts: s.parts.map((p) => ({ ...p, layers: each(p.layers) })),
+      };
     }
   }
 }
