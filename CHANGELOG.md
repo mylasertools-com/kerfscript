@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.2.1
+
+- Memory limits, so a program cannot make a browser tab run out of memory:
+  part copies, circle segments and polygon corners, list and string sizes,
+  all list items together, `text()` length, shape points, exported points
+  and sheets. Each stops the program with an error that says what to change.
+  Defaults are in `DEFAULT_LIMITS` and the `limits` render option changes
+  them. Every example stays well under them.
+- A list or string that grows past what JavaScript can hold now gives a
+  KerfScript error instead of a `RangeError`.
+
 ## 0.2.0 (2026-10-28)
 
 First public release.

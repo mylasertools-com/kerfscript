@@ -378,6 +378,21 @@ functions. Expanded ranges are limited to 1,000,000 items. The default
 evaluation limit is 5,000,000 steps; applications can change it with
 `maxSteps`. Exceeding a limit stops evaluation with an error.
 
+Programs are also limited in how much memory they can ask for:
+
+| Limit | Default | What it counts |
+| --- | --- | --- |
+| `maxParts` | 10,000 | copies of all parts, adding up every `qty` |
+| `maxSegments` | 10,000 | segments in one circle, ellipse or arc, and corners in one polygon |
+| `maxListLength` | 1,000,000 | items in one list, or characters in one string |
+| `maxListItems` | 3,000,000 | items in all lists the program builds, plus 4 for each list |
+| `maxTextLength` | 2,000 | characters in one `text()` |
+| `maxPoints` | 2,000,000 | points in all shapes the modules make, plus 100 for each shape |
+| `maxOutputPoints` | 1,000,000 | points in the exported files, counting every copy |
+| `maxSheets` | 200 | sheets in the layout |
+
+Applications can change them with the `limits` render option.
+
 Geometry operations also take time. Applications that render user programs
 should run them in a worker with a timeout; see the
 [JavaScript API](docs/javascript.md#running-untrusted-code).

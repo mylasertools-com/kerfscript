@@ -62,7 +62,58 @@ export interface EvalOptions {
   resolve?: (path: string) => string | undefined;
   fonts?: FontBook;
   maxSteps?: number;
+  limits?: Partial<Limits>;
 }
+
+// Upper bounds that keep a program from using unbounded memory. Programs from
+// other people can run in a browser tab, so every one of these is enforced.
+export interface Limits {
+  // Total copies of all parts, counting qty
+  maxParts: number;
+  // Segments in one circle, ellipse or arc
+  maxSegments: number;
+  // Items in one list, or characters in one string
+  maxListLength: number;
+  // Items in all lists the program builds, added up. Every list also counts
+  // as LIST_COST items for the memory it takes on its own.
+  maxListItems: number;
+  // Characters passed to one text() call
+  maxTextLength: number;
+  // Points in all shapes the built-in modules create, added up. Every shape
+  // also counts as SHAPE_COST points for the memory it takes on its own.
+  maxPoints: number;
+  // Points in the exported files, counting every copy
+  maxOutputPoints: number;
+  // Sheets in the layout
+  maxSheets: number;
+}
+
+export const DEFAULT_LIMITS: Limits = {
+  maxParts: 10_000,
+  maxSegments: 10_000,
+  maxListLength: 1_000_000,
+  maxListItems: 3_000_000,
+  maxTextLength: 2_000,
+  maxPoints: 2_000_000,
+  maxOutputPoints: 1_000_000,
+  maxSheets: 200,
+};
+
+const SHAPE_COST = 100;
+const LIST_COST = 4;
+
+const shapePoints = (s: Shape): number => {
+  let n = SHAPE_COST;
+  const add = (layers: Map<string, Layer>) => {
+    for (const l of layers.values()) {
+      for (const p of l.regions) n += p.length;
+      for (const p of l.lines) n += p.length;
+    }
+  };
+  add(s.layers);
+  for (const p of s.parts) add(p.layers);
+  return n;
+};
 
 interface ModDef {
   params: Param[];
@@ -144,6 +195,10 @@ export class Evaluator {
   private steps = 0;
   private depth = 0;
   private maxSteps: number;
+  readonly limits: Limits;
+  private pointCount = 0;
+  private itemCount = 0;
+  private copies = 0;
   readonly echoes: string[] = [];
   readonly warnings: string[] = [];
   readonly layers = new Map<string, LayerDef>(DEFAULT_LAYERS.map((l) => [l.name, l]));
@@ -152,6 +207,7 @@ export class Evaluator {
 
   constructor(private opts: EvalOptions = {}) {
     this.maxSteps = opts.maxSteps ?? 5_000_000;
+    this.limits = { ...DEFAULT_LIMITS, ...opts.limits };
     this.builtins = this.makeBuiltins();
   }
 
@@ -380,12 +436,20 @@ export class Evaluator {
         return out;
       },
     };
+    let out: Shape;
     try {
-      return b(ctx);
+      out = b(ctx);
     } catch (e) {
       if (e instanceof KerfError) throw e;
       throw new KerfError(`${s.name}(): ${(e as Error).message}`, s.pos);
     }
+    this.pointCount += shapePoints(out);
+    if (this.pointCount > this.limits.maxPoints)
+      throw new KerfError(
+        `The shapes have more than ${this.limits.maxPoints} points, the limit. Use fewer or simpler shapes, or a lower $fn.`,
+        s.pos,
+      );
+    return out;
   }
 
   private childStmts(stmts: Stmt[]): Stmt[] {
@@ -428,6 +492,7 @@ export class Evaluator {
       case 'list': {
         const out: Value[] = [];
         for (const it of x.items) this.listItem(it, env, out);
+        this.checkSize(out, x.pos);
         return out;
       }
       case 'range': {
@@ -532,11 +597,17 @@ export class Evaluator {
         const b = FUNCTIONS[name];
         if (b) {
           const args = this.evalArgs(x.args, env, x.pos);
+          let out: Value;
           try {
-            return b(args.pos, args.named);
+            out = b(args.pos, args.named);
           } catch (e) {
-            throw new KerfError((e as Error).message, x.pos);
+            throw new KerfError(
+              e instanceof RangeError ? `${name}(): the result is too large` : (e as Error).message,
+              x.pos,
+            );
           }
+          this.checkSize(out, x.pos, name);
+          return out;
         }
         throw new KerfError(`Unknown function ${name}()`, x.pos);
       }
@@ -681,11 +752,44 @@ export class Evaluator {
     return env.get(name).value;
   }
 
+  private spend(points: number) {
+    this.pointCount += points;
+    if (!(this.pointCount <= this.limits.maxPoints))
+      throw new Error(
+        `the shapes need more than ${this.limits.maxPoints} points, the limit. Use fewer or simpler shapes.`,
+      );
+  }
+
+  private checkSize(v: Value, pos: Pos | undefined, fn?: string) {
+    const n = Array.isArray(v) || typeof v === 'string' ? v.length : 0;
+    if (Array.isArray(v)) {
+      this.itemCount += n + LIST_COST;
+      if (this.itemCount > this.limits.maxListItems)
+        throw new KerfError(
+          `The lists hold more than ${this.limits.maxListItems} items in all, the limit. Is a loop building more than it needs?`,
+          pos,
+        );
+    }
+    if (n > this.limits.maxListLength)
+      throw new KerfError(
+        `${fn ? `${fn}(): ` : ''}${typeof v === 'string' ? `a string of ${n} characters` : `a list of ${n} items`} is more than the limit of ${this.limits.maxListLength}`,
+        pos,
+      );
+  }
+
   private segs(env: Env) {
     const fn = Number(this.dyn(env, '$fn')) || 0;
     const fa = Number(this.dyn(env, '$fa')) || 2;
     const fs = Number(this.dyn(env, '$fs')) || 0.2;
-    return (r: number) => fragments(r, fn, fa, fs);
+    const max = this.limits.maxSegments;
+    return (r: number) => {
+      const n = fragments(r, fn, fa, fs);
+      if (!(n <= max))
+        throw new Error(
+          `a circle with ${n} segments is more than the limit of ${max}. Lower $fn, or raise $fa or $fs.`,
+        );
+      return n;
+    };
   }
 
   private thickness(env: Env): number {
@@ -765,12 +869,16 @@ export class Evaluator {
           Math.floor(this.num(this.arg(c.args, 'n', 0, 6), 'regular_polygon', 'n')),
         );
         const r = this.num(this.arg(c.args, 'r', 1, 10), 'regular_polygon', 'r');
+        if (!(n <= this.limits.maxSegments))
+          throw new Error(`${n} corners is more than the limit of ${this.limits.maxSegments}`);
         return regionShape([ellipsePoly(r, r, n)]);
       },
       star: (c) => {
         const n = Math.max(2, Math.floor(this.num(this.arg(c.args, 'n', 0, 5), 'star', 'n')));
         const r = this.num(this.arg(c.args, 'r', 1, 10), 'star', 'r');
         const ri = this.num(this.arg(c.args, 'inner', 2, r * 0.45), 'star', 'inner');
+        if (!(n * 2 <= this.limits.maxSegments))
+          throw new Error(`${n} points is more than the limit of ${this.limits.maxSegments / 2}`);
         const p: Poly = [];
         for (let i = 0; i < n * 2; i++) {
           const a = Math.PI / 2 + (Math.PI * i) / n;
@@ -826,13 +934,12 @@ export class Evaluator {
             'text() needs a font. Pass fonts to render(), or --font on the command line.',
           );
         const text = this.arg(c.args, 'text', 0, '');
-        return regionShape(
-          textRegions(
-            this.opts.fonts,
-            typeof text === 'string' ? text : show(text),
-            this.textOpts(c.args, c.env),
-          ),
-        );
+        const shown = typeof text === 'string' ? text : show(text);
+        if (shown.length > this.limits.maxTextLength)
+          throw new Error(
+            `${shown.length} characters is more than the limit of ${this.limits.maxTextLength} for one text()`,
+          );
+        return regionShape(textRegions(this.opts.fonts, shown, this.textOpts(c.args, c.env)));
       },
       translate: (c) => {
         const [x, y] = this.vec2(this.arg(c.args, 'v', 0, [0, 0]), 'v', false);
@@ -959,6 +1066,9 @@ export class Evaluator {
       part: (c) => {
         const name = String(this.arg(c.args, 'name', 0, 'part'));
         const qty = Math.max(1, Math.floor(Number(this.arg(c.args, 'qty', 1, 1)) || 1));
+        this.copies += qty;
+        if (!(this.copies <= this.limits.maxParts))
+          throw new Error(`more than ${this.limits.maxParts} part copies in total, the limit`);
         const s = c.children();
         return {
           layers: new Map(),
@@ -1023,15 +1133,17 @@ export class Evaluator {
         const [w, h] = this.vec2(this.arg(c.args, 'size', 0), 'size');
         const edges = this.edges(this.arg(c.args, 'edges', 1, 'out'));
         const t = this.thickness(c.env);
-        return regionShape(fingerRect(w, h, edges, t, this.fingerWidth(c.args, c.env, 2)));
+        const finger = this.fingerWidth(c.args, c.env, 2);
+        this.spend(((2 * (Math.abs(w) + Math.abs(h))) / finger) * 4);
+        return regionShape(fingerRect(w, h, edges, t, finger));
       },
       finger_holes: (c) => {
         const L = this.num(this.arg(c.args, 'length', 0), 'finger_holes', 'length');
         const e = this.edges(this.arg(c.args, 'edge', 1, 'out'))[0];
         if (e === 'flat') throw new Error('edge must be "out" or "in"');
-        return regionShape(
-          fingerHoles(L, e, this.thickness(c.env), this.fingerWidth(c.args, c.env, 2)),
-        );
+        const finger = this.fingerWidth(c.args, c.env, 2);
+        this.spend((Math.abs(L) / finger) * 4);
+        return regionShape(fingerHoles(L, e, this.thickness(c.env), finger));
       },
       tslot: (c) => {
         const d = this.num(this.arg(c.args, 'd', 0, 3), 'tslot', 'd');
@@ -1051,6 +1163,7 @@ export class Evaluator {
         );
         if (spacing <= 0 || bridge <= 0 || cut <= 0)
           throw new Error('spacing, bridge and cut must be positive');
+        this.spend((Math.abs(w) / spacing + 1) * (Math.abs(h) / (cut + bridge) + 2) * 2);
         return lineShape(livingHinge(w, h, spacing, bridge, cut));
       },
     };

@@ -44,6 +44,7 @@ changing the source string.
 | `margin` | Space at sheet edges, in millimetres; defaults to `gap` |
 | `guides` | Whether to include guide geometry |
 | `maxSteps` | Evaluation step limit |
+| `limits` | Memory limits, see below; any you leave out keep their default |
 
 Supply a font for programs that use text:
 
@@ -134,6 +135,18 @@ try {
 Run browser renders in a web worker so they do not block the page. Set a
 timeout and terminate the worker if it takes too long. Evaluation limits
 bound program steps and recursion, but geometry work also takes time.
+
+Memory limits stop a program before it asks for more memory than a browser
+tab can give: part copies, circle segments, list sizes, text length, shape
+points, exported points and sheets. The defaults are in
+[Limits](../LANGUAGE.md#limits) and in `DEFAULT_LIMITS`. Lower them with the
+`limits` option if your worker has little memory:
+
+```js
+import { render, DEFAULT_LIMITS } from '@mylasertools/kerfscript';
+
+render(source, { limits: { maxPoints: DEFAULT_LIMITS.maxPoints / 2 } });
+```
 
 KerfScript programs have no direct file or network access. `use` and
 `include` can load the standard library and sources returned by your

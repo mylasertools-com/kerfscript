@@ -1,6 +1,6 @@
 // Copyright (c) 2026 MyLaserTools. SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-MyLaserTools-Commercial
 
-import { Evaluator, type LayerDef } from './evaluator.js';
+import { Evaluator, type LayerDef, type Limits } from './evaluator.js';
 import { toDxf } from './export/dxf.js';
 import { layerPaths, toSvg, type LayerPath } from './export/svg.js';
 import {
@@ -33,6 +33,7 @@ export interface RenderOptions {
   margin?: number;
   guides?: boolean;
   maxSteps?: number;
+  limits?: Partial<Limits>;
 }
 
 export interface PartInfo {
@@ -95,14 +96,20 @@ export function render(source: string, options: RenderOptions = {}): RenderResul
     resolve: options.resolve,
     fonts,
     maxSteps: options.maxSteps,
+    limits: options.limits,
   });
+  const limits = ev.limits;
   let res;
   try {
     res = ev.run(program);
   } catch (e) {
     const err =
-      e instanceof RangeError && /call stack/i.test(e.message)
-        ? new KerfError('Recursion too deep: the program calls itself without stopping')
+      e instanceof RangeError
+        ? new KerfError(
+            /call stack/i.test(e.message)
+              ? 'Recursion too deep: the program calls itself without stopping'
+              : 'A value grew too large. Is a list or string doubling without end?',
+          )
         : e;
     if (err instanceof KerfError) {
       err.echoes = ev.echoes;
@@ -187,6 +194,20 @@ export function render(source: string, options: RenderOptions = {}): RenderResul
     infos.push(info);
     ready.push({ info, layers });
   }
+
+  let outputPoints = 0;
+  for (const r of ready) {
+    let n = 0;
+    for (const l of r.layers.values()) {
+      for (const p of l.regions) n += p.length;
+      for (const p of l.lines) n += p.length;
+    }
+    outputPoints += n * r.info.qty;
+  }
+  if (outputPoints > limits.maxOutputPoints)
+    throw new KerfError(
+      `The files would have ${outputPoints} points, more than the limit of ${limits.maxOutputPoints}. Use fewer copies or simpler shapes.`,
+    );
 
   const sheetSize = (options.sheet ?? (g('$sheet') as number[])) as [number, number];
   if (
@@ -286,6 +307,10 @@ export function render(source: string, options: RenderOptions = {}): RenderResul
         usedW = 0,
         usedH = 0;
       const flush = () => {
+        if (items.length && sheets.length >= limits.maxSheets)
+          throw new KerfError(
+            `The parts need more than ${limits.maxSheets} sheets, the limit. Use fewer copies or a bigger $sheet.`,
+          );
         if (items.length)
           sheets.push(
             finishSheet(
