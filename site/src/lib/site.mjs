@@ -29,7 +29,7 @@ export const esc = (s) =>
     .replace(/"/g, '&quot;');
 export const fmt = (v) => (Math.round(v * 10) / 10).toString();
 
-export const LOGO = `<svg class="logo-mark" viewBox="0 0 32 32" aria-hidden="true"><rect x="3.5" y="6.5" width="25" height="19" rx="2.5" fill="#e3c69a" stroke="#5a3519"/><path d="M3.5 16H19" stroke="#d8361f" stroke-width="1.8" stroke-linecap="round"/><circle cx="19" cy="16" r="1.6" fill="#d8361f"/></svg>`;
+export const LOGO = `<img class="logo" src="/brand/inline.svg" alt="KerfScript" width="194" height="40">`;
 
 export function code(src, { numbers = false } = {}) {
   const html = highlight(src.replace(/\n$/, ''));

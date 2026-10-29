@@ -125,9 +125,10 @@ main.wide {
   letter-spacing: -0.01em;
 }
 
-.logo-mark {
-  width: 30px;
-  height: 30px;
+.wordmark .logo {
+  display: block;
+  height: 40px;
+  width: auto;
 }
 
 .site-header nav {
