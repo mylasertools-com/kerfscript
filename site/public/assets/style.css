@@ -947,6 +947,53 @@ td {
   opacity: 0.35;
 }
 
+.pg-side [data-figure],
+.pg-side [data-size],
+.pg-side [data-sheets],
+.pg-side [data-parts] {
+  transition: opacity 0.1s;
+}
+
+.is-stale .pg-side [data-figure],
+.is-stale .pg-side [data-size],
+.is-stale .pg-side [data-sheets],
+.is-stale .pg-side [data-parts] {
+  opacity: 0.4;
+  transition: opacity 0.2s ease 0.3s;
+}
+
+.pg-views {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.pg-views .view-switch {
+  margin-bottom: 0;
+}
+
+.pg-sheet[hidden] {
+  display: none;
+}
+
+.pg-sheets h3 {
+  font-size: 15px;
+  margin: 18px 0 4px;
+}
+
+.pg-sheets .link {
+  font: inherit;
+  color: var(--ink);
+  text-decoration: underline;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
 .pg-actions {
   margin-left: auto;
   display: flex;

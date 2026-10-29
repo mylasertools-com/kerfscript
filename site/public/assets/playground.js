@@ -8,6 +8,7 @@ import { displaySvg } from './display.js';
 import { highlight } from './highlight.js';
 import { buildControls, setInSource } from './controls.js';
 import { createEngine } from './engine.js';
+import { zip } from './zip.js';
 
 const DRAFT = 'kerfscript-playground';
 const root = document.querySelector('[data-playground]');
@@ -24,12 +25,16 @@ const status = $('[data-status]');
 const picker = $('[data-examples]');
 const svgButton = $('[data-download="svg"]');
 const dxfButton = $('[data-download="dxf"]');
+const zipButton = $('[data-download="zip"]');
+const sheetPick = $('[data-sheet]');
+const sheetsBox = $('[data-sheets]');
 const run = createEngine();
 const examples = await (await fetch('/assets/examples.json')).json();
 
 let last = null;
 let ready = null;
 let mode = 'material';
+let shown = -1;
 let paramKey = '';
 let errorLine = 0;
 let timer = 0;
@@ -48,17 +53,33 @@ function setReady(result, source) {
   ready = result ? { result, source } : null;
   svgButton.disabled = !ready;
   dxfButton.disabled = !ready?.result.dxf;
+  zipButton.disabled = !ready;
 }
 
 function current() {
   return ready && ready.source === input.value ? ready.result : null;
 }
 
+// The preview fades while it shows older code than the editor
+function stale(on) {
+  root.classList.toggle('is-stale', on && Boolean(last));
+  if (on) status.textContent = 'Rendering…';
+}
+
 function edited() {
   setReady(null);
+  stale(true);
   paint();
   saveDraft();
 }
+
+// The example in the picker, or "Your code" once the code is edited by hand
+function showDesign(slug) {
+  picker.value = slug && examples[slug] ? slug : '';
+  history.replaceState(null, '', picker.value ? `?model=${picker.value}` : location.pathname);
+}
+
+const baseName = () => picker.value || 'design';
 
 function syncScroll() {
   viewPre.scrollTop = input.scrollTop;
@@ -71,28 +92,85 @@ function saveDraft() {
   } catch {}
 }
 
-function encode(text) {
-  const bytes = new TextEncoder().encode(text);
+function toBase64(bytes) {
   let bin = '';
   for (const b of bytes) bin += String.fromCharCode(b);
   return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
-function decode(text) {
-  const bin = atob(text.replace(/-/g, '+').replace(/_/g, '/'));
-  return new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0)));
+const fromBase64 = (text) =>
+  Uint8Array.from(atob(text.replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0));
+
+const piped = async (bytes, stream) =>
+  new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(stream)).arrayBuffer());
+
+// Share links carry the code compressed (#z=), or as it is (#code=) in
+// browsers without compression streams. Both kinds open.
+async function encode(text) {
+  const bytes = new TextEncoder().encode(text);
+  if (typeof CompressionStream === 'undefined') return `code=${toBase64(bytes)}`;
+  return `z=${toBase64(await piped(bytes, new CompressionStream('deflate-raw')))}`;
 }
+
+async function decode(hash) {
+  const params = new URLSearchParams(hash);
+  if (params.get('z'))
+    return new TextDecoder().decode(
+      await piped(fromBase64(params.get('z')), new DecompressionStream('deflate-raw')),
+    );
+  if (params.get('code')) return new TextDecoder().decode(fromBase64(params.get('code')));
+  return null;
+}
+
+const mm = (v) => `${fmt(v)} mm`;
+const partsText = (n) => `${n} ${n === 1 ? 'part' : 'parts'}`;
+const sheetLabel = (s, i) =>
+  `Sheet ${i + 1}, ${s.material}${s.thickness ? ` ${fmt(s.thickness)} mm` : ''}`;
+const sheetFile = (s, i) =>
+  `${baseName()}-sheet-${i + 1}-${s.material.toLowerCase().replace(/[^a-z0-9]+/g, '-')}${s.thickness ? `-${fmt(s.thickness)}mm` : ''}`;
 
 function showFigure() {
   if (!last) {
     figure.replaceChildren();
     return;
   }
+  const sheet = last.sheets[shown];
+  const svg = sheet ? sheet.svg : last.svg;
   figure.innerHTML =
     mode === 'material'
-      ? displaySvg(last, { defs: false })
-      : last.svg.replace(/^<\?xml[^>]*>\s*/, '').replace(/ width="[^"]+mm" height="[^"]+mm"/, '');
+      ? displaySvg(sheet ? { ...last, sheets: [sheet] } : last, { defs: false })
+      : svg.replace(/^<\?xml[^>]*>\s*/, '').replace(/ width="[^"]+mm" height="[^"]+mm"/, '');
   figure.classList.toggle('laser', mode === 'laser');
+  const pieces = last.parts.reduce((s, p) => s + p.qty, 0);
+  sizeNote.textContent = sheet
+    ? `${sheetLabel(sheet, shown)}: ${fmt(sheet.width)} × ${mm(sheet.height)}, ${partsText(sheet.items.length)}`
+    : last.sheets.length > 1
+      ? `${partsText(pieces)} on ${last.sheets.length} sheets, shown together. Each sheet has its own cut file below.`
+      : `${fmt(last.width)} × ${mm(last.height)}, ${partsText(pieces)} on 1 sheet`;
+}
+
+// Several sheets: a picker for the preview, and a cut file for each sheet
+function showSheets() {
+  const many = last.sheets.length > 1;
+  if (shown >= last.sheets.length) shown = -1;
+  sheetPick.parentElement.hidden = !many;
+  svgButton.hidden = many;
+  dxfButton.hidden = many;
+  zipButton.hidden = !many;
+  if (!many) {
+    sheetsBox.replaceChildren();
+    return;
+  }
+  sheetPick.innerHTML = [
+    '<option value="-1">All sheets</option>',
+    ...last.sheets.map((s, i) => `<option value="${i}">${esc(sheetLabel(s, i))}</option>`),
+  ].join('');
+  sheetPick.value = String(shown);
+  const rows = last.sheets.map(
+    (s, i) =>
+      `<tr><td>${esc(sheetLabel(s, i))}, ${partsText(s.items.length)}</td><td>${fmt(s.width)} × ${fmt(s.height)} mm</td><td><button class="link" data-file="svg" data-index="${i}">SVG</button> · <button class="link" data-file="dxf" data-index="${i}">DXF</button></td></tr>`,
+  );
+  sheetsBox.innerHTML = `<h3>Cut files</h3><table class="parts sheet-files"><thead><tr><th>Sheet</th><th>Size</th><th>Download</th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
 }
 
 function updateSettings() {
@@ -163,10 +241,10 @@ async function update() {
     paint();
   }
   last = reply.result;
+  stale(false);
+  showSheets();
   showFigure();
   showConsole([...echoes, ...last.warnings.map((w) => ['warning', `WARNING: ${w}`])]);
-  const pieces = last.parts.reduce((s, p) => s + p.qty, 0);
-  sizeNote.textContent = `${fmt(last.width)} × ${fmt(last.height)} mm, ${pieces} ${pieces === 1 ? 'part' : 'parts'} on ${last.sheets.length} ${last.sheets.length === 1 ? 'sheet' : 'sheets'}`;
   partsBox.innerHTML = last.parts.length
     ? `<table class="parts"><thead><tr><th>Part</th><th>Qty</th><th>Size</th><th>Cut length</th></tr></thead><tbody>${last.parts
         .map(
@@ -186,7 +264,9 @@ function schedule(delay = 250) {
 
 function load(text) {
   input.value = text;
+  shown = -1;
   setReady(null);
+  stale(true);
   errorLine = 0;
   paramKey = '';
   input.scrollTop = 0;
@@ -197,6 +277,7 @@ function load(text) {
 
 input.addEventListener('input', () => {
   edited();
+  if (picker.value) showDesign('');
   schedule();
 });
 input.addEventListener('scroll', syncScroll);
@@ -209,8 +290,13 @@ input.addEventListener('keydown', (e) => {
 
 picker.addEventListener('change', () => {
   load(examples[picker.value]);
-  history.replaceState(null, '', `?model=${picker.value}`);
+  showDesign(picker.value);
   saveDraft();
+});
+
+sheetPick.addEventListener('change', () => {
+  shown = Number(sheetPick.value);
+  showFigure();
 });
 
 for (const tab of root.querySelectorAll('[data-view]'))
@@ -221,8 +307,8 @@ for (const tab of root.querySelectorAll('[data-view]'))
     showFigure();
   });
 
-function download(name, text, type) {
-  const url = URL.createObjectURL(new Blob([text], { type }));
+function download(name, data, type) {
+  const url = URL.createObjectURL(data instanceof Blob ? data : new Blob([data], { type }));
   const a = Object.assign(document.createElement('a'), { href: url, download: name });
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
@@ -230,17 +316,35 @@ function download(name, text, type) {
 
 root
   .querySelector('[data-download="kerf"]')
-  .addEventListener('click', () => download('design.kerf', input.value, 'text/plain'));
+  .addEventListener('click', () => download(`${baseName()}.kerf`, input.value, 'text/plain'));
 svgButton.addEventListener('click', () => {
   const result = current();
-  if (result) download('design.svg', result.svg, 'image/svg+xml');
+  if (result) download(`${baseName()}.svg`, result.svg, 'image/svg+xml');
 });
 dxfButton.addEventListener('click', () => {
   const result = current();
-  if (result?.dxf) download('design.dxf', result.dxf, 'application/dxf');
+  if (result?.dxf) download(`${baseName()}.dxf`, result.dxf, 'application/dxf');
+});
+zipButton.addEventListener('click', () => {
+  const result = current();
+  if (!result) return;
+  const files = result.sheets.flatMap((s, i) => [
+    { name: `${sheetFile(s, i)}.svg`, text: s.svg },
+    { name: `${sheetFile(s, i)}.dxf`, text: s.dxf },
+  ]);
+  download(`${baseName()}-sheets.zip`, zip(files));
+});
+sheetsBox.addEventListener('click', (e) => {
+  const button = e.target.closest('[data-file]');
+  const result = current();
+  if (!button || !result) return;
+  const i = Number(button.dataset.index);
+  const s = result.sheets[i];
+  if (button.dataset.file === 'svg') download(`${sheetFile(s, i)}.svg`, s.svg, 'image/svg+xml');
+  else download(`${sheetFile(s, i)}.dxf`, s.dxf, 'application/dxf');
 });
 root.querySelector('[data-share]').addEventListener('click', async (e) => {
-  const url = `${location.origin}${location.pathname}#code=${encode(input.value)}`;
+  const url = `${location.origin}${location.pathname}#${await encode(input.value)}`;
   history.replaceState(null, '', url);
   try {
     await navigator.clipboard.writeText(url);
@@ -251,25 +355,17 @@ root.querySelector('[data-share]').addEventListener('click', async (e) => {
   setTimeout(() => (e.target.textContent = 'Copy link'), 2000);
 });
 
-const hash = new URLSearchParams(location.hash.slice(1)).get('code');
 const model = new URLSearchParams(location.search).get('model');
 let start = null;
-if (hash) {
-  try {
-    start = decode(hash);
-  } catch {}
-}
-if (!start && model && examples[model]) {
-  start = examples[model];
-  picker.value = model;
-}
+try {
+  start = await decode(location.hash.slice(1));
+} catch {}
+if (!start && model && examples[model]) start = examples[model];
 if (!start) {
   try {
     start = localStorage.getItem(DRAFT);
   } catch {}
 }
-if (!start) {
-  start = examples['clock-face'];
-  picker.value = 'clock-face';
-}
+if (!start) start = examples['clock-face'];
+picker.value = Object.keys(examples).find((slug) => examples[slug] === start) ?? '';
 load(start);

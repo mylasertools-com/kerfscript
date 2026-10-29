@@ -22,7 +22,11 @@ self.onmessage = async (event) => {
       ok: true,
       ms: performance.now() - started,
       result: {
-        sheets: result.sheets.map(({ width, height, items }) => ({ width, height, items })),
+        sheets: result.sheets.map(({ width, height, material, thickness, items, svg, dxf }) =>
+          result.sheets.length > 1
+            ? { width, height, material, thickness, items, svg, dxf }
+            : { width, height, material, thickness, items },
+        ),
         layers: result.layers,
         parts: result.parts,
         warnings: result.warnings,
