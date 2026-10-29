@@ -8,4 +8,4 @@
 
 ## Contributor License Agreement
 
-- [ ] I have read the [CLA](https://github.com/mylasertools-com/kerfscript/blob/main/CLA.md) and agree to it for this and my future contributions.
+- [ ] I have read the [CLA](https://github.com/mylasertools/kerfscript/blob/main/CLA.md) and agree to it for this and my future contributions.

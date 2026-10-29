@@ -8,10 +8,10 @@
   "homepage": "https://kerfscript.mylasertools.com",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/mylasertools-com/kerfscript.git",
+    "url": "git+https://github.com/mylasertools/kerfscript.git",
     "directory": "alias"
   },
-  "bugs": "https://github.com/mylasertools-com/kerfscript/issues",
+  "bugs": "https://github.com/mylasertools/kerfscript/issues",
   "keywords": [
     "kerfscript",
     "laser-cutting",

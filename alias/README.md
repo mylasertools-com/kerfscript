@@ -15,7 +15,7 @@ import { render } from 'kerfscript';
 ```
 
 Website, playground and docs: https://kerfscript.mylasertools.com
-Source: https://github.com/mylasertools-com/kerfscript
+Source: https://github.com/mylasertools/kerfscript
 
 Licensed under the GNU AGPL 3.0 with an additional permission that keeps
 your designs yours; commercial licences are available from MyLaserTools.

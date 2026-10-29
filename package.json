@@ -7,9 +7,9 @@
   "author": "MyLaserTools",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/mylasertools-com/kerfscript.git"
+    "url": "git+https://github.com/mylasertools/kerfscript.git"
   },
-  "bugs": "https://github.com/mylasertools-com/kerfscript/issues",
+  "bugs": "https://github.com/mylasertools/kerfscript/issues",
   "keywords": [
     "kerfscript",
     "laser-cutting",
