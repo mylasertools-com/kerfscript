@@ -48,6 +48,36 @@
     }
   },
   {
+    "file": "tilt-maze",
+    "title": "Tilt maze",
+    "tags": ["recursion", "random", "parts"]
+  },
+  {
+    "file": "topo-island",
+    "title": "Layered island",
+    "tags": ["math", "layers", "score"]
+  },
+  {
+    "file": "fractal-tree",
+    "title": "Fractal tree ornament",
+    "tags": ["recursion", "random"]
+  },
+  {
+    "file": "round-badge",
+    "title": "Round badge",
+    "tags": ["text", "engrave"]
+  },
+  {
+    "file": "gift-tags",
+    "title": "Gift tags from a list",
+    "tags": ["text", "lists", "parts"]
+  },
+  {
+    "file": "drawer-organizer",
+    "title": "Drawer organizer",
+    "tags": ["joinery", "library", "parts"]
+  },
+  {
     "file": "solstice",
     "title": "Solstice lantern",
     "tags": ["lantern", "tabs", "holes"]

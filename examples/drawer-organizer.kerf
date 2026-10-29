@@ -1,0 +1,63 @@
+// Drawer organizer: a finger-jointed tray from the box library, and a grid
+// of dividers that slot into each other like an egg crate. Measure your
+// drawer, then pick how many compartments you want.
+
+use <kerf/box>
+
+/* [Tray] */
+// Outside width
+width = 240; // [80:5:560]
+// Outside depth, front to back
+depth = 160; // [60:5:380]
+// Outside height
+height = 50; // [25:5:120]
+
+/* [Compartments] */
+// Compartments across
+cols = 4; // [1:1:10]
+// Compartments front to back
+rows = 2; // [1:1:8]
+// Dips in the divider tops, to reach in with a finger
+scoops = true;
+
+/* [Material] */
+// Sheet thickness
+$thickness = 3; // [2:0.5:6]
+// Beam width
+$kerf = 0.15; // [0:0.01:0.3]
+// Added to every slot, for an easy fit
+clearance = 0.15; // [0:0.05:0.4]
+
+/* [Hidden] */
+$material = "plywood";
+t = $thickness;
+// Inside of the tray, and the dividers that stand on its floor
+inner = [width - 2 * t, depth - 2 * t];
+gap = 0.5;
+tall = height - t - 2;
+slot = t + clearance;
+
+box([width, depth, height]);
+
+// A dip in the top edge over the middle of every compartment
+module scoops(length, count) if (scoops) for (k = [0:count - 1])
+  translate([length * (k + 0.5) / count, tall]) ellipse([min(length / count * 0.3, 30), tall * 0.35], $fn = 64);
+
+// Runs left to right; slots from the top for the dividers that cross it
+module long_divider() difference() {
+  rect([inner[0] - 2 * gap, tall], r = 1);
+  scoops(inner[0] - 2 * gap, cols);
+  if (cols > 1) for (j = [1:cols - 1]) translate([inner[0] * j / cols - gap - slot / 2, tall / 2])
+    rect([slot, tall / 2 + 1]);
+}
+
+// Runs front to back; slots from the bottom
+module cross_divider() difference() {
+  rect([inner[1] - 2 * gap, tall], r = 1);
+  scoops(inner[1] - 2 * gap, rows);
+  if (rows > 1) for (i = [1:rows - 1]) translate([inner[1] * i / rows - gap - slot / 2, -1])
+    rect([slot, tall / 2 + 1]);
+}
+
+if (rows > 1) part("Long divider", qty = rows - 1) long_divider();
+if (cols > 1) part("Cross divider", qty = cols - 1) cross_divider();

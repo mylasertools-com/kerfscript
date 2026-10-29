@@ -1,0 +1,86 @@
+// Layered island: a made-up mountain as a stack of contour layers, like a
+// topographic map you can touch. The height of the land is a formula, and
+// each layer is traced where the land crosses its height. Every layer is
+// scored with the outline of the one above, so gluing up is easy.
+
+/* [Island] */
+// Width of the base plate
+size = 200; // [120:10:400]
+// Contour layers above the sea
+layers = 8; // [3:1:14]
+// How rough the land is
+roughness = 1; // [0:0.1:2]
+// Different seeds raise different islands
+seed = 9; // [1:1:999]
+// Engraved on the base plate, leave empty for none
+name = "ISLA KERF"; // 20
+
+/* [Material] */
+// Sheet thickness
+$thickness = 3; // [2:0.5:6]
+// Beam width
+$kerf = 0.15; // [0:0.01:0.3]
+
+/* [Hidden] */
+$material = "plywood";
+plate = [size, size * 0.75];
+peak = [size * 0.45, plate[1] * 0.5];
+reach = plate[1] * 0.48;
+rnd = rands(0, 1, 16, seed);
+
+// Two smaller hills, somewhere around the main peak
+hills = [for (i = [0:1]) let (a = rnd[0] * 360 + i * (110 + rnd[1] * 100), d = reach * (0.55 + rnd[i + 2] * 0.25))
+  [peak + d * [cos(a), sin(a)], reach * (0.2 + rnd[i + 4] * 0.08), 0.5 + rnd[i + 6] * 0.25]];
+
+function bump(p, c, w) = exp(-((p - c) * (p - c)) / (2 * w * w));
+
+// Height of the land at point p
+function land(p) = bump(p, peak, reach * 0.26)
+  + hills[0][2] * bump(p, hills[0][0], hills[0][1])
+  + hills[1][2] * bump(p, hills[1][0], hills[1][1])
+  + roughness * (0.07 * sin(p.x * 360 / (reach * 0.9) + rnd[8] * 360) * sin(p.y * 360 / (reach * 1.1) + rnd[9] * 360)
+    + 0.03 * sin((p.x + p.y) * 360 / (reach * 0.45) + rnd[10] * 360)
+    + 0.01 * sin((p.x - 2 * p.y) * 360 / (reach * 0.22) + rnd[11] * 360));
+
+// Sample the land along rays from the peak once; every layer reuses them
+rays = 144;
+samples = 48;
+dr = reach / samples;
+profiles = [for (i = [0:rays - 1]) let (a = i * 360 / rays)
+  [for (j = [0:samples]) land(peak + j * dr * [cos(a), sin(a)])]];
+
+coast = 0.08;
+top = land(peak);
+function level(k) = coast + (top - coast) * k / (layers + 1);
+
+// Distance along a ray where the land first drops below height h
+function cross(prof, h, j = 1) =
+  j > samples ? reach :
+  prof[j] < h ? dr * (j - 1 + (prof[j - 1] - h) / (prof[j - 1] - prof[j])) :
+  cross(prof, h, j + 1);
+
+function contour(k) = [for (i = [0:rays - 1]) let (a = i * 360 / rays)
+  peak + max(cross(profiles[i], level(k)), 3) * [cos(a), sin(a)]];
+
+// Smooth the traced outline and keep it free of slivers
+module layer(k) offset(r = 1.2) offset(r = -1.2) polygon(contour(k));
+
+part("Base") {
+  rect(plate, r = 4);
+  score() layer(1);
+  engrave() if (name != "") translate([plate[0] - 10, 10])
+    text(name, size = plate[1] * 0.045, halign = "right", spacing = 1.2);
+  score() translate([plate[0] - 18, plate[1] - 20]) {
+    for (a = [0:90:270]) rotate(a) polygon([[0, 10], [2, 0], [-2, 0]]);
+    circle(r = 4, $fn = 32);
+  }
+}
+
+for (k = [1:layers]) part(str("Layer ", k)) {
+  layer(k);
+  if (k < layers) {
+    score() layer(k + 1);
+    // The number hides under the next layer
+    engrave() translate(peak) text(str(k), size = 4, halign = "center", valign = "center");
+  }
+}

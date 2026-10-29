@@ -1,0 +1,94 @@
+// Round badge: text set around a circle, letter by letter. Each letter is
+// measured, then placed and turned to follow the ring, so any words fit.
+// A start for logos, coasters, seals and patches.
+
+/* [Text] */
+// Around the top
+top_text = "HANDMADE WITH CARE"; // 32
+// Around the bottom
+bottom_text = "EST. 2026"; // 24
+// In the middle
+centre_text = "KS"; // 4
+
+/* [Badge] */
+// Diameter
+size = 90; // [50:5:200]
+// Edge of the badge
+edge = "scalloped"; // [round:Round, scalloped:Scalloped]
+// Engraved text on plain wood, or plain text on an engraved ring
+style = "text"; // [text:Engraved text, band:Engraved ring]
+// A hole to hang it from
+hole = false;
+
+/* [Material] */
+// Sheet thickness
+$thickness = 3; // [2:0.5:6]
+// Beam width
+$kerf = 0.15; // [0:0.01:0.3]
+
+/* [Hidden] */
+$material = "plywood";
+$fn = 120;
+r = size / 2;
+band_out = r * 0.86;
+band_in = r * 0.62;
+letters = (band_out - band_in) * 0.5;
+mid = (band_out + band_in) / 2;
+
+// Width of the first i letters of s
+function before(s, i) = i == 0 ? 0 : text_width(slice(s, 0, i), letters);
+
+// Angle, in degrees, of the middle of letter i on a circle of radius rr
+function angle_of(s, i, rr) = (before(s, i) + text_width(s[i], letters) / 2) * 180 / (PI * rr);
+
+// Top text runs clockwise with the letters standing on the ring
+module top_arc(s) {
+  rr = mid - letters * 0.36;
+  span = text_width(s, letters) * 180 / (PI * rr);
+  for (i = [0:len(s) - 1]) rotate(90 + span / 2 - angle_of(s, i, rr))
+    translate([rr, 0]) rotate(-90) text(s[i], size = letters, halign = "center");
+}
+
+// Bottom text runs anticlockwise, so it reads left to right the right way up
+module bottom_arc(s) {
+  rr = mid + letters * 0.36;
+  span = text_width(s, letters) * 180 / (PI * rr);
+  for (i = [0:len(s) - 1]) rotate(270 - span / 2 + angle_of(s, i, rr))
+    translate([rr, 0]) rotate(90) text(s[i], size = letters, halign = "center");
+}
+
+module words() {
+  if (top_text != "") top_arc(top_text);
+  if (bottom_text != "") bottom_arc(bottom_text);
+  // Stars between the two lines of text
+  for (x = [-1, 1]) translate([x * mid, 0]) star(5, letters * 0.4, letters * 0.17);
+}
+
+module outline_shape() {
+  if (edge == "round") circle(r = r);
+  else union() {
+    circle(r = r * 0.95);
+    for (a = [0:10:350]) rotate(a) translate([r * 0.95, 0]) circle(r = r * 0.05, $fn = 24);
+  }
+}
+
+difference() {
+  union() {
+    outline_shape();
+    if (hole) translate([0, r]) circle(d = 12);
+  }
+  if (hole) translate([0, r + 1]) circle(d = 5);
+}
+
+engrave() {
+  if (style == "band") difference() {
+    circle(r = band_out);
+    circle(r = band_in);
+    words();
+  }
+  else words();
+  if (centre_text != "") text(centre_text, size = band_in * 0.62, halign = "center", valign = "center");
+}
+
+// outline() keeps each circle a line of its own; filled circles would merge
+score() for (rr = [band_out + 1.2, band_in - 1.2, band_in - 3]) outline() circle(r = rr);

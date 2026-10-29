@@ -1,0 +1,82 @@
+// Fractal tree: a module that calls itself. Each branch splits in two,
+// a little shorter and thinner, until the twigs end in leaves. The seed
+// bends every branch differently, so no two trees are the same.
+
+/* [Tree] */
+// Diameter of the ring
+size = 120; // [80:5:240]
+// How many times the branches split
+depth = 6; // [4:1:8]
+// Angle between two branches, in degrees
+spread = 56; // [20:1:80]
+// Length of a branch compared with the one before
+ratio = 0.76; // [0.6:0.01:0.82]
+// How much the branches wander
+wildness = 14; // [0:1:30]
+// Different seeds grow different trees
+seed = 12; // [1:1:999]
+// Round leaves at the ends of the twigs
+leaves = true;
+
+/* [Text] */
+// Engraved on the ground, leave empty for none
+label = "2026"; // 16
+
+/* [Material] */
+// Sheet thickness
+$thickness = 3; // [2:0.5:6]
+// Beam width
+$kerf = 0.15; // [0:0.01:0.3]
+
+/* [Hidden] */
+$material = "plywood";
+$fn = 20;
+r = size / 2;
+rim = max(3, size * 0.03);
+ground = -r * 0.62;
+// The trunk length that makes the whole tree about as tall as the ring allows
+trunk = r * 1.45 * (1 - ratio) / (1 - pow(ratio, depth + 1));
+leaf = size / 120;
+thinnest = 1.6;
+rnd = rands(-1, 1, pow(2, depth + 1), seed);
+
+// One branch of this length and width w, then two smaller ones on top.
+// k numbers the branches so each one gets its own random bend.
+module branch(length, w, level, k) {
+  bend = rnd[k] * wildness;
+  rotate(bend) {
+    hull() {
+      circle(d = w);
+      translate([0, length]) circle(d = max(thinnest, w * 0.7));
+    }
+    if (level > 0) translate([0, length]) for (side = [0, 1])
+      rotate((side == 0 ? 1 : -1) * spread / 2)
+        branch(length * ratio * (1 + rnd[(2 * k + 1 + side) % len(rnd)] * 0.12),
+          max(thinnest, w * 0.7), level - 1, 2 * k + 1 + side);
+    else if (leaves) translate([0, length + leaf]) ellipse([1.5 * leaf, 2.6 * leaf]);
+  }
+}
+
+module ground_shape() intersection() {
+  circle(r = r - rim / 2, $fn = 180);
+  translate([0, ground - r * 0.9]) ellipse([r * 1.3, r], $fn = 180);
+}
+
+difference() {
+  union() {
+    difference() {
+      circle(r = r, $fn = 180);
+      circle(r = r - rim, $fn = 180);
+    }
+    ground_shape();
+    // Closing: grow then shrink, so gaps too small to cut are filled in
+    offset(r = -0.3) offset(r = 0.3)
+      translate([0, ground + r * 0.05]) branch(trunk, max(5, size * 0.055), depth, 0);
+    // Hanging loop
+    translate([0, r]) circle(d = 12);
+  }
+  translate([0, r + 1.5]) circle(d = 5);
+}
+
+if (label != "") engrave() translate([0, ground - r * 0.2])
+  text(label, size = r * 0.1, halign = "center", valign = "center");

@@ -1,0 +1,72 @@
+// Gift tags from a list: type the names, get one tag each. Every name is
+// measured and sized to fill its tag, short or long. Use it for place
+// cards, keyrings or labels by changing the shape and the second line.
+
+/* [Tags] */
+// Names, separated by commas
+names = "Mila, Theo, Grandma, Oliver, Nora";
+// Small text under each name, leave empty for none
+line2 = "with love"; // 24
+// Tag shape
+shape = "tag"; // [tag:Luggage tag, round:Round]
+// Width of a luggage tag, or diameter of a round one
+size = 72; // [40:2:120]
+
+/* [Material] */
+// Sheet thickness
+$thickness = 3; // [2:0.5:6]
+// Beam width
+$kerf = 0.15; // [0:0.01:0.3]
+
+/* [Hidden] */
+$material = "plywood";
+$fn = 64;
+hole = 5;
+
+function trim(s) =
+  len(s) == 0 ? s :
+  s[0] == " " ? trim(slice(s, 1)) :
+  s[len(s) - 1] == " " ? trim(slice(s, 0, len(s) - 1)) : s;
+
+list = [for (n = split(names, ",")) if (trim(n) != "") trim(n)];
+
+// Text area [x, y, width, height] and hole position for each shape
+tag_h = size * 0.44;
+area = shape == "tag"
+  ? [tag_h * 0.62, 0, size - tag_h * 0.62 - 4, tag_h]
+  : [-size * 0.38, -size * 0.3, size * 0.76, size * 0.52];
+hole_at = shape == "tag" ? [tag_h * 0.3, tag_h / 2] : [0, size / 2 - 8];
+
+module blank() {
+  if (shape == "tag") offset(r = 2) offset(delta = -2) polygon([
+    [0, tag_h * 0.28], [tag_h * 0.28, 0], [size, 0], [size, tag_h],
+    [tag_h * 0.28, tag_h], [0, tag_h * 0.72]
+  ]);
+  else circle(d = size);
+}
+
+// The largest text size at which the name still fits the area
+function fit(name, width, height) = min(height, width / text_width(name, 1));
+
+module tag(name) {
+  small = line2 == "" ? 0 : area[3] * 0.16;
+  big = fit(name, area[2] * 0.86, area[3] * (line2 == "" ? 0.5 : 0.4));
+  cx = area[0] + area[2] / 2;
+  cy = area[1] + area[3] / 2 + (line2 == "" ? 0 : small * 0.75);
+  difference() {
+    blank();
+    translate(hole_at) circle(d = hole);
+  }
+  engrave() {
+    translate([cx, cy]) text(name, size = big, halign = "center", valign = "center");
+    if (line2 != "") translate([cx, cy - big * 0.6 - small * 1.1])
+      text(line2, size = small, halign = "center", valign = "center");
+  }
+  score() {
+    translate(hole_at) circle(d = hole + 4);
+    if (shape == "tag") translate([area[0], 3]) rect([area[2], tag_h - 6], r = 2);
+    else circle(d = size - 4);
+  }
+}
+
+for (name = list) part(name) tag(name);

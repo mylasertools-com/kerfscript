@@ -1,0 +1,92 @@
+// Tilt maze: roll a ball bearing from the dot to the star. Every seed draws
+// a new maze, and there is always exactly one way through. The maze layer
+// is stacked as many times as the ball needs, under a clear cover.
+
+/* [Maze] */
+// Cells across
+cols = 12; // [4:1:20]
+// Cells down
+rows = 12; // [4:1:20]
+// Different seeds draw different mazes
+seed = 7; // [1:1:999]
+
+/* [Ball and walls] */
+// Ball bearing diameter
+ball = 6; // [4:0.5:12]
+// Width of the walls between channels
+wall = 3; // [2:0.5:6]
+// Add a clear cover to keep the ball in
+cover = true;
+
+/* [Material] */
+// Sheet thickness of the wood layers
+$thickness = 3; // [2:0.5:6]
+// Thickness of the clear cover
+cover_thickness = 2; // [1.5:0.5:3]
+// Beam width
+$kerf = 0.15; // [0:0.01:0.3]
+
+/* [Hidden] */
+$material = "plywood";
+$fn = 32;
+channel = ball + 1.5;
+cell = channel + wall;
+border = 9;
+w = cols * cell + 2 * border;
+h = rows * cell + 2 * border;
+// Enough maze layers to sink the ball below the cover
+layers = ceil((ball + 0.5) / $thickness);
+rnd = rands(0, 0.999, cols * rows * 2, seed);
+
+// The centre of cell [x, y]
+function at(c) = [border + (c.x + 0.5) * cell, border + (c.y + 0.5) * cell];
+
+// Depth-first search: walk to a random unvisited neighbour, back up when
+// there is none. Returns the passages as pairs of cells.
+function carve(stack, seen, passages, k) =
+  len(stack) == 0 ? passages :
+  let (
+    here = stack[len(stack) - 1],
+    next = [for (d = [[1, 0], [-1, 0], [0, 1], [0, -1]]) let (n = here + d)
+      if (n.x >= 0 && n.x < cols && n.y >= 0 && n.y < rows && !seen[n.y * cols + n.x]) n]
+  )
+  len(next) == 0 ? carve(slice(stack, 0, len(stack) - 1), seen, passages, k) :
+  let (n = next[floor(rnd[k % len(rnd)] * len(next))], id = n.y * cols + n.x)
+  carve(concat(stack, [n]), [for (i = [0:len(seen) - 1]) i == id || seen[i]],
+    concat(passages, [[here, n]]), k + 1);
+
+passages = carve([[0, 0]], [for (i = [0:cols * rows - 1]) i == 0], [], 0);
+start = [0, 0];
+goal = [cols - 1, rows - 1];
+
+module plate() rect([w, h], r = 5);
+
+module screw_holes() for (x = [border / 2, w - border / 2], y = [border / 2, h - border / 2])
+  translate([x, y]) circle(d = 3.4);
+
+module channels() for (p = passages) hull() {
+  translate(at(p[0])) rect(channel, center = true);
+  translate(at(p[1])) rect(channel, center = true);
+}
+
+part("Base") {
+  difference() {
+    plate();
+    screw_holes();
+  }
+  engrave() {
+    translate(at(start)) circle(d = channel * 0.55);
+    translate(at(goal)) star(5, channel * 0.42, channel * 0.18);
+  }
+}
+
+part("Maze layer", qty = layers) difference() {
+  plate();
+  screw_holes();
+  channels();
+}
+
+if (cover) material(thickness = cover_thickness, name = "clear acrylic") part("Cover") difference() {
+  plate();
+  screw_holes();
+}
