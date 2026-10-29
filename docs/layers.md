@@ -1,17 +1,19 @@
 # Layers
 
-Every shape in KerfScript is on a layer, and the layer decides what the
-laser does with it. Shapes that are not wrapped in a layer module are on
-`cut`.
+Layers separate cutting, scoring and engraving in the exported file. Use
+them to give different parts of a design different operations in your laser
+software. Unassigned shapes go on the `cut` layer.
 
 ## The built-in layers
 
-| Layer     | Wrap shapes in | Colour in the file | What the laser does                               |
-| --------- | -------------- | ------------------ | ------------------------------------------------- |
-| `engrave` | `engrave()`    | black `#000000`    | engraves the area of the shapes                   |
-| `score`   | `score()`      | blue `#0000ff`     | marks lines and outlines without cutting through  |
-| `cut`     | `cut()`        | red `#ff0000`      | cuts the outlines through, with kerf compensation |
-| `guide`   | `guide()`      | light blue         | nothing; shown only when you ask for guide lines  |
+| Layer | Wrap shapes in | Colour in the file | Intended operation |
+| --- | --- | --- | --- |
+| `engrave` | `engrave()` | black `#000000` | Fill an area |
+| `score` | `score()` | blue `#0000ff` | Mark a line or outline |
+| `cut` | `cut()` | red `#ff0000` | Cut through the material |
+| `guide` | `guide()` | light blue | Show construction geometry |
+
+This coaster has a cut outline and hole, an engraved ring and a scored border:
 
 ```kerf
 difference() {
@@ -22,53 +24,55 @@ engrave() difference() { circle(d = 74); circle(d = 68); }
 score() circle(d = 84);
 ```
 
-`#` and `%` in front of a module call move it to the guide layer, which is
-handy for checking where something is without cutting it.
+The layer describes the operation. Set its power, speed and passes in your
+laser software.
+
+Place `#` or `%` before a module call to move it to the guide layer.
+Guides are excluded from the output unless you request them with
+`--guides` on the command line or `guides: true` in the API.
 
 ## Areas and lines
 
-Layers hold two kinds of geometry:
+Shapes such as `rect()`, `circle()` and `text()` define areas. On an
+engrave layer, those areas are filled. On cut and score layers, their
+outlines become paths.
 
-- **Areas** come from shapes like `rect()`, `circle()` and `text()`. On
-  `engrave` the area is filled; on `cut` and `score` its outline is followed.
-- **Lines** come from `line()`, `polyline()`, `arc()` and `living_hinge()`.
-  They are followed as they are, on any layer. On `cut` they are cut through,
-  which is how a living hinge is made.
+`line()`, `polyline()`, `arc()` and `living_hinge()` produce lines. They
+remain lines on every layer. A living hinge, for example, is a pattern of
+open cuts within a part.
 
-`stroke(width)` turns lines into areas, for engraving a line of a given
-width. `outline()` turns areas into their outline lines.
+Use `stroke(width)` to turn a line into an area of a specified width. Use
+`outline()` to turn an area's boundary into lines.
 
 ## The material
 
-When a part is finished, KerfScript takes the union of everything on the cut
-layer as the **material**. Then:
+Closed shapes on a part's cut layer define its material. KerfScript clips
+engraving, scoring and open cut lines to that area, excluding holes. Start
+with a cut shape when adding marks to a part.
 
-- engraving and scoring are clipped to the material, so nothing is marked
-  inside a hole or off the part;
-- cut lines are clipped to the material too;
-- if the material falls apart into separate pieces, you get a warning,
-  because that usually means a missing bridge.
+If the cut shapes form separate pieces, KerfScript reports a warning. Check
+for a missing connection or define the pieces as separate parts.
 
 ## Your own layers
 
-`layer(name, mode, color)` makes a layer of your own, for example a second
-engraving pass at a different power:
+Use `layer(name, mode, color)` when you need another operation, such as a
+second engraving depth:
 
 ```kerf
 rect([60, 40]);
-layer("deep", mode = "fill", color = "#00aa00") translate([10, 10]) rect([20, 20]);
+layer("deep", mode = "fill", color = "#00aa00")
+  translate([10, 10]) rect([20, 20]);
 engrave() translate([40, 20]) circle(d = 12);
 ```
 
-Modes are `"cut"`, `"line"` (score), `"fill"` (engrave) and `"guide"`.
+The rectangle and circle use separate engraving layers. You can assign each
+a different power in your laser software. Supported modes are `"cut"`,
+`"line"`, `"fill"` and `"guide"`.
 
 ## Order in the file
 
-Layers are written in this order: engrave, your own layers, score, cut,
-guide. Within the cut layer, holes and inner cuts come before outer outlines,
-so a part does not drop out before its holes are cut.
+KerfScript writes layers in this order: engrave, custom layers, score, cut,
+then guide. Within a cut layer, inner paths precede outer outlines.
 
-That order is a good default, but it does not control your machine. Most
-laser software sorts and orders operations itself. Check the cut order, and
-set power, speed and passes for each layer, in your laser software before you
-run the job.
+Laser software may reorder these paths. Check its job preview so engraving
+runs before cutting and holes are cut before the surrounding part.

@@ -1,6 +1,6 @@
 ---
 import { DISPLAY_DEFS } from '../../public/assets/display.js';
-import { BASE, LANGUAGE_VERSION, LOGO, NPM_URL, REPO_URL, SOURCE_PUBLIC, VERSION } from '../lib/site.mjs';
+import { BASE, LOGO, NPM_URL, REPO_URL, SOURCE_PUBLIC, VERSION } from '../lib/site.mjs';
 
 interface Props {
   title: string;
@@ -24,7 +24,7 @@ const identity = {
   '@type': 'SoftwareSourceCode',
   name: 'KerfScript',
   description:
-    'A programming language for laser cutting: parametric flat parts with cut, score and engrave layers, kerf compensation, joinery and sheet layout, exported as SVG or DXF.',
+    'A programming language for laser cutting. Design parametric parts, adjust them for your material and export SVG or DXF.',
   url: BASE,
   ...(SOURCE_PUBLIC ? { codeRepository: REPO_URL } : {}),
   programmingLanguage: 'KerfScript',
@@ -97,12 +97,12 @@ const identity = {
           )
         }
         <p>
-          KerfScript {VERSION}, language version {LANGUAGE_VERSION}. Made by <a
+          KerfScript {VERSION} by <a
             href="https://mylasertools.com">MyLaserTools</a
           >.
         </p>
         <p>
-          The interpreter is free software under the GNU AGPL 3.0. What you make with it is yours. <a
+          GNU AGPL 3.0. Your designs and exports remain yours. <a
             href="/licence/">Licence</a
           >
         </p>

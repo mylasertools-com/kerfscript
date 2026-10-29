@@ -1,8 +1,8 @@
 # JavaScript API
 
-The same interpreter that runs the command line and the playground is a
-TypeScript library with no native code. It runs in browsers, web workers,
-Node.js and edge runtimes.
+Add KerfScript rendering to a JavaScript application with the
+`@mylasertools/kerfscript` package. The library runs in browsers and Node.js
+and includes TypeScript definitions.
 
 ```sh
 npm install @mylasertools/kerfscript
@@ -10,89 +10,131 @@ npm install @mylasertools/kerfscript
 
 ## render()
 
+Pass a program as a string. The result contains its geometry, files, parts
+and warnings:
+
 ```js
 import { render } from '@mylasertools/kerfscript';
 
+const source = 'width = 80; rect([width, 50]);';
 const result = render(source, {
-  params: { width: 200 },
-  fonts: { Inter: await (await fetch('/Inter.ttf')).arrayBuffer() },
-  defaultFont: 'Inter',
+  params: { width: 120 },
   sheet: [600, 400],
+  margin: 0,
 });
+
+console.log(result.svg);
 ```
+
+This exports a 120 × 50 mm rectangle. `params` overrides `width` without
+changing the source string.
 
 ### Options
 
-| Option        | Meaning                                                                              |
-| ------------- | ------------------------------------------------------------------------------------ |
-| `params`      | setting values by name, overriding the top-level assignments                         |
-| `fonts`       | font files by name, as `ArrayBuffer` or `Uint8Array`                                 |
-| `defaultFont` | font used when `text()` names none                                                   |
-| `resolve`     | `(path) => source` for `use <path>` and `include <path>` beyond the standard library |
-| `kerf`        | override kerf compensation for every part                                            |
-| `layout`      | `"pack"` or `"none"`                                                                 |
-| `sheet`       | `[width, height]` in mm                                                              |
-| `gap`         | space between packed parts                                                           |
-| `margin`      | space around the sheet edge (default: `gap`)                                         |
-| `guides`      | include guide layer geometry                                                         |
-| `maxSteps`    | step limit before the program is stopped                                             |
+| Option | Value |
+| --- | --- |
+| `params` | Parameter values keyed by name |
+| `fonts` | Font files keyed by name, as `ArrayBuffer` or `Uint8Array` |
+| `defaultFont` | Name to use when `text()` does not specify a font |
+| `resolve` | `(path) => source` callback for libraries outside the standard library |
+| `kerf` | Kerf override for every part, in millimetres |
+| `layout` | `"pack"` or `"none"` |
+| `sheet` | `[width, height]` in millimetres |
+| `gap` | Space between parts, in millimetres |
+| `margin` | Space at sheet edges, in millimetres; defaults to `gap` |
+| `guides` | Whether to include guide geometry |
+| `maxSteps` | Evaluation step limit |
+
+Supply a font for programs that use text:
+
+```js
+const response = await fetch('/fonts/Inter.ttf');
+const font = await response.arrayBuffer();
+const result = render(source, {
+  fonts: { Inter: font },
+  defaultFont: 'Inter',
+});
+```
+
+The URL should point to a font file provided by your application.
 
 ### Result
 
-| Field             | Contents                                                                                                   |
-| ----------------- | ---------------------------------------------------------------------------------------------------------- |
-| `svg`             | every sheet in one SVG, for previews                                                                       |
-| `width`, `height` | size of that combined SVG in mm                                                                            |
-| `sheets`          | one entry per sheet: `width`, `height`, `material`, `thickness`, `svg`, `dxf`, `paths`, `items`            |
-| `parts`           | `name`, `qty`, `width`, `height`, `pieces`, `cutLength`, `thickness`, `kerf`, `material`                   |
-| `paths`           | per layer: `name`, `mode`, `color`, `d` (all path data), `regions` (closed outlines), `lines` (open lines) |
-| `layers`          | the layer definitions in output order                                                                      |
-| `warnings`        | problems that did not stop the render                                                                      |
-| `echoes`          | `echo()` output                                                                                            |
+| Field | Contents |
+| --- | --- |
+| `svg` | Combined SVG containing all sheets |
+| `width`, `height` | Combined SVG dimensions in millimetres |
+| `sheets` | Each sheet's dimensions, material, thickness, SVG, DXF, paths and placed items |
+| `parts` | Part names, quantities, dimensions, piece counts, cut lengths and material properties |
+| `paths` | Layer paths with `name`, `mode`, `color`, `d`, `regions` and `lines` |
+| `layers` | Layer definitions in output order |
+| `warnings` | Problems that did not stop the render |
+| `echoes` | Output from the program's `echo()` calls |
 
-`paths` is for apps that draw the result themselves. Fill `regions` with the
-even-odd rule on `fill` layers, and stroke `lines`.
+Use `result.svg` for a combined preview. Use `result.sheets[i].svg` or
+`.dxf` to export individual sheets, particularly when they use different
+materials.
+
+For a custom preview, `d` contains all paths in a layer. `regions` contains
+closed outlines and `lines` contains open paths. On a `fill` layer, draw
+regions with the even-odd fill rule and draw open paths as strokes.
 
 ## parameters()
+
+Read a program's editable settings without rendering its geometry:
 
 ```js
 import { parameters } from '@mylasertools/kerfscript';
 
-parameters(source).parameters;
-// [{ name, caption, group, type, initial, min, max, step, options, span }]
+const source = 'width = 80; // [40:5:200]\nrect([width, 50]);';
+const settings = parameters(source).parameters;
 ```
 
-`type` is `"number"`, `"string"` or `"boolean"`; a list of numbers is
-`"number"` with a list `initial`, as in OpenSCAD's parameter JSON. `span` is
-`[start, end]`, the offsets of the value in the source, so an editor can change
-a value without touching anything else:
+Each setting includes `name`, `caption`, `group`, `type`, `initial` and
+`span`. Ranges add `min`, `max` and `step`; menus add `options`.
+
+`type` is `"number"`, `"string"` or `"boolean"`. A numeric vector has
+type `"number"` and an array as its `initial` value.
+
+`span` gives the source offsets `[start, end]` of the value. An editor can
+use them to update one setting:
 
 ```js
-const p = parameters(source).parameters.find((p) => p.name === 'width');
-const next = source.slice(0, p.span[0]) + '200' + source.slice(p.span[1]);
+const width = settings.find((p) => p.name === 'width');
+if (width) {
+  const next = source.slice(0, width.span[0]) + '120' + source.slice(width.span[1]);
+}
 ```
+
+Read the settings again after editing the source; the offsets refer to the
+string passed to `parameters()`.
 
 ## Errors
 
-Errors are thrown as `KerfError` with `line` and `col`. They also carry
-`echoes`, the `echo()` output up to the error, and `missingFonts` when a font
-was not supplied, so an app can load those fonts and render again.
+Language errors use `KerfError`. Its `line` and `col` identify the source
+location when available, and `echoes` contains output produced before the
+error. `missingFonts` lists fonts the application needs to supply.
 
 ```js
 import { KerfError, render } from '@mylasertools/kerfscript';
 
 try {
-  render(source, { fonts });
-} catch (e) {
-  if (e instanceof KerfError && e.missingFonts) {
-    // load e.missingFonts, then render again
+  render('rect([80, 50]);');
+} catch (error) {
+  if (error instanceof KerfError) {
+    console.error(error.message, error.line, error.col);
+  } else {
+    throw error;
   }
 }
 ```
 
 ## Running untrusted code
 
-Programs cannot read files or the network: `use` and `include` reach only the
-standard library and whatever your `resolve` returns. Step and recursion limits
-stop runaway programs. A render is still ordinary synchronous work, so run
-it in a web worker, and stop the worker if it takes too long.
+Run browser renders in a web worker so they do not block the page. Set a
+timeout and terminate the worker if it takes too long. Evaluation limits
+bound program steps and recursion, but geometry work also takes time.
+
+KerfScript programs have no direct file or network access. `use` and
+`include` can load the standard library and sources returned by your
+`resolve` callback. Restrict that callback to libraries you intend to expose.

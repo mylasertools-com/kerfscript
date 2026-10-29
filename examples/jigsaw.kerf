@@ -1,5 +1,5 @@
-// A jigsaw puzzle. Every edge between two pieces gets a knob that points
-// one way or the other, picked by the seed.
+// A jigsaw puzzle with interlocking pieces.
+// Choose the size and piece count, or change the seed for a new pattern.
 
 /* [Puzzle] */
 // Pieces across

@@ -1,6 +1,6 @@
 ---
 import Base from '../../../layouts/Base.astro';
-import { VERSION, code, fmt, models } from '../../../lib/site.mjs';
+import { code, fmt, models } from '../../../lib/site.mjs';
 
 export function getStaticPaths() {
   return models.map((model) => ({ params: { slug: model.slug }, props: { model } }));
@@ -19,7 +19,7 @@ function rangeText(p) {
 
 <Base
   title={`${m.title}, made with KerfScript`}
-  description={`${m.summary} A parametric laser cutting model written in KerfScript, with source, settings and cut files.`}
+  description={`${m.summary} Customize this KerfScript design and download its source, SVG or DXF.`}
   scripts={['/assets/views.js']}
   type="article"
 >
@@ -37,9 +37,8 @@ function rangeText(p) {
       <figure class="sheet" data-panel="material" set:html={m.display} />
       <figure class="sheet laser" data-panel="laser" hidden set:html={laser} />
       <p class="figure-note">
-        The cut file as the downloads lay it out: {fmt(m.width)} × {fmt(m.height)} mm, {m.count}
-        {m.count === 1 ? 'part' : 'parts'} on {m.sheets} {m.sheets === 1 ? 'sheet' : 'sheets'}. Rendered by KerfScript {VERSION}
-        from the source below.
+        Download size: {fmt(m.width)} × {fmt(m.height)} mm. {m.count}
+        {m.count === 1 ? 'part' : 'parts'} on {m.sheets} {m.sheets === 1 ? 'sheet' : 'sheets'}.
       </p>
       {
         m.photo && (
@@ -100,7 +99,7 @@ function rangeText(p) {
         )
       }
       <p class="facts-note">
-        Check cut order, power, speed and material settings in your laser software before cutting. <a
+        Set power, speed and cut order in your laser software. <a
           href="/docs/compatibility/">Laser software notes</a
         >
       </p>

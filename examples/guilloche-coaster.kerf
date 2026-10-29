@@ -1,5 +1,5 @@
-// A round coaster with a guilloche pattern: the same wavy ring drawn
-// several times, each copy shifted a little, so the lines weave.
+// A round coaster with an interlaced guilloche pattern.
+// Adjust the diameter, wave count and number of scored rings.
 
 /* [Coaster] */
 // Diameter

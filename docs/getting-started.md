@@ -1,24 +1,24 @@
 # Getting started
 
-This guide takes you from an empty file to a cut file in about ten minutes.
-You need nothing installed: the [playground](https://kerfscript.mylasertools.com/playground/)
-runs KerfScript in your browser.
+Make a small sign with two hanging holes and engraved text. You can follow
+this guide in the [playground](https://kerfscript.mylasertools.com/playground/)
+without installing anything.
 
 ## Your first part
 
-Open the playground, clear the editor and type:
+Clear the playground editor and enter:
 
 ```kerf
 rect([80, 50], r = 4);
 ```
 
-That is a rounded rectangle, 80 by 50 mm. Units are always millimetres. A
-shape that is not on any other layer is **cut**, so this is a part you could
-cut out now.
+This draws an 80 × 50 mm rectangle with 4 mm corner radii. KerfScript uses
+millimetres for lengths and degrees for angles. Shapes go on the cut layer
+unless you assign another layer.
 
 ## Holes
 
-`difference()` keeps the first shape and removes the rest from it:
+Replace the rectangle with this code:
 
 ```kerf
 difference() {
@@ -28,13 +28,16 @@ difference() {
 }
 ```
 
-`translate([x, y])` moves what follows it. The y axis points up, and
-`rect()` starts at `[0, 0]` unless you pass `center = true`.
+`difference()` subtracts the two circles from the rectangle. Each hole is
+5 mm across, centred 10 mm from a side and halfway up the sign.
+
+`translate([x, y])` moves a shape. The x axis points right and the y axis
+points up. A rectangle starts at `[0, 0]`; use `center = true` to centre it
+on that point.
 
 ## Engraving and scoring
 
-Wrap shapes in `engrave()` to engrave their area, or `score()` to mark their
-outline without cutting through:
+Add a scored border and engraved text:
 
 ```kerf
 difference() {
@@ -43,15 +46,19 @@ difference() {
   translate([70, 25]) circle(d = 5);
 }
 score() translate([20, 10]) rect([40, 30], r = 2);
-engrave() translate([40, 25]) text("Oak", size = 10, halign = "center", valign = "center");
+engrave() translate([40, 25])
+  text("Oak", size = 10, halign = "center", valign = "center");
 ```
 
-Engraving and scoring are clipped to the material, so nothing is marked over
-a hole or off the edge. [Layers](layers.md) explains the rest.
+`score()` marks the border's outline. `engrave()` fills the letters. Both
+stay within the sign's cut outline, excluding the holes. The playground
+supplies a font for this example.
+
+See [Layers](layers.md) for custom layers and guide lines.
 
 ## Settings
 
-A top-level variable with a comment in square brackets becomes a slider:
+Give dimensions names so you can change them without editing every shape:
 
 ```kerf
 width = 80; // [40:5:200]
@@ -67,32 +74,42 @@ engrave() translate([width / 2, height / 2])
   text(label, size = 10, halign = "center", valign = "center");
 ```
 
-Move a slider in the playground and the number in the code changes with it.
-[Settings](customizer.md) covers groups, captions and menus.
+The comments create sliders for width and height. `[40:5:200]` means a
+minimum of 40, a step of 5 and a maximum of 200. `label` becomes a text
+field. The text and holes stay centred as the dimensions change.
+
+In the playground, changing a control also updates its value in the code.
+See [Settings](customizer.md) for menus, groups and captions.
 
 ## Kerf
 
-The laser burns away a thin line of material, the **kerf**. Tell KerfScript
-how wide it is and parts come out the size you typed:
+The beam removes some material along each cut. To account for that width,
+add your measured kerf near the top of the program:
 
 ```kerf
 $kerf = 0.15;
 ```
 
-Cut the [calibration square](../examples/calibration-square.kerf) once to
-measure yours. [Kerf](kerf.md) explains how.
+Here, `0.15` is an example in millimetres. Use the
+[calibration square](../examples/calibration-square.kerf) to measure a value
+for your machine and material. [Kerf](kerf.md) explains the measurement and
+how it affects the exported outlines.
 
 ## Getting the file
 
-In the playground, press **SVG** or **DXF**. Open the SVG in your laser
-software: cut lines are red, score lines blue and engraving black, each on its
-own layer. Set power, speed and the order of operations there, as you would
-for any other file. [Laser software](compatibility.md) has notes for the
-programs we have checked.
+Choose **SVG** or **DXF** in the playground, then open the file in your laser
+software. Assign the cut, score and engrave layers their power, speed and
+operation order. In DXF, set engraved areas to fill.
+
+If you used `$kerf`, leave kerf compensation off in the laser software to
+avoid applying it twice. The [import guide](compatibility.md) covers sizes,
+layers and tested programs.
+
+Download **.kerf** to keep an editable copy of the design.
 
 ## Next
 
-- [Layers](layers.md): cut, score, engrave and your own layers
-- [Parts and sheets](parts-and-sheets.md): several pieces, quantities, materials
-- [Coming from OpenSCAD](openscad.md): what is the same and what is not
-- [Language reference](../LANGUAGE.md): everything in one page
+- [Layers](layers.md): separate cutting, scoring and engraving.
+- [Parts and sheets](parts-and-sheets.md): arrange several parts by material.
+- [Coming from OpenSCAD](openscad.md): adapt an existing 2D design.
+- [Language reference](../LANGUAGE.md): look up syntax and functions.

@@ -1,61 +1,76 @@
 # Command line
 
-The `kerf` command renders `.kerf` files to SVG, DXF or JSON. It needs
-Node.js 20 or newer and comes with the `@mylasertools/kerfscript` npm
-package.
+Use the `kerf` command to export designs, change parameters and inspect
+parts from your terminal. Install the package with Node.js 20 or newer:
 
 ```sh
 npm install --global @mylasertools/kerfscript
 kerf render box.kerf -o box.svg
 ```
 
-Or without installing:
+You can also run it through `npx`:
 
 ```sh
 npx @mylasertools/kerfscript render box.kerf -o box.svg
 ```
 
+Save a `.kerf` file from the [models](https://kerfscript.mylasertools.com/models/)
+to try these commands.
+
 ## Commands
 
 ```sh
 kerf render <file.kerf> [-o out.svg] [options]
-kerf params <file.kerf>     # settings as JSON
-kerf check <file.kerf>      # parts, sizes, cut length, sheets and warnings
+kerf params <file.kerf>
+kerf check <file.kerf>
 ```
+
+`render` exports SVG, DXF or JSON, using the output file's extension to
+choose the format. `params` lists the editable settings as JSON. `check`
+reports parts, dimensions, cut lengths, sheets and warnings.
 
 ## Options
 
-| Option                | What it does                                                           |
-| --------------------- | ---------------------------------------------------------------------- |
-| `-o, --out <file>`    | output file, `.svg`, `.dxf` or `.json`; default `<file>.svg`           |
-| `-D name=value`       | set a setting; the value is KerfScript: `40`, `"Oak"`, `true`, `[1,2]` |
-| `-p, --params <file>` | JSON file of setting values                                            |
-| `--font <file.ttf>`   | font for `text()`; repeat for more fonts. The name is the file name    |
-| `--kerf <mm>`         | override kerf compensation for every part                              |
-| `--sheet <W>x<H>`     | sheet size for packing, in mm                                          |
-| `--gap <mm>`          | space between packed parts                                             |
-| `--margin <mm>`       | space between the parts and the sheet edge (default: the gap)          |
-| `--no-pack`           | keep parts where the program placed them                               |
-| `--guides`            | include guide layer geometry                                           |
-| `--split`             | write one file per sheet (`out-1.svg`, `out-2.svg`, ...)               |
-| `-h, --help`          | show help                                                              |
-| `-v, --version`       | show the version                                                       |
+| Option | Use |
+| --- | --- |
+| `-o, --out <file>` | Output path ending in `.svg`, `.dxf` or `.json`; defaults to `<file>.svg` |
+| `-D name=value` | Override a parameter; repeat for multiple values |
+| `-p, --params <file>` | Load parameter values from a JSON file |
+| `--font <file.ttf>` | Supply a font file; repeat for multiple fonts |
+| `--kerf <mm>` | Override kerf for every part |
+| `--sheet <W>x<H>` | Set the sheet width and height in millimetres |
+| `--gap <mm>` | Set spacing between parts |
+| `--margin <mm>` | Set spacing at sheet edges; defaults to the gap |
+| `--no-pack` | Keep the positions defined in the program |
+| `--guides` | Include the guide layer |
+| `--split` | Export one file per sheet |
+| `-h, --help` | Show command help |
+| `-v, --version` | Show version numbers |
+
+`-D` accepts KerfScript values, including numbers, quoted strings, booleans
+and lists. For example: `-D width=200` or `-D 'name="Ada"'`.
 
 ## Examples
 
 ```sh
-kerf render sign.kerf -D 'name="Ada"' --font Inter-Bold.ttf -o ada.svg
+kerf render name-sign.kerf -D 'name="Ada"' --font Inter-Bold.ttf -o ada.svg
 kerf render box.kerf --sheet 400x300 --kerf 0.12 --split -o box.svg
 kerf render box.kerf -o box.dxf
 kerf check box.kerf
 ```
 
-Warnings go to standard error and do not stop the render. Errors stop it with
-the line and column, and a non-zero exit code.
+For multiple sheets, `--split` creates numbered files such as `box-1.svg`
+and `box-2.svg`. Use it for DXF exports of a design with several sheets.
+
+Warnings are written to standard error and allow rendering to continue.
+An error stops the command, reports its location when available and returns
+a non-zero exit code.
 
 ## Fonts
 
-KerfScript does not ship fonts and never reads system fonts, so a file
-renders the same everywhere. Pass the fonts a design uses with `--font`. A
-design that asks for `font = "Inter-Bold"` needs `--font Inter-Bold.ttf`; the
-first font given is the default.
+Supply font files with `--font` for designs that use text. The CLI does not
+look up fonts installed on your system.
+
+`--font Inter-Bold.ttf` makes the font available as `Inter-Bold`. A design
+can request it with `font = "Inter-Bold"`. The first supplied font is the
+default for text that does not name one.

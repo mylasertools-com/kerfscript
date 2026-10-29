@@ -1,6 +1,6 @@
-// A 100 mm square with a 20 mm hole, for checking size and kerf.
-// Measure both after cutting. If the square is small and the hole is big,
-// raise $kerf by the difference; if it is the other way round, lower it.
+// A 100 mm square with a 20 mm hole for checking dimensions and kerf.
+// Measure the outside and the hole after cutting to check compensation.
+// See the kerf guide for the calibration steps.
 
 /* [Size] */
 // Outside of the square

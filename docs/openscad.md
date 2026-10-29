@@ -1,67 +1,71 @@
 # Coming from OpenSCAD
 
-KerfScript borrows OpenSCAD's syntax on purpose: if you have written
-OpenSCAD, you can read KerfScript and write it within minutes. It is not a
-drop-in replacement. It only makes flat parts, and a few rules are different.
-OpenSCAD files do not run unchanged.
+KerfScript uses syntax familiar to OpenSCAD users, with features for laser
+cutting. Existing OpenSCAD files may need changes to run in KerfScript.
+This guide covers the shared syntax and the differences that affect a port.
 
 ## The same
 
-- Statements, modules, functions, `for`, `if`, `let`, `each`, list
-  comprehensions, ranges like `[0:2:10]`, function literals.
+You can use familiar building blocks:
+
+- Modules, functions, `for`, `if`, `let`, `each`, list comprehensions,
+  ranges and function literals.
 - `children()`, `children(i)` and `$children`.
-- Special variables that start with `$` are dynamically scoped, and `$fn`,
-  `$fa` and `$fs` set curve resolution.
-- 2D shapes: `square()` (also called `rect()`), `circle(r)` or `circle(d =)`,
-  `polygon(points, paths)`, `text()`.
-- Transforms: `translate`, `rotate`, `scale`, `mirror`, `multmatrix`.
-- Combining: `union`, `difference`, `intersection`, `hull`, `offset(r)`,
-  `offset(delta, chamfer)`.
+- Dynamically scoped `$` variables, plus `$fn`, `$fa` and `$fs` for curve
+  resolution.
+- 2D shapes: `square()` or `rect()`, `circle()`, `polygon()` and `text()`.
+- Transforms: `translate`, `rotate`, `scale`, `mirror` and `multmatrix`.
+- Shape operations: `union`, `difference`, `intersection`, `hull` and `offset`.
 - `echo()`, `assert()`, `use <...>` and `include <...>`.
-- Customizer comments: `// [40:5:400]`, `/* [Group] */`, `/* [Hidden] */`,
-  and captions on the line above. Tools that read OpenSCAD settings read
-  these.
+- Customizer comments for ranges, choices, groups and captions.
+
+See the [language reference](../LANGUAGE.md) for supported arguments.
 
 ## Different
 
-|             | OpenSCAD                                      | KerfScript                                                      |
-| ----------- | --------------------------------------------- | --------------------------------------------------------------- |
-| Output      | a solid, as STL, 3MF and more                 | a cut file, as SVG or DXF                                       |
-| Dimensions  | 3D, and 2D for export                         | 2D only                                                         |
-| Assignments | the last one in a scope wins everywhere in it | run in order; a later one takes effect from that line           |
-| Errors      | many mistakes give `undef` and a warning      | type mistakes stop the program, naming the line                 |
-| `color()`   | colours a shape                               | not available; use `cut()`, `score()`, `engrave()` or `layer()` |
-| Fonts       | system fonts                                  | only fonts you pass in, so a file renders the same everywhere   |
-| Libraries   | any file on disk                              | the standard library and whatever the host allows               |
+| Feature | OpenSCAD | KerfScript |
+| --- | --- | --- |
+| Geometry | 3D and 2D | 2D parts for laser cutting |
+| Output | 3D formats and 2D exports | SVG and DXF with operation layers |
+| Assignments | The last assignment in a scope applies throughout that scope | Assignments take effect in order |
+| Type errors | Many produce `undef` and a warning | Stop evaluation with an error |
+| `color()` | Sets a shape's colour | Use `cut()`, `score()`, `engrave()` or `layer()` |
+| Fonts | Looks up system fonts | Uses fonts supplied by the application or CLI |
+| Libraries | Can load local files | Loads the standard library and sources allowed by the host |
+
+Assignment order is especially important when adapting a design. A value
+assigned later in a KerfScript program does not change earlier geometry.
 
 ## Not in KerfScript
 
-3D modules (`cube`, `sphere`, `cylinder`, `polyhedron`,
-`linear_extrude`, `rotate_extrude`, `projection`), `minkowski`, `resize`,
-`color`, `import`, `surface` and `render`. Each stops with an error that
-names it, so you find out at once.
+KerfScript does not support `cube`, `sphere`, `cylinder`, `polyhedron`,
+`linear_extrude`, `rotate_extrude` or `projection`. It also does not support
+`minkowski`, `resize`, `color`, `import`, `surface` or `render`.
+
+Calls to these modules produce an error. For a design based on an extruded
+2D outline, start with that outline and remove the extrusion.
 
 ## Only in KerfScript
 
-- Layers: `cut()`, `score()`, `engrave()`, `guide()` and `layer()`.
-  See [Layers](layers.md).
-- Kerf compensation with `$kerf`. See [Kerf](kerf.md).
-- Parts, quantities, materials and sheet packing: `part()`, `material()`,
-  `$sheet`, `$gap`. See [Parts and sheets](parts-and-sheets.md).
-- Joinery that reads `$thickness`: `finger_rect`, `finger_holes`, `tslot`,
-  `living_hinge`.
-- Lines as well as areas: `line()`, `polyline()`, `arc()`, `path()`,
-  `stroke()` and `outline()`.
-- Shapes OpenSCAD lacks: `ellipse`, `regular_polygon`, `star`, rounded
-  `rect(r =)`.
-- `text_width()` and `text_metrics()`, to size a part to its text.
+- **Operations:** `cut()`, `score()`, `engrave()`, `guide()` and `layer()`.
+- **Material settings:** `$kerf` for cut compensation and `$thickness` for
+  material-dependent joints.
+- **Parts and layout:** `part()`, `material()`, quantities, `$sheet` and `$gap`.
+- **Joinery:** `finger_rect`, `finger_holes`, `tslot` and `living_hinge`.
+- **Paths:** `line`, `polyline`, `arc`, `path`, `stroke` and `outline`.
+- **Additional shapes:** `ellipse`, `regular_polygon`, `star` and rounded
+  rectangles with `rect(r = ...)`.
+- **Text measurement:** `text_width()` and `text_metrics()`.
 
 ## Porting a 2D design
 
-1. Drop `linear_extrude()` and any 3D parts.
-2. Replace `color()` with the layer the shape belongs on.
-3. Check assignments: code that relied on a later assignment overriding an
-   earlier one should assign once.
-4. Pass the fonts your `text()` calls use.
-5. Add `$kerf` and `$thickness`, and replace hand-made finger joints with
-   `finger_rect()` if you want them to follow the material.
+1. Keep the 2D geometry and remove extrusion or other 3D operations.
+2. Assign shapes to cut, score or engrave layers.
+3. Check repeated assignments and put each value before the code that uses it.
+4. Supply the fonts used by `text()`.
+5. Set the measured material thickness and kerf. Use the joinery modules
+   where they suit the design.
+
+Render the result and check the dimensions and layers before exporting.
+The [layers](layers.md), [kerf](kerf.md) and
+[parts and sheets](parts-and-sheets.md) guides cover those steps.

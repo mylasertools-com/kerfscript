@@ -1,43 +1,33 @@
 # Versions
 
-KerfScript has two version numbers.
+KerfScript 0.2.0 implements language version 0.1. The package version tracks
+the software release; the language version tracks the syntax and behavior
+of `.kerf` programs.
 
-- The **language version** (now 0.1) covers what `.kerf` files mean: the
-  syntax, the built-in modules and functions, and the rules for layers, kerf
-  and parts. The [language reference](../LANGUAGE.md) describes one language
-  version.
-- The **package version** (now 0.2.0) is the version of the interpreter, the
-  `kerf` command and the JavaScript API. It changes more often: bug fixes,
-  new output options and API additions do not change the language.
-
-The site footer, `kerf --version` and the `VERSION` and `LANGUAGE_VERSION`
-exports show both.
+Package updates can include bug fixes, export options and JavaScript API
+changes without changing the language version. Use `kerf --version` to see
+both numbers, or read the `VERSION` and `LANGUAGE_VERSION` exports in JavaScript.
 
 ## Before 1.0
 
-KerfScript is young, and the language may still change before 1.0. What we
-promise in the meantime:
+The language may change before 1.0. Release notes identify changes that
+affect existing programs or their output, including geometry and text layout
+fixes. Removing or renaming a language feature requires a new language version.
 
-- **Changes are written down.** Every change that can alter what a file
-  produces is listed in the changelog under the version that made it.
-- **Files keep running where we can manage it.** A program that worked keeps
-  working, or stops with an error that says what to change. It does not
-  silently start cutting something different.
-- **Geometry changes are called out.** If the same file starts producing
-  different geometry, for example after a packing or text layout fix, the
-  changelog says which designs are affected.
-- **Breaking changes raise the language version.** Package releases within
-  one language version do not remove or rename anything in the language.
+Check the changelog when upgrading a tool that renders saved designs.
 
 ## From 1.0
 
-From language version 1.0, `.kerf` files written for 1.x keep producing the
-same parts in every later 1.x interpreter, apart from bug fixes listed in the
-changelog. New features are additions. Anything that would change existing
-files waits for 2.0.
+The compatibility policy for language version 1.x is to keep existing
+programs working throughout that series. New features will be added without
+changing existing syntax. Bug fixes that affect output will be listed in
+the changelog; other breaking changes will require language version 2.0.
 
 ## Pinning a version
 
-Hosts that store designs, like MyLaserTools, record which interpreter
-version a design was published with, so a stored design can be checked
-against later versions before it is upgraded.
+For repeatable exports, record the interpreter version, settings and font
+files used with a design. Applications that store designs should retain
+that information and compare the output before upgrading the interpreter.
+
+Pin the npm package to an exact version when your application needs a fixed
+renderer, for example `@mylasertools/kerfscript@0.2.0`.

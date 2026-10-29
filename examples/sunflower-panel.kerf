@@ -1,5 +1,5 @@
-// A lamp panel with holes on a sunflower spiral. Every hole sits at the
-// golden angle from the one before, which packs them evenly.
+// A lamp panel with a spiral of holes inspired by sunflower seeds.
+// Adjust the panel size, hole count and hole sizes.
 
 /* [Panel] */
 // Panel width

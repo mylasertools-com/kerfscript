@@ -1,7 +1,7 @@
-// Slots from a little narrower to a little wider than the material.
-// Push a scrap of the same sheet into each slot: if the one marked 0 is
-// snug, $kerf and $thickness are right. If a + slot fits best, your
-// material is thicker than you said; if a - slot does, it is thinner.
+// A row of slots for testing the fit of your material.
+// Try a scrap from the same sheet in each slot. Positive labels mean
+// wider slots; negative labels mean narrower ones. Measure both kerf
+// and sheet thickness before adjusting the design.
 
 /* [Material] */
 $thickness = 3; // [1:0.5:10]
