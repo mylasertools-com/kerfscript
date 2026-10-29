@@ -1,0 +1,187 @@
+// Morph: one program, five sculptures. Flat contour layers stack on three
+// dowels, with spacer plates between them; only each layer's outline turns
+// and swells, so the stack becomes a bowl, an urn, a twisted tower, a lotus
+// or a saddle. Pick a form, or choose custom and shape your own.
+
+/* [Form] */
+// A ready recipe, or custom to use the settings below
+preset = "helix"; // [bowl:Tide bowl, urn:Seed urn, helix:Helix tower, lotus:Lotus bloom, saddle:Saddle vessel, custom:Custom]
+// All parts, or one group at a time
+output = "all"; // [all:All parts, layers:Two layers, spacers:Spacer plates, base:Bottom cover, fit:Dowel fit test, single:One layer]
+// Which pair of layers (Two layers), or which layer (One layer)
+batch = 1; // [1:1:28]
+// Scored layer numbers and the arrow that lines the layers up
+score_detail = true;
+
+/* [Custom profile] */
+// Outer radius at the bottom, belly, neck and mouth
+profile = [48, 55, 48, 52];
+// Height of the belly, as a share of the total
+belly_at = 0.42; // [0.25:0.01:0.65]
+// Contour layers
+layer_count = 28; // [10:1:28]
+// Spacer plates between two layers: 0 dense, 1 airy, 2 very open
+spacers_per_gap = 2; // [0, 1, 2]
+
+/* [Custom section] */
+// Shape of each layer: 2 circle, 4 rounded square, 5 squarer
+section_power = 4; // [2:0.1:5]
+// Stretch one way before turning
+stretch = 1.12; // [1:0.01:1.2]
+// Petals around each layer
+lobe_count = 6; // [3:1:10]
+// Petal depth, as a share of the radius (0 for none)
+lobe_depth = 0; // [0:0.01:0.3]
+// Total turn from bottom to top, in degrees
+twist = 150; // [-180:1:180]
+// Width of the outer rim
+rim_width = 11; // [9:1:16]
+// Spokes between the rim and the hub
+spoke_count = 3; // [3, 6, 9]
+// Open windows between hub and rim, or solid layers
+open_windows = true;
+// Hole down the middle
+bore = 32; // [20:1:32]
+
+/* [Material] */
+// Sheet thickness; also sets the height of the stack
+$thickness = 3; // [2.8:0.1:3.2]
+// Measured diameter of the three wooden dowels
+dowel_diameter = 6; // [5.8:0.05:6.2]
+// Added to the dowel holes, for a glued fit
+dowel_clearance = 0.25; // [0.15:0.05:0.35]
+// Beam width
+$kerf = 0.15; // [0:0.01:0.25]
+
+/* [Hidden] */
+$material = "plywood";
+$sheet = [600, 400];
+$gap = 6;
+$fn = 120;
+// Each recipe: [profile, belly_at, layers, spacers, section, stretch, lobes,
+//   lobe depth, twist, rim, spokes, windows, bore]
+recipes = [
+  [[52, 82, 95, 96], 0.40, 12, 1, 2, 1, 8, 0.10, 0, 11, 3, true, 32],
+  [[52, 90, 55, 46], 0.46, 24, 1, 2, 1, 6, 0, 0, 12, 6, true, 28],
+  [[48, 55, 48, 52], 0.42, 28, 2, 4, 1.12, 6, 0, 150, 11, 3, true, 32],
+  [[48, 64, 88, 95], 0.35, 16, 1, 2, 1, 6, 0.28, -18, 10, 6, true, 32],
+  [[78, 46, 53, 80], 0.48, 22, 1, 5, 1, 4, 0, -70, 12, 3, false, 30]
+];
+keys = ["bowl", "urn", "helix", "lotus", "saddle"];
+p = preset == "custom"
+  ? [profile, belly_at, layer_count, spacers_per_gap, section_power, stretch, lobe_count, lobe_depth, twist, rim_width, spoke_count, open_windows, bore]
+  : recipes[search(preset, keys)];
+pr = p[0];
+peak = p[1];
+N = p[2];
+S = p[3];
+power = p[4];
+elong = p[5];
+lobes = p[6];
+depth = p[7];
+turn = p[8];
+rim = p[9];
+spokes = p[10];
+windows = p[11];
+opening = p[12];
+t = $thickness;
+hd = dowel_diameter + dowel_clearance;
+// Three dowels at unequal angles, so a layer only fits one way round
+pin_angles = [0, 120, 235];
+pin_r = 24;
+hub = 31;
+stack_h = (N + (N - 1) * S) * t;
+foot_r = max(55, 0.28 * (stack_h + t));
+echo("Three dowels, each", stack_h + t, "mm long");
+
+function ease(a, b, v) = lerp(a, b, (1 - cos(180 * v)) / 2);
+// Outer radius at height v (0 to 1), through the four profile radii
+function radius(v) = v <= peak ? ease(pr[0], pr[1], v / peak)
+  : v <= 0.82 ? ease(pr[1], pr[2], (v - peak) / (0.82 - peak))
+  : ease(pr[2], pr[3], (v - 0.82) / 0.18);
+function polar(r, a) = [r * cos(a), r * sin(a)];
+// The outline at height v, angle a: a superellipse with petals, stretched and turned
+function point(v, a) = let(
+  r = radius(v) * (1 + depth * (1 + cos(lobes * a)) / 2) / pow(pow(abs(cos(a)), power) + pow(abs(sin(a)), power), 1 / power),
+  x = elong * r * cos(a),
+  y = r * sin(a),
+  q = turn * v
+) [x * cos(q) - y * sin(q), x * sin(q) + y * cos(q)];
+
+module contour(i) polygon([for (j = [0:359]) point(i / (N - 1), j)]);
+module holes() for (a = pin_angles) translate(polar(pin_r, a)) circle(d = hd);
+module hub_blank() difference() {
+  circle(r = hub);
+  circle(d = opening);
+}
+
+// Two-digit numbers in single strokes, so the file needs no font
+segments = [[[0, 4], [2, 4]], [[2, 4], [2, 2]], [[2, 2], [2, 0]], [[0, 0], [2, 0]], [[0, 0], [0, 2]], [[0, 2], [0, 4]], [[0, 2], [2, 2]]];
+digits = [[0, 1, 2, 3, 4, 5], [1, 2], [0, 1, 6, 4, 3], [0, 1, 6, 2, 3], [5, 6, 1, 2], [0, 5, 6, 2, 3], [0, 5, 6, 4, 2, 3], [0, 1, 2], [0, 1, 2, 3, 4, 5, 6], [0, 1, 2, 3, 5, 6]];
+module number(n) for (k = [0:1]) translate([k * 3, 0])
+  for (s = digits[k == 0 ? floor(n / 10) : n % 10]) line(segments[s][0], segments[s][1]);
+
+module slab(i) {
+  difference() {
+    if (i == 0 || !windows) contour(i);
+    else union() {
+      difference() {
+        contour(i);
+        offset(delta = -rim) contour(i);
+      }
+      hub_blank();
+      intersection() {
+        contour(i);
+        for (a = [0:360 / spokes:359]) rotate(a) translate([22, -4]) rect([180, 8]);
+      }
+    }
+    holes();
+    if (i > 0) circle(d = opening);
+  }
+  if (score_detail) score() {
+    translate([18, 7]) number(i + 1);
+    // Points at the dowel at 0 degrees on every layer
+    polyline([[17, -7], [28, -7], [25, -9]]);
+  }
+}
+
+module spacer() difference() {
+  hub_blank();
+  holes();
+}
+
+module foot() {
+  circle(r = foot_r);
+  if (score_detail) score() {
+    // Targets that show through layer 1's holes, to centre it
+    for (a = pin_angles) translate(polar(pin_r, a)) {
+      line([-2, 0], [2, 0]);
+      line([0, -2], [0, 2]);
+    }
+    line([-4, 0], [4, 0]);
+    line([0, -4], [0, 4]);
+  }
+}
+
+module fit_test() {
+  part("Fit test, dowel holes") {
+    difference() {
+      rect([100, 30], r = 2);
+      for (j = [0:3]) translate([14 + 24 * j, 15]) circle(d = dowel_diameter + 0.1 + j * 0.1);
+    }
+    if (score_detail) score() for (j = [0:3]) translate([11 + 24 * j, 23]) number(j + 1);
+  }
+  part("Fit test, hub") spacer();
+}
+
+if (output == "all" || output == "layers")
+  for (i = [0:N - 1]) if (output == "all" || floor(i / 2) == batch - 1) part(str("Layer ", i + 1)) slab(i);
+if (output == "single" && batch <= N) part(str("Layer ", batch)) slab(batch - 1);
+if ((output == "all" || output == "spacers") && S > 0) part("Spacer", qty = (N - 1) * S) spacer();
+if (output == "all" || output == "base") part("Bottom cover") foot();
+if (output == "fit") fit_test();
+
+// Assembly: cut the fit test first and set dowel_clearance from it. Stack
+// the bottom cover, layer 1, the spacers, layer 2 and so on, all scored faces
+// up and the arrows lined up, on the three dowels. Glue as you go and trim
+// the dowels flush with the top layer.

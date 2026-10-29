@@ -346,6 +346,12 @@ def build(slug):
         bpy.ops.object.shade_smooth()
         ball.data.materials.append(mat_plain("steel", "#c9ccd1", 0.18))
         ball.data.materials[0].node_tree.nodes["Principled BSDF"].inputs["Metallic"].default_value = 1.0
+    for k, (x, y, z0, z1, d) in enumerate(recipe.get("rods", []) if isinstance(recipe, dict) else []):
+        bpy.ops.mesh.primitive_cylinder_add(radius=d / 2 * MM, depth=(z1 - z0) * MM, location=(x * MM, y * MM, (z0 + z1) / 2 * MM), vertices=32)
+        rod = bpy.context.active_object
+        rod.name = f"rod{k}"
+        bpy.ops.object.shade_smooth()
+        rod.data.materials.append(mat_plain("dowel", "#d8b483", 0.7))
     wall = recipe.get("wall") if isinstance(recipe, dict) else None
     if wall:
         (x0, x1), (z0, z1) = wall["x"], wall["z"]

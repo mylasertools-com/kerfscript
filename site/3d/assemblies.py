@@ -208,6 +208,28 @@ def wave_cathedral(p, parts):
     return None
 
 
+def morph(t=3, spacers=2):
+    """Bottom cover, then layer 1, the spacers, layer 2 and so on."""
+    pitch = (1 + spacers) * t
+
+    def place(p, parts):
+        n = p["name"]
+        if n == "Bottom cover":
+            return T()
+        if n.startswith("Layer "):
+            return T(0, 0, t + (int(n.split()[1]) - 1) * pitch)
+        if n == "Spacer":
+            g, j = divmod(p["copy"] - 1, spacers)
+            return T(0, 0, t + g * pitch + t + j * t)
+        return None
+    return place
+
+
+def morph_rods(layers=28, spacers=2, t=3):
+    top = t + (layers + (layers - 1) * spacers) * t
+    return [(24 * math.cos(math.radians(a)), 24 * math.sin(math.radians(a)), t, top, 6) for a in (0, 120, 235)]
+
+
 ASSEMBLIES = {
     "box": {"place": box_parts(120, 80, 50, 3)},
     "phone-stand": {"place": phone_stand},
@@ -222,6 +244,7 @@ ASSEMBLIES = {
     "topo-island": {"place": stack(topo_order), "view": {"azimuth": -25, "elevation": 38}},
     "drawer-organizer": {"place": drawer_organizer(), "view": {"elevation": 45}},
     "gears": {"place": gears, "view": {"elevation": 50}},
+    "morph": {"place": morph(), "rods": morph_rods(), "view": {"azimuth": -30, "elevation": 22}},
     "wave-cathedral": {"place": wave_cathedral, "view": {"azimuth": -40, "elevation": 26}},
     # The picture shows what Umbra is for: the dragon's shadow on a wall
     # 900 mm away, from a point light at the pinhole. Only the parts go

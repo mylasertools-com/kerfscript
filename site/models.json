@@ -52,6 +52,11 @@
     "tags": ["sculpture", "joinery", "math"]
   },
   {
+    "file": "morph",
+    "title": "Morph contour sculptures",
+    "tags": ["math", "layers", "presets"]
+  },
+  {
     "file": "tilt-maze",
     "title": "Tilt maze",
     "tags": ["recursion", "random", "parts"]
