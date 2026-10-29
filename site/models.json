@@ -40,6 +40,14 @@
     }
   },
   {
+    "file": "xenospora",
+    "title": "Xenospora seed pod",
+    "tags": ["sculpture", "joinery", "curves"],
+    "photo": {
+      "alt": "The Xenospora seed pod assembled, with a coloured core"
+    }
+  },
+  {
     "file": "solstice",
     "title": "Solstice lantern",
     "tags": ["lantern", "tabs", "holes"]

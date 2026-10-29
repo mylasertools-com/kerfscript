@@ -188,5 +188,17 @@ export const models = JSON.parse(read('site/models.json')).map((m) => {
     sheets: file.sheets.length,
     laser: file.svg,
     dxf: file.sheets.length === 1 ? file.sheets[0].dxf : null,
+    // Several sheets: one SVG and DXF per sheet, the files to cut from.
+    sheetFiles:
+      file.sheets.length > 1
+        ? file.sheets.map((s, i) => ({
+            name: `${m.file}-sheet-${i + 1}`,
+            width: s.width,
+            height: s.height,
+            pieces: s.items.length,
+            svg: s.svg,
+            dxf: s.dxf,
+          }))
+        : [],
   };
 });

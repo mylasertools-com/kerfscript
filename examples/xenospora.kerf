@@ -1,0 +1,189 @@
+// Xenospora: a seed pod from another planet. Twelve flat crescent fins stand
+// around a crossed core between a base and a crown. The fins only look
+// twisted: each one is flat, set at a tangent to the circle.
+
+/* [Specimen] */
+// Height between base and crown
+height = 220; // [210:5:250]
+// How far the crescents bow out
+fullness = 60; // [54:2:66]
+// All parts, one group at a time, or two pieces to test the slot fit
+output = "all"; // [all:All parts, fins_a:Fins 1 to 4, fins_b:Fins 5 to 8, fins_c:Fins 9 to 12, structure:Base crown and core, fit:Fit test]
+// Scored veins and assembly numbers
+score_detail = true;
+
+/* [Material] */
+// Sheet thickness
+$thickness = 3; // [2.8:0.1:3.2]
+// Added to the slot width
+clearance = 0.15; // [0.1:0.05:0.3]
+// Beam width
+$kerf = 0.15; // [0:0.01:0.25]
+
+/* [Hidden] */
+$material = "plywood";
+$sheet = [600, 400];
+$gap = 6;
+$fn = 144;
+t = $thickness;
+s = height / 220;
+R = 30 * s;
+sw = t + clearance;
+fin_tab = 8;
+core_tab = 12;
+
+// Centre line and width of a fin, and width of the core, at height v (0 to 1)
+function cc(v) = s * (6 + 12 * v + fullness * pow(sin(180 * v), 1.3));
+function ww(v) = s * (12 + 14 * pow(sin(180 * v), 1.2));
+function cp(v) = [cc(v), height * v];
+function polar(r, a) = [r * cos(a), r * sin(a)];
+function core_w(v) = s * (8 + 13 * pow(sin(180 * clamp((v - 0.18) / 0.64, 0, 1)), 1.4));
+
+module fin_blank() polygon(concat(
+  [for (j = [0:160]) let(v = j / 160) [cc(v) - ww(v) / 2, height * v]],
+  [for (j = [160:-1:0]) let(v = j / 160) [cc(v) + ww(v) / 2, height * v]]
+));
+
+function pore_normal(v) = let(
+  dx = s * (12 + fullness * 1.3 * PI * pow(sin(180 * v), 0.3) * cos(180 * v)),
+  dy = height,
+  n = sqrt(dx * dx + dy * dy)
+) [-dy / n, dx / n];
+
+// A slot that follows the centre line of the fin from a to b, with round ends
+module pore(a, b, w) {
+  r = w * s / 2;
+  na = pore_normal(a);
+  nb = pore_normal(b);
+  aa = atan2(na[1], na[0]);
+  ab = atan2(nb[1], nb[0]);
+  polygon(concat(
+    [for (j = [0:72]) let(v = a + (b - a) * j / 72) cp(v) + pore_normal(v) * r],
+    [for (j = [1:36]) cp(b) + polar(r, ab - j * 180 / 36)],
+    [for (j = [1:72]) let(v = b - (b - a) * j / 72) cp(v) - pore_normal(v) * r],
+    [for (j = [1:36]) cp(a) + polar(r, aa - 180 - j * 180 / 36)]
+  ));
+}
+
+module fin(i) {
+  difference() {
+    union() {
+      fin_blank();
+      translate([6 * s - fin_tab / 2, -t]) rect([fin_tab, t + 0.3]);
+      translate([18 * s - fin_tab / 2, height - 0.3]) rect([fin_tab, t + 0.3]);
+    }
+    pore(0.16, 0.31, 4);
+    pore(0.37, 0.58, 6);
+    pore(0.64, 0.82, 4);
+  }
+  if (score_detail) score() {
+    for (side = [-1, 1]) polyline([for (j = [6:154]) let(v = j / 160) [cc(v) + side * (ww(v) / 2 - 2.3 * s), height * v]]);
+    for (v = [0.2:0.06:0.8])
+      line([cc(v) + 4 * s, height * v], [cc(v + 0.014) + ww(v + 0.014) / 2 - 2.3 * s, height * (v + 0.014)]);
+    translate([cc(0.055), height * 0.055]) text(str(i), size = 3.5 * s, halign = "center", valign = "center");
+    translate([cc(0.95), height * 0.95]) text(str(i), size = 3 * s, halign = "center", valign = "center");
+  }
+}
+
+module cross_socket() {
+  rect([core_tab + clearance, sw], center = true);
+  rect([sw, core_tab + clearance], center = true);
+}
+
+module sockets(top = false) {
+  for (i = [0:11]) rotate(i * 30) translate([R, top ? 18 * s : 6 * s]) rect([sw, fin_tab + clearance], center = true);
+}
+
+// The base (root) and the crown
+module disc(top = false) {
+  difference() {
+    circle(r = (top ? 43 : 60) * s);
+    sockets(top);
+    cross_socket();
+  }
+  if (score_detail) score() {
+    outline() circle(r = (top ? 40 : 57) * s);
+    for (i = [0:11]) rotate(i * 30) {
+      translate([top ? 33 * s : 40 * s, top ? 18 * s : 6 * s]) text(str(i + 1), size = 2.8 * s, halign = "center", valign = "center");
+      line([R - 5 * s, top ? 18 * s : 6 * s], [R - 8 * s, top ? 18 * s : 6 * s]);
+    }
+    translate([0, -15 * s]) text(top ? "CROWN" : "ROOT", size = 3 * s, halign = "center", valign = "center");
+    if (!top) {
+      translate([0, -48 * s]) text("X E N O S P O R A", size = 4 * s, halign = "center", valign = "center");
+      translate([0, -54 * s]) text("SPECIMEN 03 / EXOBOTANICA", size = 2.3 * s, halign = "center", valign = "center");
+      // Core A lines up with this mark
+      line([-18 * s, 0], [-10 * s, 0]);
+      translate([-21 * s, 0]) text("A", size = 3 * s, halign = "center", valign = "center");
+    }
+  }
+}
+
+module core_blank() polygon(concat(
+  [for (j = [0:160]) let(v = j / 160) [-core_w(v), height * v]],
+  [for (j = [160:-1:0]) let(v = j / 160) [core_w(v), height * v]]
+));
+
+// Two core halves that cross: A is slotted from the top, B from the bottom
+module core(a = true) {
+  difference() {
+    union() {
+      core_blank();
+      translate([-core_tab / 2, -t]) rect([core_tab, t + 0.3]);
+      translate([-core_tab / 2, height - 0.3]) rect([core_tab, t + 0.3]);
+    }
+    translate([-sw / 2, a ? height / 2 : -t - 1]) rect([sw, height / 2 + t + 1]);
+    for (side = [-1, 1], v = [0.36, 0.48, 0.60])
+      translate([side * (core_w(v) - 6 * s), height * v]) ellipse([2.2 * s, 5 * s]);
+  }
+  if (score_detail) score() {
+    for (side = [-1, 1]) polyline([for (j = [35:125]) let(v = j / 160) [side * (core_w(v) - 2 * s), height * v]]);
+    translate([-4.6 * s, height * 0.1]) text(a ? "A" : "B", size = 3 * s, halign = "center", valign = "center");
+    translate([-4.6 * s, height * 0.9]) text(a ? "A" : "B", size = 3 * s, halign = "center", valign = "center");
+    for (side = [-1, 1], v = [0.29:0.06:0.71])
+      line([side * 3 * s, height * v], [side * (core_w(v + 0.025) - 2 * s), height * (v + 0.025)]);
+  }
+}
+
+module fit_test() {
+  part("Fit test, sockets") {
+    difference() {
+      rect([66, 32], r = 2);
+      translate([17, 16]) rect([sw, fin_tab + clearance], center = true);
+      translate([45, 16]) cross_socket();
+    }
+    if (score_detail) score() {
+      translate([17, 5]) text("FIN", size = 3, halign = "center");
+      translate([45, 5]) text("CORE", size = 3, halign = "center");
+    }
+  }
+  for (a = [true, false]) part(a ? "Fit test, A" : "Fit test, B") {
+    difference() {
+      union() {
+        rect([24, 32]);
+        translate([6, 32]) rect([12, t]);
+        translate([8, -t]) rect([8, t + 0.2]);
+      }
+      translate([12 - sw / 2, a ? 16 : -t - 1]) rect([sw, a ? 20 + t : 17 + t]);
+    }
+    if (score_detail) score() translate([4, 25]) text(a ? "A" : "B", size = 3);
+  }
+}
+
+if (output == "fit") fit_test();
+if (output == "all" || output == "fins_a") for (i = [1:4]) part(str("Fin ", i)) fin(i);
+if (output == "all" || output == "fins_b") for (i = [5:8]) part(str("Fin ", i)) fin(i);
+if (output == "all" || output == "fins_c") for (i = [9:12]) part(str("Fin ", i)) fin(i);
+if (output == "all" || output == "structure") {
+  part("Root") disc(false);
+  part("Crown") disc(true);
+  part("Core A") core(true);
+  part("Core B") core(false);
+}
+
+// Assembly:
+// 1. Slide cores A and B together at right angles and glue them into the
+//    cross socket in the root, with core A on the scored A mark.
+// 2. Set fins 1 to 12 into the numbered sockets, all bowing the same way.
+// 3. Lower the crown over the top tabs, numbers matching the root, and glue.
+// Paint the core a contrasting colour after cutting if you like, keeping
+// the joints bare.

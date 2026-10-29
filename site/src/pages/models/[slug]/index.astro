@@ -37,8 +37,11 @@ function rangeText(p) {
       <figure class="sheet" data-panel="material" set:html={m.display} />
       <figure class="sheet laser" data-panel="laser" hidden set:html={laser} />
       <p class="figure-note">
-        Download size: {fmt(m.width)} × {fmt(m.height)} mm. {m.count}
-        {m.count === 1 ? 'part' : 'parts'} on {m.sheets} {m.sheets === 1 ? 'sheet' : 'sheets'}.
+        {
+          m.sheets === 1
+            ? `Download size: ${fmt(m.width)} × ${fmt(m.height)} mm. ${m.count} ${m.count === 1 ? 'part' : 'parts'} on 1 sheet.`
+            : `${m.count} parts on ${m.sheets} sheets, shown together. Each sheet has its own cut file.`
+        }
       </p>
       {
         m.photo && (
@@ -52,9 +55,43 @@ function rangeText(p) {
       <div class="actions">
         <a class="button primary" href={`/playground/?model=${m.slug}`}>Open in playground</a>
         <a class="button" href={`/models/${m.slug}/${m.slug}.kerf`} download>{m.slug}.kerf</a>
-        <a class="button" href={`/models/${m.slug}/${m.slug}.svg`} download>SVG</a>
-        {m.dxf && <a class="button" href={`/models/${m.slug}/${m.slug}.dxf`} download>DXF</a>}
+        {
+          m.sheetFiles.length === 0 && (
+            <>
+              <a class="button" href={`/models/${m.slug}/${m.slug}.svg`} download>SVG</a>
+              <a class="button" href={`/models/${m.slug}/${m.slug}.dxf`} download>DXF</a>
+            </>
+          )
+        }
       </div>
+      {
+        m.sheetFiles.length > 0 && (
+          <>
+            <h2>Cut files</h2>
+            <table class="parts sheet-files">
+              <thead>
+                <tr><th>Sheet</th><th>Size</th><th>Download</th></tr>
+              </thead>
+              <tbody>
+                {m.sheetFiles.map((s, i) => (
+                  <tr>
+                    <td>
+                      {i + 1}, {s.pieces} {s.pieces === 1 ? 'part' : 'parts'}
+                    </td>
+                    <td>
+                      {fmt(s.width)} × {fmt(s.height)} mm
+                    </td>
+                    <td>
+                      <a href={`/models/${m.slug}/${s.name}.svg`} download>SVG</a> ·{' '}
+                      <a href={`/models/${m.slug}/${s.name}.dxf`} download>DXF</a>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )
+      }
       <h2>Parts</h2>
       <table class="parts">
         <thead><tr><th>Part</th><th>Qty</th><th>Size</th></tr></thead>

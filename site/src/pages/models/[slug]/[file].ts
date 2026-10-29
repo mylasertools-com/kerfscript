@@ -14,7 +14,15 @@ export function getStaticPaths() {
       .map(([ext, body]) => ({
         params: { slug: m.slug, file: `${m.slug}.${ext}` },
         props: { ext, body },
-      })),
+      }))
+      .concat(
+        m.sheetFiles.flatMap((s) =>
+          ['svg', 'dxf'].map((ext) => ({
+            params: { slug: m.slug, file: `${s.name}.${ext}` },
+            props: { ext, body: s[ext] },
+          })),
+        ),
+      ),
   );
 }
 
