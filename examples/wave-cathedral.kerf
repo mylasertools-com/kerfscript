@@ -1,0 +1,139 @@
+// Wave Cathedral: a vault made of tides. Seventeen flat arches, each a little
+// different, slot onto two notched rails on a base. Two crests run along the
+// roof and the crown drifts from side to side, so the flat ribs read as a
+// rolling wave.
+
+/* [Pavilion] */
+// Length of the base
+length = 320; // [280:10:340]
+// Height of the roof waves and how far the crown drifts
+wave = 1; // [0.8:0.1:1.2]
+// All parts, one group at a time, or three pieces to test the slot fit
+output = "all"; // [all:All parts, ribs_a:Ribs 1 to 4, ribs_b:Ribs 5 to 8, ribs_c:Ribs 9 to 12, ribs_d:Ribs 13 to 16, rib_e:Rib 17, base:Base, rails:Rails, fit:Fit test]
+// Scored contour lines, rib numbers and base markings
+score_detail = true;
+
+/* [Material] */
+// Sheet thickness
+$thickness = 3; // [2.8:0.1:3.2]
+// Added to every slot, for a glued slip fit
+clearance = 0.15; // [0.10:0.05:0.30]
+// Beam width
+$kerf = 0.15; // [0:0.01:0.25]
+
+/* [Hidden] */
+$material = "plywood";
+$sheet = [600, 400];
+$gap = 6;
+$fn = 120;
+s = length / 320;
+t = $thickness;
+sw = t + clearance;
+rail_x = 100 * s;
+rail_h = 24 * s;
+seat = 12 * s;
+
+// Where rib i stands along the base
+function station(i) = s * (16 + 18 * i);
+// Roof height along the nave (v from 0 at the front to 1 at the back): two crests
+function crest(v) = s * (100 + wave * (58 * exp(-pow((v - 0.22) / 0.18, 2)) + 36 * exp(-pow((v - 0.82) / 0.20, 2))));
+// How far the crown leans sideways
+function drift(v) = s * wave * 29 * sin(360 * v - 32);
+// A point on rib i at angle a: every rib has the same feet, its own crown
+function arch(i, a, inner = false) = let(v = i / 16, r = (inner ? 88 : 112) * s, h = crest(v) - (inner ? 18 * s : 0), q = max(0, sin(a)))
+  [r * cos(a) + drift(v) * q * q, h * pow(q, 0.86)];
+function trace(i, a) = let(v = i / 16, q = max(0, sin(a)))
+  [100 * s * cos(a) + drift(v) * q * q, (crest(v) - 9 * s) * pow(q, 0.86)];
+
+module rib(i) {
+  difference() {
+    polygon(concat([for (j = [0:240]) arch(i, j * 180 / 240)],
+      [for (j = [240:-1:0]) arch(i, j * 180 / 240, true)]));
+    // Slots from below, over the slots from above in the rails
+    for (side = [-1, 1]) translate([side * rail_x - sw / 2, -1]) rect([sw, seat + 1]);
+  }
+  if (score_detail) score() {
+    polyline([for (j = [10:230]) trace(i, j * 180 / 240)]);
+    translate([-100 * s, 26 * s]) text(str(i + 1), size = 3 * s, halign = "center", valign = "center");
+    polyline([[95 * s, 25 * s], [103 * s, 25 * s], [100 * s, 28 * s]]);
+  }
+}
+
+module rail(label) {
+  difference() {
+    union() {
+      translate([8 * s, 0]) rect([length - 16 * s, rail_h]);
+      for (y = [40 * s, 160 * s, 280 * s]) translate([y - 6 * s, -t]) rect([12 * s, t + 0.3]);
+    }
+    for (i = [0:16]) translate([station(i) - sw / 2, seat]) rect([sw, rail_h - seat + 1]);
+  }
+  if (score_detail) score() {
+    for (i = [0:16]) translate([station(i), 6 * s]) text(str(i + 1), size = 2.5 * s, halign = "center", valign = "center");
+    translate([151 * s, 18 * s]) text(label, size = 3 * s, halign = "center", valign = "center");
+    line([20 * s, 3 * s], [length - 20 * s, 3 * s]);
+  }
+}
+
+module base() {
+  difference() {
+    translate([-126 * s, 0]) rect([252 * s, length], r = 8 * s);
+    for (side = [-1, 1], y = [40 * s, 160 * s, 280 * s])
+      translate([side * rail_x, y]) rect([sw, 12 * s + clearance], center = true);
+  }
+  if (score_detail) score() {
+    translate([0, 7.5 * s]) text("W A V E  C A T H E D R A L", size = 3.4 * s, halign = "center", valign = "center");
+    translate([0, length - 7 * s]) text("A VAULT MADE OF TIDES / XVII", size = 2.7 * s, halign = "center", valign = "center");
+    for (side = [-1, 1]) polyline([for (j = [0:100]) let(v = j / 100) [side * (54 + 5 * sin(360 * v)) * s, (20 + 280 * v) * s]]);
+    for (i = [0:16], side = [-1, 1]) {
+      translate([side * 119 * s, station(i)]) text(str(i + 1), size = 2.4 * s, halign = "center", valign = "center");
+      line([side * 114 * s, station(i)], [side * 116 * s, station(i)]);
+    }
+    translate([-100 * s, 7 * s]) text("L", size = 3 * s, halign = "center", valign = "center");
+    translate([100 * s, 7 * s]) text("R", size = 3 * s, halign = "center", valign = "center");
+    polyline([[-12 * s, 22 * s], [12 * s, 22 * s], [8 * s, 25 * s]]);
+    translate([0, 28 * s]) text("+X / FRONT", size = 2.5 * s, halign = "center", valign = "center");
+  }
+}
+
+module fit_test() {
+  part("Fit test, base") {
+    difference() {
+      rect([48, 30], r = 2);
+      translate([24, 17]) rect([sw, 12 * s + clearance], center = true);
+    }
+    if (score_detail) score() translate([24, 6]) text("BASE", size = 3, halign = "center");
+  }
+  part("Fit test, rail") {
+    difference() {
+      union() {
+        rect([36, rail_h]);
+        translate([18 - 6 * s, -t]) rect([12 * s, t + 0.3]);
+      }
+      translate([18 - sw / 2, seat]) rect([sw, rail_h - seat + 1]);
+    }
+    if (score_detail) score() translate([7, 6]) text("R", size = 3);
+  }
+  part("Fit test, rib") {
+    difference() {
+      rect([30, 30 * s]);
+      translate([15 - sw / 2, -1]) rect([sw, seat + 1]);
+    }
+    if (score_detail) score() translate([6, 21 * s]) text("V", size = 3);
+  }
+}
+
+if (output == "all" || output == "ribs_a") for (i = [0:3]) part(str("Rib ", i + 1)) rib(i);
+if (output == "all" || output == "ribs_b") for (i = [4:7]) part(str("Rib ", i + 1)) rib(i);
+if (output == "all" || output == "ribs_c") for (i = [8:11]) part(str("Rib ", i + 1)) rib(i);
+if (output == "all" || output == "ribs_d") for (i = [12:15]) part(str("Rib ", i + 1)) rib(i);
+if (output == "all" || output == "rib_e") part("Rib 17") rib(16);
+if (output == "all" || output == "rails") {
+  part("Rail L") rail("L");
+  part("Rail R") rail("R");
+}
+if (output == "all" || output == "base") part("Base") base();
+if (output == "fit") fit_test();
+
+// Assembly: glue rail L and rail R into the base, numbers running from the
+// front. Lower ribs 1 to 17 into the matching notches, scored faces to the
+// front, then glue all the joints after a dry fit.

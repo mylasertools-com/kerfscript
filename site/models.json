@@ -42,6 +42,16 @@
     "tags": ["sculpture", "joinery", "curves"]
   },
   {
+    "file": "umbra",
+    "title": "Umbra shadow machine",
+    "tags": ["projection", "math", "parts"]
+  },
+  {
+    "file": "wave-cathedral",
+    "title": "Wave Cathedral",
+    "tags": ["sculpture", "joinery", "math"]
+  },
+  {
     "file": "tilt-maze",
     "title": "Tilt maze",
     "tags": ["recursion", "random", "parts"]

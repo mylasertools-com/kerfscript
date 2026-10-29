@@ -178,6 +178,36 @@ def gears(p, parts):
     return T(3 * (32 + 14) / 2, 0, 0) @ R("Z", 180 / 14)
 
 
+def umbra(p, parts):
+    t = 3
+    depths = [245, 275, 185, 155, 125, 215]
+    yaws = [9, 15, -3, -9, -15, 3]
+    n = p["name"]
+    if n == "Base":
+        return T(0, 0, -t)
+    if n == "Stone":
+        return T(0, 300 + t / 2, 0) @ R("X", 90)
+    if n == "Light holder":
+        return R("X", 90)
+    if n.startswith("Fin "):
+        i = int(n.split()[1]) - 1
+        return T(0, depths[i], 0) @ R("Z", yaws[i]) @ T(0, t / 2, 0) @ R("X", 90)
+    return None
+
+
+def wave_cathedral(p, parts):
+    t = 3
+    n = p["name"]
+    if n == "Base":
+        return T(0, 0, -t)
+    if n.startswith("Rail "):
+        return T((-100 if n.endswith("L") else 100) - t / 2, 0, 0) @ SIDEWAYS
+    if n.startswith("Rib "):
+        i = int(n.split()[1]) - 1
+        return T(0, 16 + 18 * i + t / 2, 0) @ R("X", 90)
+    return None
+
+
 ASSEMBLIES = {
     "box": {"place": box_parts(120, 80, 50, 3)},
     "phone-stand": {"place": phone_stand},
@@ -192,4 +222,14 @@ ASSEMBLIES = {
     "topo-island": {"place": stack(topo_order), "view": {"azimuth": -25, "elevation": 38}},
     "drawer-organizer": {"place": drawer_organizer(), "view": {"elevation": 45}},
     "gears": {"place": gears, "view": {"elevation": 50}},
+    "wave-cathedral": {"place": wave_cathedral, "view": {"azimuth": -40, "elevation": 26}},
+    # The picture shows what Umbra is for: the dragon's shadow on a wall
+    # 900 mm away, from a point light at the pinhole. Only the parts go
+    # into the GLB.
+    "umbra": {
+        "place": umbra,
+        "wall": {"y": 900, "x": (-330, 230), "z": (-3, 520)},
+        "point": (0, 1, 25, 18),
+        "view": {"azimuth": -28, "elevation": 14, "lights": False, "world": 0.2, "fill": 0.92},
+    },
 }

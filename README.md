@@ -90,9 +90,9 @@ design.
 <td width="33%" valign="top"><a href="https://kerfscript.mylasertools.com/models/box/"><img src="site/public/3d/box.webp" alt="Finger-jointed box, assembled"></a><br><b><a href="https://kerfscript.mylasertools.com/models/box/">Finger-jointed box</a></b><br><sub>six panels from one library call</sub></td>
 </tr>
 <tr>
-<td width="33%" valign="top"><a href="https://kerfscript.mylasertools.com/models/gears/"><img src="site/public/3d/gears.webp" alt="Spur gears, assembled"></a><br><b><a href="https://kerfscript.mylasertools.com/models/gears/">Spur gears</a></b><br><sub>involute teeth from a formula</sub></td>
+<td width="33%" valign="top"><a href="https://kerfscript.mylasertools.com/models/wave-cathedral/"><img src="site/public/3d/wave-cathedral.webp" alt="Wave Cathedral, assembled"></a><br><b><a href="https://kerfscript.mylasertools.com/models/wave-cathedral/">Wave Cathedral</a></b><br><sub>17 different ribs from one formula</sub></td>
 <td width="33%" valign="top"><a href="https://kerfscript.mylasertools.com/models/gift-tags/"><img src="site/public/3d/gift-tags.webp" alt="Gift tags from a list, assembled"></a><br><b><a href="https://kerfscript.mylasertools.com/models/gift-tags/">Gift tags from a list</a></b><br><sub>one tag per name, each name fitted</sub></td>
-<td width="33%" valign="top"><a href="https://kerfscript.mylasertools.com/models/clock-face/"><img src="site/public/3d/clock-face.webp" alt="Clock face, assembled"></a><br><b><a href="https://kerfscript.mylasertools.com/models/clock-face/">Clock face</a></b><br><sub>cut, score and engrave in 18 lines</sub></td>
+<td width="33%" valign="top"><a href="https://kerfscript.mylasertools.com/models/umbra/"><img src="site/public/3d/umbra.webp" alt="Umbra shadow machine, assembled"></a><br><b><a href="https://kerfscript.mylasertools.com/models/umbra/">Umbra shadow machine</a></b><br><sub>six fins whose shadows make one dragon</sub></td>
 </tr>
 </table>
 

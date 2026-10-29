@@ -204,7 +204,7 @@ def build_part(p, k, rng):
 
 # Scene
 
-def world():
+def world(strength=None):
     w = bpy.data.worlds.new("W")
     bpy.context.scene.world = w
     w.use_nodes = True
@@ -218,7 +218,7 @@ def world():
         bg.inputs["Strength"].default_value = 0.55
     else:
         bg.inputs["Color"].default_value = hex_lin("#f4efe6")
-        bg.inputs["Strength"].default_value = 0.45
+        bg.inputs["Strength"].default_value = 0.45 if strength is None else strength
 
 
 def area_light(loc, target, size, power):
@@ -294,6 +294,8 @@ def stage(view):
     cam.location = target + d * dist
     cam.rotation_euler = (-d).to_track_quat("-Z", "Y").to_euler()
     r = size
+    if view.get("lights", True) is False:
+        return floor
     area_light(target + Vector((-r * 1.2, -r * 1.4, r * 1.8)), target, r * 1.2, 70 * r * r)
     area_light(target + Vector((r * 1.6, -r * 0.4, r * 1.0)), target, r * 1.5, 22 * r * r)
     area_light(target + Vector((0, r * 1.8, r * 1.2)), target, r * 1.5, 25 * r * r)
@@ -305,7 +307,7 @@ def export_glb(slug, floor):
     floor.hide_set(True)
     bpy.ops.object.select_all(action="DESELECT")
     for o in bpy.context.scene.objects:
-        if o.type == "MESH" and o is not floor:
+        if o.type == "MESH" and o is not floor and not o.name.startswith("scene_"):
             o.select_set(True)
     kw = dict(
         filepath=os.path.join(PUBLIC, f"{slug}.glb"),
@@ -344,9 +346,35 @@ def build(slug):
         bpy.ops.object.shade_smooth()
         ball.data.materials.append(mat_plain("steel", "#c9ccd1", 0.18))
         ball.data.materials[0].node_tree.nodes["Principled BSDF"].inputs["Metallic"].default_value = 1.0
+    wall = recipe.get("wall") if isinstance(recipe, dict) else None
+    if wall:
+        (x0, x1), (z0, z1) = wall["x"], wall["z"]
+        bpy.ops.mesh.primitive_plane_add(size=1)
+        w = bpy.context.active_object
+        w.name = "scene_wall"
+        w.scale = ((x1 - x0) * MM, (z1 - z0) * MM, 1)
+        w.rotation_euler = (math.radians(90), 0, 0)
+        w.location = ((x0 + x1) / 2 * MM, wall["y"] * MM, (z0 + z1) / 2 * MM)
+        w.data.materials.append(mat_plain("wall", "#efe7da", 0.95))
+    point = recipe.get("point") if isinstance(recipe, dict) else None
+    if point:
+        ld = bpy.data.lights.new("pinhole", "POINT")
+        ld.energy = point[3]
+        ld.shadow_soft_size = 0.0005
+        lo = bpy.data.objects.new("scene_pinhole", ld)
+        bpy.context.scene.collection.objects.link(lo)
+        lo.location = (point[0] * MM, point[1] * MM, point[2] * MM)
     bpy.context.view_layer.update()
-    world()
+    world(view.get("world"))
     floor = stage(view)
+    if point:
+        # The pinhole lights the parts and the wall, not the floor, so it
+        # throws no hard shadows across the table
+        lit = bpy.data.collections.new("lit")
+        for o in bpy.context.scene.objects:
+            if o.type == "MESH" and o is not floor:
+                lit.objects.link(o)
+        bpy.data.objects["scene_pinhole"].light_linking.receiver_collection = lit
     if not os.environ.get("NOGLB"):
         export_glb(slug, floor)
     if not os.environ.get("NORENDER"):
