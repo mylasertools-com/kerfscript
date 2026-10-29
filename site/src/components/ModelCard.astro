@@ -3,7 +3,19 @@ const { model: m } = Astro.props;
 ---
 
 <a class="model-card" href={`/models/${m.slug}/`}>
-  <figure set:html={m.thumb} />
+  <figure data-compare={m.assembled ? '' : undefined}>
+    <Fragment set:html={m.thumb} />
+    {
+      m.assembled && (
+        <>
+          <div class="assembled">
+            <img src={`/3d/${m.slug}.webp`} alt={`${m.title}, assembled`} loading="lazy" width="1200" height="900" />
+          </div>
+          <span class="compare-line" aria-hidden="true" />
+        </>
+      )
+    }
+  </figure>
   <div class="model-card-text">
     <h3>{m.title}</h3>
     <p>{m.summary}</p>

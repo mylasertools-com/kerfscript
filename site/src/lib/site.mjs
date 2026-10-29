@@ -3,7 +3,7 @@
 // Everything the pages share. Every model picture is rendered here by the
 // KerfScript in the repository's dist/, from examples/, when the site builds.
 
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { Marked } from 'marked';
 import { LANGUAGE_VERSION, VERSION, parameters, render } from '../../../dist/index.js';
@@ -188,6 +188,9 @@ export const models = JSON.parse(read('site/models.json')).map((m) => {
     sheets: file.sheets.length,
     laser: file.svg,
     dxf: file.sheets.length === 1 ? file.sheets[0].dxf : null,
+    // The assembled model from Blender (site/3d), when it has been built
+    assembled: existsSync(join(process.cwd(), 'public/3d', `${m.file}.webp`)),
+    glb: existsSync(join(process.cwd(), 'public/3d', `${m.file}.glb`)),
     // Several sheets: one SVG and DXF per sheet, the files to cut from.
     sheetFiles:
       file.sheets.length > 1

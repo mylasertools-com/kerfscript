@@ -1,7 +1,8 @@
 // Copyright (c) 2026 MyLaserTools. SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-MyLaserTools-Commercial
 
-// Renders the model pictures in the README into .github/readme/, from the
-// same build-time renders the website uses. Run from site/:
+// Renders the flat cut layout pictures in the README into .github/readme/,
+// from the same build-time renders the website uses. The gallery uses the
+// assembled renders in site/public/3d. Run from site/:
 //   node ../scripts/readme-images.mjs
 
 import { writeFileSync } from 'node:fs';
@@ -12,22 +13,7 @@ import { render } from '../dist/index.js';
 
 const { Resvg } = createRequire(import.meta.url)('../site/node_modules/@resvg/resvg-js');
 const OUT = new URL('../.github/readme/', import.meta.url);
-const PICKS = process.argv.slice(2).length
-  ? process.argv.slice(2)
-  : [
-      'hadal',
-      'tilt-maze',
-      'topo-island',
-      'fractal-tree',
-      'round-badge',
-      'winterlight',
-      'xenospora',
-      'solstice',
-      'box',
-      'gears',
-      'gift-tags',
-      'clock-face',
-    ];
+const PICKS = process.argv.slice(2).length ? process.argv.slice(2) : ['box'];
 
 // The cards on the site share one set of wood textures; a picture needs its own
 const DEFS = /<defs>[\s\S]*?<\/defs>/.exec(displaySvg(render('rect(10);'), { defs: true }))[0];

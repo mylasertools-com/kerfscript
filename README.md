@@ -67,30 +67,32 @@ and has not been tested in other laser software.
 
 ## Made with KerfScript
 
-Every picture is drawn by KerfScript from the files in [examples/](examples).
-Open one on the website to change its settings and download the SVG or DXF,
-or copy it as the start of your own design.
+Every model is a file in [examples/](examples). The pictures show the cut
+parts put together, built in Blender from KerfScript's own output
+([site/3d](site/3d)). Open one on the website to turn it around in 3D, change
+its settings and download the SVG or DXF, or copy it as the start of your own
+design.
 
 <table>
 <tr>
-<td width="33%" valign="top"><a href="https://kerfscript.mylasertools.com/models/hadal/"><img src=".github/readme/model-hadal.png" alt="Hadal sculpture"></a><br><b><a href="https://kerfscript.mylasertools.com/models/hadal/">Hadal sculpture</a></b><br><sub>13 slotted parts, ribs computed from lists</sub></td>
-<td width="33%" valign="top"><a href="https://kerfscript.mylasertools.com/models/tilt-maze/"><img src=".github/readme/model-tilt-maze.png" alt="Tilt maze"></a><br><b><a href="https://kerfscript.mylasertools.com/models/tilt-maze/">Tilt maze</a></b><br><sub>a new maze for every seed, by recursion</sub></td>
-<td width="33%" valign="top"><a href="https://kerfscript.mylasertools.com/models/topo-island/"><img src=".github/readme/model-topo-island.png" alt="Layered island"></a><br><b><a href="https://kerfscript.mylasertools.com/models/topo-island/">Layered island</a></b><br><sub>contours traced from a height formula</sub></td>
+<td width="33%" valign="top"><a href="https://kerfscript.mylasertools.com/models/hadal/"><img src="site/public/3d/hadal.webp" alt="Hadal sculpture, assembled"></a><br><b><a href="https://kerfscript.mylasertools.com/models/hadal/">Hadal sculpture</a></b><br><sub>13 slotted parts, ribs computed from lists</sub></td>
+<td width="33%" valign="top"><a href="https://kerfscript.mylasertools.com/models/tilt-maze/"><img src="site/public/3d/tilt-maze.webp" alt="Tilt maze, assembled"></a><br><b><a href="https://kerfscript.mylasertools.com/models/tilt-maze/">Tilt maze</a></b><br><sub>a new maze for every seed, by recursion</sub></td>
+<td width="33%" valign="top"><a href="https://kerfscript.mylasertools.com/models/topo-island/"><img src="site/public/3d/topo-island.webp" alt="Layered island, assembled"></a><br><b><a href="https://kerfscript.mylasertools.com/models/topo-island/">Layered island</a></b><br><sub>contours traced from a height formula</sub></td>
 </tr>
 <tr>
-<td width="33%" valign="top"><a href="https://kerfscript.mylasertools.com/models/fractal-tree/"><img src=".github/readme/model-fractal-tree.png" alt="Fractal tree"></a><br><b><a href="https://kerfscript.mylasertools.com/models/fractal-tree/">Fractal tree</a></b><br><sub>a module that calls itself</sub></td>
-<td width="33%" valign="top"><a href="https://kerfscript.mylasertools.com/models/round-badge/"><img src=".github/readme/model-round-badge.png" alt="Round badge"></a><br><b><a href="https://kerfscript.mylasertools.com/models/round-badge/">Round badge</a></b><br><sub>text set letter by letter around a circle</sub></td>
-<td width="33%" valign="top"><a href="https://kerfscript.mylasertools.com/models/winterlight/"><img src=".github/readme/model-winterlight.png" alt="Winterlight ornaments"></a><br><b><a href="https://kerfscript.mylasertools.com/models/winterlight/">Winterlight ornaments</a></b><br><sub>one-piece ornaments with scored detail</sub></td>
+<td width="33%" valign="top"><a href="https://kerfscript.mylasertools.com/models/fractal-tree/"><img src="site/public/3d/fractal-tree.webp" alt="Fractal tree, assembled"></a><br><b><a href="https://kerfscript.mylasertools.com/models/fractal-tree/">Fractal tree</a></b><br><sub>a module that calls itself</sub></td>
+<td width="33%" valign="top"><a href="https://kerfscript.mylasertools.com/models/round-badge/"><img src="site/public/3d/round-badge.webp" alt="Round badge, assembled"></a><br><b><a href="https://kerfscript.mylasertools.com/models/round-badge/">Round badge</a></b><br><sub>text set letter by letter around a circle</sub></td>
+<td width="33%" valign="top"><a href="https://kerfscript.mylasertools.com/models/winterlight/"><img src="site/public/3d/winterlight.webp" alt="Winterlight ornaments, assembled"></a><br><b><a href="https://kerfscript.mylasertools.com/models/winterlight/">Winterlight ornaments</a></b><br><sub>one-piece ornaments with scored detail</sub></td>
 </tr>
 <tr>
-<td width="33%" valign="top"><a href="https://kerfscript.mylasertools.com/models/xenospora/"><img src=".github/readme/model-xenospora.png" alt="Xenospora seed pod"></a><br><b><a href="https://kerfscript.mylasertools.com/models/xenospora/">Xenospora seed pod</a></b><br><sub>16 parts on 3 sheets, one file per sheet</sub></td>
-<td width="33%" valign="top"><a href="https://kerfscript.mylasertools.com/models/solstice/"><img src=".github/readme/model-solstice.png" alt="Solstice lantern"></a><br><b><a href="https://kerfscript.mylasertools.com/models/solstice/">Solstice lantern</a></b><br><sub>tabs, slots and a fit test piece</sub></td>
-<td width="33%" valign="top"><a href="https://kerfscript.mylasertools.com/models/box/"><img src=".github/readme/model-box.png" alt="Finger-jointed box"></a><br><b><a href="https://kerfscript.mylasertools.com/models/box/">Finger-jointed box</a></b><br><sub>six panels from one library call</sub></td>
+<td width="33%" valign="top"><a href="https://kerfscript.mylasertools.com/models/xenospora/"><img src="site/public/3d/xenospora.webp" alt="Xenospora seed pod, assembled"></a><br><b><a href="https://kerfscript.mylasertools.com/models/xenospora/">Xenospora seed pod</a></b><br><sub>16 parts on 3 sheets, one file per sheet</sub></td>
+<td width="33%" valign="top"><a href="https://kerfscript.mylasertools.com/models/solstice/"><img src="site/public/3d/solstice.webp" alt="Solstice lantern, assembled"></a><br><b><a href="https://kerfscript.mylasertools.com/models/solstice/">Solstice lantern</a></b><br><sub>tabs, slots and a fit test piece</sub></td>
+<td width="33%" valign="top"><a href="https://kerfscript.mylasertools.com/models/box/"><img src="site/public/3d/box.webp" alt="Finger-jointed box, assembled"></a><br><b><a href="https://kerfscript.mylasertools.com/models/box/">Finger-jointed box</a></b><br><sub>six panels from one library call</sub></td>
 </tr>
 <tr>
-<td width="33%" valign="top"><a href="https://kerfscript.mylasertools.com/models/gears/"><img src=".github/readme/model-gears.png" alt="Spur gears"></a><br><b><a href="https://kerfscript.mylasertools.com/models/gears/">Spur gears</a></b><br><sub>involute teeth from a formula</sub></td>
-<td width="33%" valign="top"><a href="https://kerfscript.mylasertools.com/models/gift-tags/"><img src=".github/readme/model-gift-tags.png" alt="Gift tags from a list"></a><br><b><a href="https://kerfscript.mylasertools.com/models/gift-tags/">Gift tags from a list</a></b><br><sub>one tag per name, each name fitted</sub></td>
-<td width="33%" valign="top"><a href="https://kerfscript.mylasertools.com/models/clock-face/"><img src=".github/readme/model-clock-face.png" alt="Clock face"></a><br><b><a href="https://kerfscript.mylasertools.com/models/clock-face/">Clock face</a></b><br><sub>cut, score and engrave in 18 lines</sub></td>
+<td width="33%" valign="top"><a href="https://kerfscript.mylasertools.com/models/gears/"><img src="site/public/3d/gears.webp" alt="Spur gears, assembled"></a><br><b><a href="https://kerfscript.mylasertools.com/models/gears/">Spur gears</a></b><br><sub>involute teeth from a formula</sub></td>
+<td width="33%" valign="top"><a href="https://kerfscript.mylasertools.com/models/gift-tags/"><img src="site/public/3d/gift-tags.webp" alt="Gift tags from a list, assembled"></a><br><b><a href="https://kerfscript.mylasertools.com/models/gift-tags/">Gift tags from a list</a></b><br><sub>one tag per name, each name fitted</sub></td>
+<td width="33%" valign="top"><a href="https://kerfscript.mylasertools.com/models/clock-face/"><img src="site/public/3d/clock-face.webp" alt="Clock face, assembled"></a><br><b><a href="https://kerfscript.mylasertools.com/models/clock-face/">Clock face</a></b><br><sub>cut, score and engrave in 18 lines</sub></td>
 </tr>
 </table>
 

@@ -2,6 +2,8 @@
 import Base from '../../../layouts/Base.astro';
 import { code, fmt, models } from '../../../lib/site.mjs';
 
+const MODEL_VIEWER = 'https://cdn.jsdelivr.net/npm/@google/model-viewer@4.4.0/dist/model-viewer.min.js';
+
 export function getStaticPaths() {
   return models.map((model) => ({ params: { slug: model.slug }, props: { model } }));
 }
@@ -20,7 +22,7 @@ function rangeText(p) {
 <Base
   title={`${m.title}, made with KerfScript`}
   description={`${m.summary} Customize this KerfScript design and download its source, SVG or DXF.`}
-  scripts={['/assets/views.js']}
+  scripts={m.glb ? ['/assets/views.js', MODEL_VIEWER] : ['/assets/views.js']}
   type="article"
 >
   <p class="crumbs"><a href="/models/">Models</a> / {m.title}</p>
@@ -31,10 +33,32 @@ function rangeText(p) {
   <div class="model-layout">
     <section class="model-figure" data-views>
       <div class="view-switch" role="tablist" aria-label="View">
-        <button role="tab" aria-selected="true" data-view="material">Material</button>
+        {m.glb && <button role="tab" aria-selected="true" data-view="assembled">Assembled</button>}
+        <button role="tab" aria-selected={m.glb ? 'false' : 'true'} data-view="material">Parts</button>
         <button role="tab" aria-selected="false" data-view="laser">Laser file</button>
       </div>
-      <figure class="sheet" data-panel="material" set:html={m.display} />
+      {
+        m.glb && (
+          <figure class="sheet model-3d" data-panel="assembled">
+            <model-viewer
+              src={`/3d/${m.slug}.glb`}
+              poster={`/3d/${m.slug}.webp`}
+              alt={`${m.title}, assembled, in 3D`}
+              camera-controls
+              auto-rotate
+              auto-rotate-delay="2000"
+              rotation-per-second="18deg"
+              interaction-prompt="none"
+              shadow-intensity="0.7"
+              shadow-softness="0.9"
+              exposure="1.05"
+              environment-image="neutral"
+              camera-orbit="-35deg 62deg auto"
+            />
+          </figure>
+        )
+      }
+      <figure class="sheet" data-panel="material" hidden={m.glb} set:html={m.display} />
       <figure class="sheet laser" data-panel="laser" hidden set:html={laser} />
       <p class="figure-note">
         {
