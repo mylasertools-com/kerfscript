@@ -67,11 +67,9 @@ and has not been tested in other laser software.
 
 ## Made with KerfScript
 
-Every model is a file in [examples/](examples). The pictures show the cut
-parts put together, built in Blender from KerfScript's own output
-([site/3d](site/3d)). Open one on the website to turn it around in 3D, change
-its settings and download the SVG or DXF, or copy it as the start of your own
-design.
+Every model is a file in [examples/](examples). Open one on the website to
+turn it around in 3D, change its settings and download the SVG or DXF, or copy
+it as the start of your own design.
 
 <table>
 <tr>
@@ -165,36 +163,6 @@ Errors are thrown as `KerfError` with `line` and `col`.
   stable before 1.0
 - [examples/](examples): every model on the website, including a
   calibration square and a kerf test
-
-## Website
-
-kerfscript.mylasertools.com is an Astro site in [site/](site), deployed to
-Cloudflare as a static assets Worker. Every model picture and the guides are
-built from [examples/](examples), [docs/](docs) and LANGUAGE.md by this
-version of KerfScript.
-
-The site also publishes [llms.txt](https://kerfscript.mylasertools.com/llms.txt),
-a [full text bundle](https://kerfscript.mylasertools.com/llms-full.txt), and a
-Markdown companion at `index.md` under every public page path. The guides and
-model companions are generated from the same source as their HTML pages. Each
-HTML page advertises its Markdown version with a `rel="alternate"` link.
-Markdown responses point back to the matching HTML URL with a canonical HTTP
-header, so the HTML page remains the preferred Search result.
-The site's `robots.txt` permits all cooperating crawlers. Cloudflare's bot
-controls must also allow requests to the hostname for a crawler to reach it.
-
-```sh
-npm --prefix site install
-npm run site          # build KerfScript, then the site into site/dist
-npm run site:serve    # preview on http://localhost:4321
-npm --prefix site run deploy
-npm run readme-images # redraw the model pictures in this README
-```
-
-## Checking output
-
-`npm run compat` renders a reference set of models and opens every SVG and
-DXF in Inkscape to check sizes, layers and fills.
 
 ## Community
 

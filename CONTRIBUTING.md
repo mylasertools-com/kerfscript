@@ -47,6 +47,17 @@ Tests use `node --test` and run against the built `dist/`, so build before
 testing. Standard library files live in `lib/` as `.kerf` source and are
 compiled into `src/stdlib.ts` by the build.
 
+`npm run compat` opens the SVG and DXF of a reference set of models in
+Inkscape and checks sizes, layers and fills.
+
+The website is in `site/` and is built from `examples/` and `docs/`:
+
+```sh
+npm --prefix site install
+npm run site          # build KerfScript, then the site
+npm run site:serve    # preview on http://localhost:4321
+```
+
 ## Guidelines
 
 - Keep programs that worked before working. If a change must break programs,
