@@ -4,7 +4,7 @@
 
 <p align="center">
   <a href="https://www.npmjs.com/package/@mylasertools/kerfscript"><img src="https://img.shields.io/npm/v/@mylasertools/kerfscript?color=d8361f&label=npm" alt="npm version"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/licence-AGPL--3.0%20%2B%20commercial-1f1a17" alt="Licence: AGPL-3.0 or commercial"></a>
+  <a href="COMMERCIAL-LICENSE.md"><img src="https://img.shields.io/badge/licence-AGPL--3.0%20or%20free%20commercial-1f1a17" alt="Licence: AGPL-3.0 or free commercial"></a>
   <a href="LANGUAGE.md"><img src="https://img.shields.io/badge/language-0.1-e3c69a" alt="Language version 0.1"></a>
   <a href="https://kerfscript.mylasertools.com/playground/"><img src="https://img.shields.io/badge/try%20it-playground-5a3519" alt="Try it in the playground"></a>
 </p>
@@ -179,10 +179,9 @@ KerfScript is free software under the
 that makes **your `.kerf` designs and the files KerfScript generates yours to
 license and sell however you like**.
 
-A [commercial licence](COMMERCIAL-LICENSE.md) is available for proprietary
-integrations or different terms. Private changes do not require one; see
-[what the AGPL means for you](COMMERCIAL-LICENSE.md#what-the-agpl-means-for-you)
-for how it applies to hosted services.
+Building KerfScript into a closed-source app, machine or service? The
+[commercial licence](COMMERCIAL-LICENSE.md#free-commercial-licence) is free:
+just email hi@mylasertools.com.
 
 "KerfScript" is a trademark of MyLaserTools; see [TRADEMARKS.md](TRADEMARKS.md).
 Contributions need the [CLA](CLA.md); see [CONTRIBUTING.md](CONTRIBUTING.md).

@@ -1,35 +1,24 @@
 # Licensing
 
-Copyright (c) 2026 MyLaserTools. All rights reserved except as granted below.
+Copyright (c) 2026 MyLaserTools.
+
+**KerfScript is free to use, including for commercial work.** Write programs,
+cut and sell what you make, and sell your `.kerf` designs and the files they
+produce. You don't need to ask us for any of that.
 
 KerfScript is dual licensed. You can use it under **either**:
 
 1. **The GNU Affero General Public License, version 3 only** (`AGPL-3.0-only`,
    full text in [LICENSE](LICENSE)), together with the additional permission
    below, or
-2. **A commercial licence** from MyLaserTools.
+2. **A commercial licence** from MyLaserTools, which is **free**.
 
-## What the AGPL means for you
+## Free commercial licence
 
-You may use KerfScript under the AGPL to:
-
-- write KerfScript programs and cut, sell or share what you make with them
-- run the interpreter, including a modified copy, privately or in internal
-  tools without publishing those private changes
-- distribute software that incorporates KerfScript when you meet the AGPL's
-  requirements for the covered work, including its source code obligations
-
-A commercial licence is an option when you want to distribute KerfScript as
-part of a proprietary app, plugin, machine or firmware, or offer a modified
-KerfScript program through a network without meeting the AGPL's source code
-requirements. It may also provide different terms or support.
-
-Network use alone is not distribution under the AGPL. Section 13 requires a
-modified version that users interact with remotely to offer them its
-Corresponding Source. Running an unmodified copy on a server does not, by
-itself, trigger that section. Whether a larger app or service is a single
-covered work depends on how it incorporates KerfScript. See the
-[AGPL text](LICENSE) for the terms that govern each use.
+Want to build KerfScript into a closed-source app, plugin, machine, firmware
+or online service? The commercial licence costs nothing. Just email
+hi@mylasertools.com with your name or company and what you are building, and
+we will send it to you.
 
 ## Additional permission: your designs are yours
 
@@ -45,16 +34,21 @@ that:
 
 This permission covers your programs and their output only. It does not cover
 the KerfScript interpreter, its tools, or modified copies of the standard
-library, which remain under the AGPL.
+library, which remain under the AGPL unless you have the commercial licence.
 
-## Commercial licences
+## What the AGPL means for you
 
-A commercial licence provides an alternative to the AGPL for uses covered
-by your agreement, such as proprietary distribution or a modified hosted
-service. Private modifications do not require a commercial licence. Terms,
-scope, support and pricing are set per agreement.
+Under the AGPL you can:
 
-Contact: hi@mylasertools.com
+- write KerfScript programs and cut, sell or share what you make with them
+- run the interpreter, including a modified copy, privately or in internal
+  tools without publishing those private changes
+- use an unmodified copy on a server
+- distribute software that includes KerfScript, as long as you share its
+  source code under the AGPL
+
+If you would rather not share your source code, ask for the free commercial
+licence.
 
 ## Trademarks
 

@@ -119,7 +119,7 @@ export function homeMarkdown() {
       `- [npm package](${NPM_URL})\n\n` +
       `The syntax is familiar to OpenSCAD users, but existing files may need changes. ` +
       `See the [OpenSCAD guide](${md('/docs/openscad/')}).\n\n` +
-      `KerfScript ${VERSION} implements language version ${LANGUAGE_VERSION}. It is available under GNU AGPL 3.0 with a commercial licensing option. ` +
+      `KerfScript ${VERSION} implements language version ${LANGUAGE_VERSION}. It is available under GNU AGPL 3.0 or a free commercial licence (email hi@mylasertools.com). ` +
       `Designs and generated files remain yours. See [licence details](${md('/licence/')}).`,
   );
 }

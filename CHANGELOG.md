@@ -10,6 +10,8 @@
   them. Every example stays well under them.
 - A list or string that grows past what JavaScript can hold now gives a
   KerfScript error instead of a `RangeError`.
+- The commercial licence for closed-source apps and services is free: email
+  hi@mylasertools.com.
 
 ## 0.2.0 (2026-10-28)
 

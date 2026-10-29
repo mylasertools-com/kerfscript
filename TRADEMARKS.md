@@ -2,7 +2,7 @@
 
 "KerfScript", the `.kerf` file format name used as a product name, and the
 KerfScript logo are trademarks of MyLaserTools. The software licences
-(AGPL-3.0-only and commercial) cover the code. They do not grant rights to the
+(AGPL-3.0-only and the free commercial licence) cover the code. They do not grant rights to the
 name or logo.
 
 This policy identifies the official KerfScript project while allowing others
