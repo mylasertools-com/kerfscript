@@ -230,6 +230,22 @@ def morph_rods(layers=28, spacers=2, t=3):
     return [(24 * math.cos(math.radians(a)), 24 * math.sin(math.radians(a)), t, top, 6) for a in (0, 120, 235)]
 
 
+def slot_desk_sign(t=3):
+    """Four signs on a desk, two in front and two behind: each panel stands
+    in its base's slot. One (x, y, turn) per sign."""
+    spots = [(-95, 0, 8), (95, 10, -6), (-190, 150, 12), (45, 170, -4)]
+
+    def place(p, parts):
+        x, y, a = spots[p["variant"]]
+        at = T(x, y, 0) @ R("Z", a)
+        if p["name"] == "Base":
+            return at
+        if p["name"] == "Panel":
+            return at @ T(0, t / 2, t) @ R("X", 90)
+        return None
+    return place
+
+
 ASSEMBLIES = {
     "box": {"place": box_parts(120, 80, 50, 3)},
     "phone-stand": {"place": phone_stand},
@@ -244,6 +260,7 @@ ASSEMBLIES = {
     "topo-island": {"place": stack(topo_order), "view": {"azimuth": -25, "elevation": 38}},
     "drawer-organizer": {"place": drawer_organizer(), "view": {"elevation": 45}},
     "gears": {"place": gears, "view": {"elevation": 50}},
+    "slot-desk-sign": {"place": slot_desk_sign(), "view": {"azimuth": -14, "elevation": 20}},
     "morph": {"place": morph(), "rods": morph_rods(), "view": {"azimuth": -30, "elevation": 22}},
     "wave-cathedral": {"place": wave_cathedral, "view": {"azimuth": -40, "elevation": 26}},
     # The picture shows what Umbra is for: the dragon's shadow on a wall
