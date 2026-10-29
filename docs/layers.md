@@ -44,6 +44,36 @@ open cuts within a part.
 Use `stroke(width)` to turn a line into an area of a specified width. Use
 `outline()` to turn an area's boundary into lines.
 
+### Overlapping shapes merge
+
+The areas inside one `score()` are merged first, like a `union()`, and
+only the outline of the result is scored. Two nested circles become one
+disc, so this scores a single ring:
+
+```kerf
+circle(d = 60);
+score() {
+  circle(d = 50);
+  circle(d = 40); // inside the first circle: merged away
+}
+```
+
+To score every shape's own outline, turn each one into lines first with
+`outline()`. Lines are never merged, so this scores both rings:
+
+```kerf
+circle(d = 60);
+score() {
+  outline() circle(d = 50);
+  outline() circle(d = 40);
+}
+```
+
+One `outline()` around both circles would not help: it merges them before
+it traces them. The same rule holds on the cut layer and on custom
+layers. Use `difference()` when you want the area between two outlines,
+such as a ring to engrave.
+
 ## The material
 
 Closed shapes on a part's cut layer define its material. KerfScript clips

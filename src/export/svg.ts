@@ -11,8 +11,30 @@ export const n = (v: number) => {
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
 
+// A path's points rounded as they are written, without the points that round
+// onto the point before them: those would be zero-length segments. A closed
+// path also drops a last point equal to its first.
+export function tidy(p: Poly, closed: boolean): [string, string][] {
+  const out: [string, string][] = [];
+  for (const [x, y] of p) {
+    const q: [string, string] = [n(x), n(y)];
+    const prev = out[out.length - 1];
+    if (!prev || prev[0] !== q[0] || prev[1] !== q[1]) out.push(q);
+  }
+  while (
+    closed &&
+    out.length > 1 &&
+    out[0][0] === out[out.length - 1][0] &&
+    out[0][1] === out[out.length - 1][1]
+  )
+    out.pop();
+  return out;
+}
+
 const d = (p: Poly, closed: boolean) =>
-  `M${p.map(([x, y]) => `${n(x)} ${n(y)}`).join('L')}${closed ? 'Z' : ''}`;
+  `M${tidy(p, closed)
+    .map(([x, y]) => `${x} ${y}`)
+    .join('L')}${closed ? 'Z' : ''}`;
 
 export interface LayerPath {
   name: string;

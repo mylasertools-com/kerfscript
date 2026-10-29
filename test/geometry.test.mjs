@@ -76,6 +76,25 @@ test('engraving and scoring are clipped to the material', () => {
   assert.ok(Math.abs(len - 30) < 0.1);
 });
 
+test('svg and dxf leave out points that round onto the point before', () => {
+  const r = render(
+    'polygon([[0, 0], [20, 0], [20.0001, 0.0002], [20, 10], [0, 10], [0, 0.0001]]);',
+    {
+      kerf: 0,
+    },
+  );
+  for (const [, body] of r.svg.matchAll(/ d="M([^"Z]+)Z?"/g)) {
+    const pts = body.split('L');
+    assert.ok(
+      pts.every((q, i) => i === 0 || q !== pts[i - 1]),
+      body,
+    );
+    assert.notEqual(pts[0], pts[pts.length - 1], body);
+    assert.equal(pts.length, 4);
+  }
+  assert.equal(r.sheets[0].dxf.match(/\nVERTEX\n/g).length, 4);
+});
+
 test('score() on a shape scores its outline as lines', () => {
   const r = render('rect([30, 30]); score() translate([5, 5]) rect([10, 10]);');
   const s = layer(r, 'score');

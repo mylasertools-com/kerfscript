@@ -3,7 +3,7 @@
 import type { LayerDef } from '../evaluator.js';
 import { area, type Poly } from '../geometry.js';
 import type { Placed } from '../render.js';
-import { n } from './svg.js';
+import { tidy } from './svg.js';
 
 const ACI: Record<string, number> = {
   '#ff0000': 1,
@@ -60,11 +60,14 @@ export function toDxf(items: Placed[], _width: number, height: number, layers: L
     g(20, 0);
     g(30, 0);
     g(70, closed ? 1 : 0);
-    for (const [x, y] of p) {
+    for (const [x, y] of tidy(
+      p.map(([x, y]) => [x, height - y]),
+      closed,
+    )) {
       g(0, 'VERTEX');
       g(8, layer);
-      g(10, n(x));
-      g(20, n(height - y));
+      g(10, x);
+      g(20, y);
       g(30, 0);
     }
     g(0, 'SEQEND');
