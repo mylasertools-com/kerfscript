@@ -34,11 +34,29 @@ $fn = 20;
 r = size / 2;
 rim = max(3, size * 0.03);
 ground = -r * 0.62;
-// The trunk length that makes the whole tree about as tall as the ring allows
-trunk = r * 1.45 * (1 - ratio) / (1 - pow(ratio, depth + 1));
 leaf = size / 120;
 thinnest = 1.6;
 rnd = rands(-1, 1, pow(2, depth + 1), seed);
+base = [0, ground + r * 0.05];
+// The trunk length that would make the tree about as tall as the ring
+tall = r * 1.45 * (1 - ratio) / (1 - pow(ratio, depth + 1));
+
+// Where every branch ends, from a trunk of this length standing at [0, 0]:
+// the same steps as branch() below, as numbers instead of shapes
+function tips(length, level, k, pos = [0, 0], a = 0) = let (
+  a2 = a + rnd[k] * wildness,
+  end = pos + length * [-sin(a2), cos(a2)]
+) level == 0 ? [end] : concat([end], [for (side = [0, 1]) each tips(
+  length * ratio * (1 + rnd[(2 * k + 1 + side) % len(rnd)] * 0.12), level - 1,
+  2 * k + 1 + side, end, a2 + (side == 0 ? 1 : -1) * spread / 2)]);
+
+// How far a tip may go: inside the ring, leaving room for its leaf
+inner = r - rim - 3.6 * leaf - 1.5;
+// How much of direction d fits inside the ring from the base
+function fit(d) = let (bd = base * d, dd = d * d, c = base * base - inner * inner)
+  dd == 0 ? 1 : (-bd + sqrt(bd * bd - dd * c)) / dd;
+// Shorten the tree just enough to keep every leaf inside the ring
+trunk = tall * min(1, min([for (d = tips(tall, depth, 0)) fit(d)]));
 
 // One branch of this length and width w, then two smaller ones on top.
 // k numbers the branches so each one gets its own random bend.
@@ -71,7 +89,7 @@ difference() {
     ground_shape();
     // Closing: grow then shrink, so gaps too small to cut are filled in
     offset(r = -0.3) offset(r = 0.3)
-      translate([0, ground + r * 0.05]) branch(trunk, max(5, size * 0.055), depth, 0);
+      translate(base) branch(trunk, max(5, size * 0.055), depth, 0);
     // Hanging loop
     translate([0, r]) circle(d = 12);
   }
