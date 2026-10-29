@@ -385,7 +385,7 @@ Programs are also limited in how much memory they can ask for:
 | `maxParts` | 10,000 | copies of all parts, adding up every `qty` |
 | `maxSegments` | 10,000 | segments in one circle, ellipse or arc, and corners in one polygon |
 | `maxListLength` | 1,000,000 | items in one list, or characters in one string |
-| `maxListItems` | 3,000,000 | items in all lists the program builds, plus 4 for each list |
+| `maxListItems` | 3,000,000 | items in all lists the program builds, plus 4 for each list, one for every 8 characters of the strings it builds or echoes |
 | `maxTextLength` | 2,000 | characters in one `text()` |
 | `maxPoints` | 2,000,000 | points in all shapes the modules make, plus 100 for each shape |
 | `maxOutputPoints` | 1,000,000 | points in the exported files, counting every copy |

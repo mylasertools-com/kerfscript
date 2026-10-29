@@ -10,6 +10,11 @@
   them. Every example stays well under them.
 - A list or string that grows past what JavaScript can hold now gives a
   KerfScript error instead of a `RangeError`.
+- Lists are checked while they are built, so `each` in a long loop, list
+  arithmetic and matrix products stop at the limit instead of first filling
+  memory. Strings joined with `+`, strings from functions and `echo()` text
+  count toward `maxListItems` too, and a repeated unknown argument warning
+  is shown once.
 - The commercial licence for closed-source apps and services is free: email
   hi@mylasertools.com.
 

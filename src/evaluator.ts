@@ -75,7 +75,8 @@ export interface Limits {
   // Items in one list, or characters in one string
   maxListLength: number;
   // Items in all lists the program builds, added up. Every list also counts
-  // as LIST_COST items for the memory it takes on its own.
+  // as LIST_COST items for the memory it takes on its own, and every string
+  // built or echoed counts one item per CHARS_PER_ITEM characters.
   maxListItems: number;
   // Characters passed to one text() call
   maxTextLength: number;
@@ -101,6 +102,8 @@ export const DEFAULT_LIMITS: Limits = {
 
 const SHAPE_COST = 100;
 const LIST_COST = 4;
+// Characters in a string that cost as much memory as one list item
+const CHARS_PER_ITEM = 8;
 
 const shapePoints = (s: Shape): number => {
   let n = SHAPE_COST;
@@ -398,8 +401,10 @@ export class Evaluator {
     });
     for (const k of args.named.keys()) {
       if (k.startsWith('$')) env.vars.set(k, args.named.get(k));
-      else if (!names.has(k))
-        this.warnings.push(`${what}: unknown argument "${k}" (line ${args.at.line})`);
+      else if (!names.has(k)) {
+        const warning = `${what}: unknown argument "${k}" (line ${args.at.line})`;
+        if (!this.warnings.includes(warning)) this.warnings.push(warning);
+      }
     }
     void defEnv;
   }
@@ -504,8 +509,8 @@ export class Evaluator {
       }
       case 'list': {
         const out: Value[] = [];
-        for (const it of x.items) this.listItem(it, env, out);
-        this.checkSize(out, x.pos);
+        for (const it of x.items) this.listItem(it, env, out, x.pos);
+        this.charge(LIST_COST, x.pos);
         return out;
       }
       case 'range': {
@@ -573,29 +578,51 @@ export class Evaluator {
     }
   }
 
-  private listItem(it: ListItem, env: Env, out: Value[]) {
+  private listItem(it: ListItem, env: Env, out: Value[], at: Pos) {
     switch (it.kind) {
-      case 'item':
-        out.push(this.expr(it.expr, env));
-        return;
-      case 'each': {
+      case 'item': {
         const v = this.expr(it.expr, env);
-        for (const x of this.iterable(v, { line: 0, col: 0, offset: 0 })) out.push(x);
+        this.grow(out, 1, at);
+        out.push(v);
+        return;
+      }
+      case 'each': {
+        const xs = this.iterable(this.expr(it.expr, env), at);
+        this.grow(out, xs.length, at);
+        for (const x of xs) out.push(x);
         return;
       }
       case 'for':
-        this.loop(it.assigns, env, (e) => this.listItem(it.body, e, out));
+        this.loop(it.assigns, env, (e) => this.listItem(it.body, e, out, at));
         return;
       case 'if':
-        if (truthy(this.expr(it.cond, env))) this.listItem(it.then, env, out);
-        else if (it.else) this.listItem(it.else, env, out);
+        if (truthy(this.expr(it.cond, env))) this.listItem(it.then, env, out, at);
+        else if (it.else) this.listItem(it.else, env, out, at);
         return;
       case 'let': {
         const e = new Env(env);
         this.bindSeq(it.assigns, e);
-        this.listItem(it.body, e, out);
+        this.listItem(it.body, e, out, at);
       }
     }
+  }
+
+  private grow(out: Value[], n: number, at: Pos) {
+    if (out.length + n > this.limits.maxListLength)
+      throw new KerfError(
+        `a list of ${out.length + n} items is more than the limit of ${this.limits.maxListLength}`,
+        at,
+      );
+    this.charge(n, at);
+  }
+
+  private charge(items: number, at: Pos | undefined) {
+    this.itemCount += items;
+    if (!(this.itemCount <= this.limits.maxListItems))
+      throw new KerfError(
+        `The lists and strings hold more than ${this.limits.maxListItems} items in all, the limit. Is a loop building more than it needs?`,
+        at,
+      );
   }
 
   private call(x: Extract<Expr, { kind: 'call' }>, env: Env): Value {
@@ -619,7 +646,7 @@ export class Evaluator {
               x.pos,
             );
           }
-          this.checkSize(out, x.pos, name);
+          this.checkValue(out, x.pos, name);
           return out;
         }
         throw new KerfError(`Unknown function ${name}()`, x.pos);
@@ -640,7 +667,7 @@ export class Evaluator {
   ): { handled: boolean; value?: Value } {
     if (name === 'echo') {
       const a = this.evalArgs(x.args, env, x.pos);
-      this.echoes.push(this.echoText(a));
+      this.echo(this.echoText(a), x.pos);
       return { handled: true, value: undefined };
     }
     if (name === 'assert') {
@@ -669,6 +696,11 @@ export class Evaluator {
     return { handled: false };
   }
 
+  private echo(text: string, at: Pos) {
+    this.charge(Math.ceil(text.length / CHARS_PER_ITEM), at);
+    this.echoes.push(text);
+  }
+
   private echoText(a: Args): string {
     const parts = a.pos.map((v) => (typeof v === 'string' ? v : show(v)));
     for (const [k, v] of a.named) parts.push(`${k} = ${show(v)}`);
@@ -692,7 +724,10 @@ export class Evaluator {
           return Math.pow(a, b);
       }
     }
-    if (op === '+' && typeof a === 'string' && typeof b === 'string') return a + b;
+    if (op === '+' && typeof a === 'string' && typeof b === 'string') {
+      this.checkSize(a.length + b.length, true, at);
+      return a + b;
+    }
     if (Array.isArray(a) && Array.isArray(b)) {
       if (op === '+' || op === '-') {
         if (a.length !== b.length)
@@ -700,12 +735,14 @@ export class Evaluator {
             `Can't ${op === '+' ? 'add' : 'subtract'} lists of length ${a.length} and ${b.length}`,
             at,
           );
+        this.charge(a.length + LIST_COST, at);
         return a.map((x, i) => this.arith(op, x, b[i], at));
       }
       if (op === '*') {
         if (Array.isArray(a[0])) return a.map((row) => this.arith('*', row, b, at));
         if (Array.isArray(b[0])) {
           const cols = (b[0] as Value[]).length;
+          this.checkSize(cols, false, at);
           return Array.from({ length: cols }, (_, j) =>
             a.reduce(
               (s: number, x, i) => s + (this.arith('*', x, (b[i] as Value[])[j], at) as number),
@@ -718,10 +755,14 @@ export class Evaluator {
         return a.reduce((s: number, x, i) => s + (this.arith('*', x, b[i], at) as number), 0);
       }
     }
-    if (Array.isArray(a) && typeof b === 'number' && (op === '*' || op === '/'))
+    if (Array.isArray(a) && typeof b === 'number' && (op === '*' || op === '/')) {
+      this.charge(a.length + LIST_COST, at);
       return a.map((x) => this.arith(op, x, b, at));
-    if (typeof a === 'number' && Array.isArray(b) && op === '*')
+    }
+    if (typeof a === 'number' && Array.isArray(b) && op === '*') {
+      this.charge(b.length + LIST_COST, at);
       return b.map((x) => this.arith(op, a, x, at));
+    }
     const verb: Record<string, string> = {
       '+': 'add',
       '-': 'subtract',
@@ -774,21 +815,18 @@ export class Evaluator {
       );
   }
 
-  private checkSize(v: Value, pos: Pos | undefined, fn?: string) {
-    const n = Array.isArray(v) || typeof v === 'string' ? v.length : 0;
-    if (Array.isArray(v)) {
-      this.itemCount += n + LIST_COST;
-      if (this.itemCount > this.limits.maxListItems)
-        throw new KerfError(
-          `The lists hold more than ${this.limits.maxListItems} items in all, the limit. Is a loop building more than it needs?`,
-          pos,
-        );
-    }
+  private checkValue(v: Value, pos: Pos | undefined, fn?: string) {
+    if (Array.isArray(v) || typeof v === 'string')
+      this.checkSize(v.length, typeof v === 'string', pos, fn);
+  }
+
+  private checkSize(n: number, isString: boolean, pos: Pos | undefined, fn?: string) {
     if (n > this.limits.maxListLength)
       throw new KerfError(
-        `${fn ? `${fn}(): ` : ''}${typeof v === 'string' ? `a string of ${n} characters` : `a list of ${n} items`} is more than the limit of ${this.limits.maxListLength}`,
+        `${fn ? `${fn}(): ` : ''}${isString ? `a string of ${n} characters` : `a list of ${n} items`} is more than the limit of ${this.limits.maxListLength}`,
         pos,
       );
+    this.charge(isString ? Math.ceil(n / CHARS_PER_ITEM) : n + LIST_COST, pos);
   }
 
   private segs(env: Env) {
@@ -1135,7 +1173,7 @@ export class Evaluator {
         return merge(out);
       },
       echo: (c) => {
-        this.echoes.push(this.echoText(c.args));
+        this.echo(this.echoText(c.args), c.args.at);
         return c.children();
       },
       assert: (c) => {

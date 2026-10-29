@@ -30,6 +30,31 @@ test('lists and strings are limited', () => {
   fails('p = [for (i = [0:999998]) [i, i]];', /items in all/);
 });
 
+test('lists are limited while they are built', () => {
+  fails('x = [for (i = [0:9999]) each [0:99999]];', /a list of \d+ items/);
+  fails('x = [for (i = [0:99]) [for (j = [0:99999]) j]];', /items in all/);
+  fails(
+    'function f(n) = n <= 0 ? [] : [for (i = [0:99999]) i, each f(n - 1)]; x = f(1000);',
+    /items in all/,
+  );
+  fails('a = [for (i = [0:2999]) [1]]; b = [[for (i = [0:2999]) 1]]; c = a * b;', /items in all/);
+});
+
+test('strings joined with + are limited', () => {
+  fails(
+    'function d(s, n) = n <= 0 ? s : d(s + s, n - 1); echo(len(d("x", 24)));',
+    /a string of \d+ characters/,
+  );
+  fails('s = str([for (i = [0:99999]) 0]); x = [for (i = [0:999]) s + "!"];', /items in all/);
+  render(
+    'function j(l, i = 0) = i >= len(l) ? "" : str(l[i], j(l, i + 1)); echo(j([for (i = [0:399]) i]));',
+  );
+});
+
+test('echo output is limited', () => {
+  fails('s = [for (i = [0:99999]) i]; for (i = [0:999]) echo(s);', /items in all/);
+});
+
 test('shapes, output and sheets are limited', () => {
   fails('for (i = [0:200000]) translate([i * 2, 0]) rect(1);', /more than 2000000 points/);
   fails('finger_rect([5000, 5000], finger = 0.0001);', /points, the limit/);
