@@ -13,6 +13,7 @@ interface Props {
 const { title, description, wide = false, scripts = [], type = 'website' } = Astro.props;
 const path = Astro.url.pathname;
 const canonical = `${BASE}${path}`;
+const markdown = `${canonical}index.md`;
 const NAV = [
   ['/models/', 'Models'],
   ['/playground/', 'Playground'],
@@ -43,6 +44,7 @@ const identity = {
     <title>{title}</title>
     <meta name="description" content={description} />
     <link rel="canonical" href={canonical} />
+    {path !== '/404/' && <link rel="alternate" type="text/markdown" title="Markdown version" href={markdown} />}
     <meta property="og:site_name" content="KerfScript" />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
@@ -93,6 +95,7 @@ const identity = {
               <a href={`${REPO_URL}/issues`}>Report a problem</a>
               <a href={`${REPO_URL}/blob/main/CHANGELOG.md`}>Changelog</a>
               <a href={`${REPO_URL}/blob/main/CONTRIBUTING.md`}>Contributing</a>
+              <a href="/llms.txt">Text and Markdown index</a>
             </p>
           )
         }

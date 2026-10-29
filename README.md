@@ -173,6 +173,16 @@ Cloudflare as a static assets Worker. Every model picture and the guides are
 built from [examples/](examples), [docs/](docs) and LANGUAGE.md by this
 version of KerfScript.
 
+The site also publishes [llms.txt](https://kerfscript.mylasertools.com/llms.txt),
+a [full text bundle](https://kerfscript.mylasertools.com/llms-full.txt), and a
+Markdown companion at `index.md` under every public page path. The guides and
+model companions are generated from the same source as their HTML pages. Each
+HTML page advertises its Markdown version with a `rel="alternate"` link.
+Markdown responses point back to the matching HTML URL with a canonical HTTP
+header, so the HTML page remains the preferred Search result.
+The site's `robots.txt` permits all cooperating crawlers. Cloudflare's bot
+controls must also allow requests to the hostname for a crawler to reach it.
+
 ```sh
 npm --prefix site install
 npm run site          # build KerfScript, then the site into site/dist
