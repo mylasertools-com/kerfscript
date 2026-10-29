@@ -15,8 +15,8 @@ physically cut a useful design without help.
       stacked on several sheets
 - [ ] Reference set opened in LightBurn and xTool, with versions recorded
 - [ ] Reference set cut and measured on real machines and materials
-- [ ] Public repository, tagged release and npm package
-- [ ] Website live at kerfscript.mylasertools.com
+- [x] Public repository, tagged release and npm package
+- [x] Website live at kerfscript.mylasertools.com
 
 ## Next
 

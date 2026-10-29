@@ -8,7 +8,7 @@ const noNodeBuiltins = {
   },
 };
 const banner = {
-  js: '/*! @mylasertools/kerfscript | (c) MyLaserTools | AGPL-3.0-only or commercial licence, see COMMERCIAL-LICENSE.md. Includes Clipper2 (BSL-1.0) and opentype.js (MIT), see THIRD-PARTY-NOTICES.md. */',
+  js: '/*! @mylasertools/kerfscript | (c) MyLaserTools | AGPL-3.0-only or commercial licence, see COMMERCIAL-LICENSE.md. Includes Clipper2 (BSL-1.0), opentype.js, tiny-inflate and string.prototype.codepointat (MIT), see THIRD-PARTY-NOTICES.md. */',
 };
 for (const format of ['esm', 'cjs'])
   await build({

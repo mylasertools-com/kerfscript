@@ -8,7 +8,7 @@
     "dev": "npm run prepare-assets && astro dev",
     "build": "npm run prepare-assets && astro build",
     "preview": "astro preview",
-    "test": "node scripts/compat.mjs",
+    "test": "npm --prefix .. run compat",
     "deploy": "npm run build && wrangler deploy",
     "indexnow": "node scripts/indexnow.mjs"
   },

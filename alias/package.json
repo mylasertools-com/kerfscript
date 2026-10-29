@@ -31,7 +31,7 @@
         "default": "./index.js"
       },
       "require": {
-        "types": "./index.d.ts",
+        "types": "./index.d.cts",
         "default": "./index.cjs"
       }
     }
@@ -43,6 +43,7 @@
     "index.js",
     "index.cjs",
     "index.d.ts",
+    "index.d.cts",
     "cli.js",
     "README.md",
     "LICENSE"
