@@ -141,8 +141,10 @@ KerfScript is free software under the
 that makes **your `.kerf` designs and the files KerfScript generates yours to
 license and sell however you like**.
 
-Using KerfScript in a closed source product or hosted service without
-publishing your source requires a [commercial licence](COMMERCIAL-LICENSE.md).
+A [commercial licence](COMMERCIAL-LICENSE.md) is available for proprietary
+integrations or different terms. Private changes do not require one; see
+[what the AGPL means for you](COMMERCIAL-LICENSE.md#what-the-agpl-means-for-you)
+for how it applies to hosted services.
 
 "KerfScript" is a trademark of MyLaserTools; see [TRADEMARKS.md](TRADEMARKS.md).
 Contributions need the [CLA](CLA.md); see [CONTRIBUTING.md](CONTRIBUTING.md).

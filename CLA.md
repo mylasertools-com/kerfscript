@@ -7,9 +7,12 @@ Thank you for contributing to KerfScript. This agreement lets MyLaserTools
 commercial licences, including licences we may sell. You keep the copyright in
 your contribution.
 
-By submitting a Contribution (a pull request, patch, issue attachment or any
-other material you intentionally send us for inclusion in KerfScript) you
-("You") agree to the following for that Contribution and every later one.
+This agreement applies to a Contribution when you add the signature
+statement below to the pull request that contains it. A Contribution is
+material you intentionally submit in that signed pull request for inclusion
+in KerfScript. Issue reports, ideas, unsigned pull requests and other
+communications do not grant rights under this agreement. Sign each pull
+request you want us to consider for inclusion.
 
 ## 1. Copyright licence
 
@@ -62,7 +65,7 @@ trademarks.
 
 ## How to sign
 
-Add this line to your first pull request description, using your legal name:
+Add this statement to each pull request description, using your legal name:
 
 ```text
 I have read the KerfScript CLA 1.0 and agree to it for my contributions.

@@ -1,7 +1,7 @@
 # KerfScript language reference
 
 Language version 0.1. Copyright (c) 2026 MyLaserTools. This document is
-licensed under [CC BY-ND 4.0](https://creativecommons.org/licenses/by-nd/4.0/).
+licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
 "KerfScript" is a trademark of MyLaserTools, see [TRADEMARKS.md](TRADEMARKS.md).
 
 This reference covers KerfScript syntax, built-in modules and functions.

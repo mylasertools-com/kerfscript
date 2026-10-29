@@ -5,13 +5,19 @@ KerfScript logo are trademarks of MyLaserTools. The software licences
 (AGPL-3.0-only and commercial) cover the code. They do not grant rights to the
 name or logo.
 
-This policy keeps "KerfScript" meaning one well defined language, so a `.kerf`
-file written for one KerfScript tool works in every tool that uses the name.
+This policy identifies the official KerfScript project while allowing others
+to describe tools that work with the language. MyLaserTools controls the
+official language versions and releases.
 
 ## You may, without asking
 
 - say your design, tutorial, course, video or library is written **in**
   KerfScript or works **with** KerfScript
+- describe an independent editor, implementation or service as compatible
+  with a specific KerfScript language version when the claim is accurate,
+  its limitations are clear and you do not imply MyLaserTools endorsement
+- use KerfScript in a descriptive phrase such as "an editor for KerfScript"
+  alongside your own distinct product name
 - use the `.kerf` file extension for KerfScript programs
 - use the name to refer to this project and to unmodified copies of it
 - publish a fork for development, as long as it is clearly marked as a fork
@@ -21,18 +27,18 @@ file written for one KerfScript tool works in every tool that uses the name.
 
 - name a product, service, company, domain or package "KerfScript" or anything
   confusingly similar (for example "KerfScript Pro", "kerfscript-cloud")
-- call your own implementation, editor or service "KerfScript compatible" or
-  "official". Compatibility claims require passing the KerfScript conformance
-  tests for the language version you claim
+- call your own implementation, editor or service "official" or imply
+  that MyLaserTools endorses it
 - use the logo, other than to link to this project
 - distribute a modified interpreter under the KerfScript name
 
 ## Language specification
 
 The language reference ([LANGUAGE.md](LANGUAGE.md)) is published under
-Creative Commons Attribution-NoDerivatives 4.0 (CC BY-ND 4.0). You may copy and
-share it unchanged with attribution. Changes to the language are made by
-MyLaserTools through this repository, so there is one KerfScript.
+Creative Commons Attribution 4.0 (CC BY 4.0). You may copy, translate and
+adapt it with attribution and a note describing your changes. Adapted
+references are not official KerfScript language versions. MyLaserTools
+publishes the official reference and decides which language changes it adopts.
 
 ## Contact
 

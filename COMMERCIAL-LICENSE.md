@@ -11,25 +11,25 @@ KerfScript is dual licensed. You can use it under **either**:
 
 ## What the AGPL means for you
 
-Free, under the AGPL, when you:
+You may use KerfScript under the AGPL to:
 
 - write KerfScript programs and cut, sell or share what you make with them
-- use the `kerf` command line tool, or the library inside software you only run
-  for yourself
-- build open source software on KerfScript and publish its complete source code
-  under the AGPL
+- run the interpreter, including a modified copy, privately or in internal
+  tools without publishing those private changes
+- distribute software that incorporates KerfScript when you meet the AGPL's
+  requirements for the covered work, including its source code obligations
 
-You need a commercial licence when you:
+A commercial licence is an option when you want to distribute KerfScript as
+part of a proprietary app, plugin, machine or firmware, or offer a modified
+KerfScript program through a network without meeting the AGPL's source code
+requirements. It may also provide different terms or support.
 
-- ship KerfScript inside a closed source app, plugin, machine or firmware
-- run KerfScript (or a modified copy) behind a website or online service and do
-  not want to publish that service's complete source code under the AGPL
-- want to change KerfScript without sharing your changes
-
-The AGPL treats letting people use the software over a network like
-distributing it: if you modify KerfScript or build it into a service that
-others use, you must offer those users the complete corresponding source code
-of the whole program under the AGPL.
+Network use alone is not distribution under the AGPL. Section 13 requires a
+modified version that users interact with remotely to offer them its
+Corresponding Source. Running an unmodified copy on a server does not, by
+itself, trigger that section. Whether a larger app or service is a single
+covered work depends on how it incorporates KerfScript. See the
+[AGPL text](LICENSE) for the terms that govern each use.
 
 ## Additional permission: your designs are yours
 
@@ -49,9 +49,10 @@ library, which remain under the AGPL.
 
 ## Commercial licences
 
-A commercial licence replaces the AGPL obligations with ordinary commercial
-terms: closed source use, use in hosted services, private modifications and
-support options. Terms and pricing are set per agreement.
+A commercial licence provides an alternative to the AGPL for uses covered
+by your agreement, such as proprietary distribution or a modified hosted
+service. Private modifications do not require a commercial licence. Terms,
+scope, support and pricing are set per agreement.
 
 Contact: hi@mylasertools.com
 
