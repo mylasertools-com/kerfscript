@@ -34,18 +34,12 @@
   {
     "file": "hadal",
     "title": "Hadal skeleton sculpture",
-    "tags": ["sculpture", "joinery", "parts"],
-    "photo": {
-      "alt": "The Hadal skeleton assembled on its stand"
-    }
+    "tags": ["sculpture", "joinery", "parts"]
   },
   {
     "file": "xenospora",
     "title": "Xenospora seed pod",
-    "tags": ["sculpture", "joinery", "curves"],
-    "photo": {
-      "alt": "The Xenospora seed pod assembled, with a coloured core"
-    }
+    "tags": ["sculpture", "joinery", "curves"]
   },
   {
     "file": "tilt-maze",

@@ -31,15 +31,10 @@ function rangeText(p) {
     <p class="lede">{m.summary}</p>
   </div>
   <div class="model-layout">
-    <section class="model-figure" data-views>
-      <div class="view-switch" role="tablist" aria-label="View">
-        {m.glb && <button role="tab" aria-selected="true" data-view="assembled">Assembled</button>}
-        <button role="tab" aria-selected={m.glb ? 'false' : 'true'} data-view="material">Parts</button>
-        <button role="tab" aria-selected="false" data-view="laser">Laser file</button>
-      </div>
+    <section class="model-figure">
       {
         m.glb && (
-          <figure class="sheet model-3d" data-panel="assembled">
+          <figure class="sheet model-3d">
             <model-viewer
               src={`/3d/${m.slug}.glb`}
               poster={`/3d/${m.slug}.webp`}
@@ -58,15 +53,21 @@ function rangeText(p) {
           </figure>
         )
       }
-      <figure class="sheet" data-panel="material" hidden={m.glb} set:html={m.display} />
-      <figure class="sheet laser" data-panel="laser" hidden set:html={laser} />
-      <p class="figure-note">
-        {
-          m.sheets === 1
-            ? `Download size: ${fmt(m.width)} × ${fmt(m.height)} mm. ${m.count} ${m.count === 1 ? 'part' : 'parts'} on 1 sheet.`
-            : `${m.count} parts on ${m.sheets} sheets, shown together. Each sheet has its own cut file.`
-        }
-      </p>
+      <div class="model-flat" data-views>
+        <div class="view-switch" role="tablist" aria-label="View">
+          <button role="tab" aria-selected="true" data-view="material">Parts</button>
+          <button role="tab" aria-selected="false" data-view="laser">Laser file</button>
+        </div>
+        <figure class="sheet" data-panel="material" set:html={m.display} />
+        <figure class="sheet laser" data-panel="laser" hidden set:html={laser} />
+        <p class="figure-note">
+          {
+            m.sheets === 1
+              ? `Download size: ${fmt(m.width)} × ${fmt(m.height)} mm. ${m.count} ${m.count === 1 ? 'part' : 'parts'} on 1 sheet.`
+              : `${m.count} parts on ${m.sheets} sheets, shown together. Each sheet has its own cut file.`
+          }
+        </p>
+      </div>
       {
         m.photo && (
           <figure class="photo">

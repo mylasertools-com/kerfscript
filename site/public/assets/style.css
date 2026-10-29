@@ -1320,56 +1320,21 @@ td {
   font-weight: 500;
 }
 
-/* Model cards: cut parts / assembled */
+/* Model cards: the assembled render */
 
-.model-card figure[data-compare] {
-  --pos: 50%;
-  touch-action: pan-y;
-  overflow: hidden;
-}
-
-.model-card .assembled {
+.model-card figure img {
   position: absolute;
   inset: 0;
-  background: inherit;
-  clip-path: inset(0 0 0 var(--pos));
-}
-
-.model-card .assembled img {
   width: 100%;
   height: 100%;
   object-fit: contain;
-  display: block;
-}
-
-.model-card .compare-line {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: var(--pos);
-  width: 1.5px;
-  margin-left: -0.75px;
-  background: color-mix(in srgb, var(--ink) 55%, transparent);
-  pointer-events: none;
-}
-
-.model-card .compare-line::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 22px;
-  height: 22px;
-  margin: -11px 0 0 -11px;
-  border-radius: 50%;
-  border: 1.5px solid var(--ink);
-  background: var(--paper);
 }
 
 /* Model page: the assembled model in 3D */
 
 .sheet.model-3d {
   padding: 0;
+  margin-bottom: 28px;
 }
 
 .model-3d model-viewer {
