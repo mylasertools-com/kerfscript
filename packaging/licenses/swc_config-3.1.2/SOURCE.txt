@@ -1,0 +1,2 @@
+swc_config 3.1.2 was published from commit c9b1b7fda64a7824f9a8265c30c3181f2def0fb8, which is not in the repository (https://github.com/swc-project/swc). These are its licence files at commit 6c54969d69551f516032c22dbd9144e6ae5556b0, the first where crates/swc_config/Cargo.toml has version 3.1.2:
+https://github.com/swc-project/swc/blob/6c54969d69551f516032c22dbd9144e6ae5556b0/LICENSE

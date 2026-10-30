@@ -9,6 +9,9 @@ export const MAX_SOURCE = 1_000_000;
 // Its size in UTF-8, which is at most 3 bytes for each code unit
 const MAX_BYTES = MAX_SOURCE * 3;
 
+// Whether o has its own key k: not one every object inherits, like "toString"
+export const hasOwn = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
+
 const tooLong = `The linked code is longer than ${MAX_SOURCE.toLocaleString('en')} characters`;
 
 // A link's code as text, or an error when it is not UTF-8 or is longer than
@@ -80,10 +83,10 @@ export async function decode(hash) {
 }
 
 // The code to start with: a file the desktop app opened, a shared link, an
-// example named in the address, the draft from last time, or the clock face.
-// null means "none"; an empty file is an empty design. problem says why a
-// link could not be opened.
-export async function startCode({ file, hash, model, examples, draft }) {
+// example named in the address, the draft from last time, the clock face, or
+// fallback when the examples are missing. null means "none"; an empty file is
+// an empty design. problem says why a link could not be opened.
+export async function startCode({ file, hash, model, examples, draft, fallback = '' }) {
   if (file !== null && file !== undefined) return { code: file };
   let problem;
   try {
@@ -92,8 +95,11 @@ export async function startCode({ file, hash, model, examples, draft }) {
   } catch (e) {
     problem = e.message;
   }
-  if (model && examples[model]) return { code: examples[model], problem };
+  if (model && hasOwn(examples, model)) return { code: examples[model], problem };
   if (draft !== null && draft !== undefined && draft.length <= MAX_SOURCE)
     return { code: draft, problem };
-  return { code: examples['clock-face'], problem };
+  return {
+    code: hasOwn(examples, 'clock-face') ? examples['clock-face'] : fallback,
+    problem,
+  };
 }

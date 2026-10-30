@@ -15,6 +15,7 @@ import {
   type Value,
 } from './index.js';
 import { withBuiltinFont } from './font.js';
+import { own } from './values.js';
 import agpl from '../LICENSE';
 import commercial from '../COMMERCIAL-LICENSE.md';
 import notices from '../THIRD-PARTY-NOTICES.md';
@@ -77,6 +78,16 @@ function writeStdout(text: string) {
   for (let at = 0; at < bytes.length; ) at += io.writeSync(1, bytes.subarray(at));
 }
 
+// A request's "files" or "fonts": an object whose values are strings
+function strings(v: unknown, what: string): Record<string, string> {
+  if (v === undefined || v === null) return {};
+  if (typeof v !== 'object' || Array.isArray(v))
+    throw new Error(`"${what}" must be an object of names and strings.`);
+  for (const [name, x] of Object.entries(v))
+    if (typeof x !== 'string') throw new Error(`"${what}.${name}" must be a string.`);
+  return v as Record<string, string>;
+}
+
 const B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 
 function base64(text: string): Uint8Array {
@@ -106,14 +117,15 @@ function handle(req: Request): object {
   if (command === 'params') return { ok: true, ...parameters(req.source) };
   if (command !== 'render')
     throw new Error(`Unknown command "${command}". Use render, params, version or licenses.`);
-  const files = req.files ?? {};
+  const files = strings(req.files, 'files');
   const fonts: Record<string, Uint8Array> = {};
-  for (const [name, data] of Object.entries(req.fonts ?? {})) fonts[name] = base64(data);
+  for (const [name, data] of Object.entries(strings(req.fonts, 'fonts')))
+    fonts[name] = base64(data);
   const opts: RenderOptions = {
     params: req.params,
     fonts: withBuiltinFont(fonts),
     defaultFont: req.defaultFont,
-    resolve: (p) => files[p] ?? files[p + '.kerf'],
+    resolve: (p) => own(files, p) ?? own(files, p + '.kerf'),
     kerf: req.kerf,
     layout: req.layout,
     sheet: req.sheet,

@@ -12,8 +12,10 @@
   files on disk (Open, Save, Save as, double-click to open; Save as adds
   `.kerf` to a name without it and asks before replacing a file of that
   name), exports through a save dialog, `use`/`include` libraries read from
-  the design's folder and the folders below it, and an About window with the
-  source link and the licences of everything in the app.
+  the design's folder and the folders below it (`.kerf` files only), and an
+  About window with the source link and the licences of everything in the
+  app. Saving writes the whole file before it replaces the old one, and the
+  app asks about unsaved changes before it closes, also on ⌘Q.
   Installers: Windows setup and MSI, a universal macOS dmg, and an AppImage,
   `.deb` and `.rpm` for Linux x64 and arm64; Flathub, winget, Chocolatey and
   AUR manifests. See [docs/desktop.md](docs/desktop.md).
@@ -28,11 +30,18 @@
   coloured or read for settings, and Copy link refuses it.
 - Settings for a list, such as `size = [10, 20]`, keep numbers changed in the
   code since the settings were drawn, instead of putting the old ones back.
+  An empty or half-typed number box leaves the code as it is.
+- The playground renders the newest code after fast edits to a slow design,
+  instead of stopping with "Stopped after 15 seconds", and keeps working
+  when the number of sheets drops to one in the laser file view. Edits after
+  opening a shared link or moving a slider on an example are kept on reload.
 - The website's licence page, and `assets/THIRD-PARTY-NOTICES.md` next to
   `kerfscript.js`, have the notices of the libraries bundled in its
   JavaScript.
 - Standalone `kerf` binaries for Windows, macOS and Linux that need no
-  Node.js, `.deb` and `.rpm` packages, a Docker image, a snap, and Homebrew,
+  Node.js, with the licences of the Deno runtime built into them,
+  `kerfscript-cli` `.deb` and `.rpm` packages (which install next to the
+  desktop app), a Docker image, a snap, and Homebrew,
   Scoop, winget and AUR manifests, all built by the release workflow with
   SHA-256, SHA-512 and GPG signatures. Nightly builds go to a rolling
   `nightly` prerelease. See RELEASING.md.
@@ -66,10 +75,20 @@
 - `hull()` around named parts makes the hull of each part, the same as
   `hull()` inside the part. It left the parts unchanged before.
 - DXF layers whose names come out the same in DXF, such as `a b` and `a_b`,
-  stay separate layers: the later ones get `_2`, `_3` and so on.
+  stay separate layers: the later ones get `_2`, `_3` and so on. The
+  built-in layers keep `CUT`, `SCORE`, `ENGRAVE` and `GUIDE`.
 - Built-in functions take named arguments, such as `sin(x = 30)` and
-  `pow(x = 2, y = 10)`; an unknown name gives a warning. They were ignored
-  before.
+  `pow(x = 2, y = 10)`; an unknown name gives a warning, and so does an
+  argument given both by position and by name. They were ignored before.
+- Errors and warnings in a library name it, as in
+  `(line 3, column 5 in <lib/tabs>)`. The playground marks the line only for
+  errors in the program itself.
+- `toString()`, `constructor()` and other names every JavaScript object has
+  are unknown functions and libraries, instead of a crash or a wrong value.
+- `text_width()` and `text_metrics()` take a step per character, have the
+  same length limit as `text()`, and are much faster for long text.
+- A list times a matrix of the wrong size, and `params` values that are not
+  numbers, strings, booleans or lists, are errors instead of a crash.
 - A list times a list whose items multiply to lists is an error instead of
   text.
 - The commercial licence for closed-source apps and services is free: email

@@ -1,0 +1,2 @@
+https://github.com/kixelated/web-transport/blob/b5be3f7274ff9885e5361c229d05f515ed09af4e/LICENSE-APACHE
+https://github.com/kixelated/web-transport/blob/b5be3f7274ff9885e5361c229d05f515ed09af4e/LICENSE-MIT

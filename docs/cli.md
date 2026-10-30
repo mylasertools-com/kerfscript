@@ -14,6 +14,30 @@ You can also run it through `npx`:
 npx @mylasertools/kerfscript render box.kerf -o box.svg
 ```
 
+## Without Node.js
+
+The [releases](https://github.com/mylasertools/kerfscript/releases) page has a
+standalone `kerf` for Windows, macOS and Linux (x64 and arm64) that needs no
+Node.js: `kerf-<version>-<os>-<arch>.zip` or `.tar.gz`, and
+`kerfscript-cli-<version>-linux-<arch>.deb` or `.rpm`. It has the
+Atkinson Hyperlegible font built in, like the npm package.
+
+| System           | Install                                                                                                       |
+| ---------------- | ------------------------------------------------------------------------------------------------------------- |
+| macOS, Linux     | `brew install mylasertools/tap/kerfscript`                                                                    |
+| Windows          | `winget install MyLaserTools.KerfScript.CLI`, or `choco install kerfscript`                                   |
+| Windows (Scoop)  | `scoop bucket add mylasertools https://github.com/mylasertools/scoop-bucket`, then `scoop install kerfscript` |
+| Linux (Snap)     | `sudo snap install kerfscript`; the command is `kerfscript.kerf`                                              |
+| Arch Linux (AUR) | `kerfscript-bin`                                                                                              |
+| macOS (MacPorts) | `sudo port install kerfscript`                                                                                |
+| Docker           | `docker run --rm -v "$PWD:/work" --user "$(id -u):$(id -g)" ghcr.io/mylasertools/kerfscript render box.kerf`  |
+
+Package manager listings follow each release as they are approved. The
+binaries are not signed yet. On macOS, Homebrew and MacPorts install them
+without a warning; a downloaded `kerf` needs
+`xattr -d com.apple.quarantine kerf` once. On Windows, SmartScreen may warn
+the first time.
+
 Save a `.kerf` file from the [models](https://kerfscript.mylasertools.com/models/)
 to try these commands.
 

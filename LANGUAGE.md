@@ -390,7 +390,9 @@ Load the box modules with `use <kerf/box>`:
 - **DXF**: R12 (AC1009) polylines on layers named after KerfScript layers,
   with matching AutoCAD colours. Names are upper case with characters other
   than letters, digits, `_` and `-` as `_`; when two layers come out the
-  same, the later one gets `_2`, `_3` and so on.
+  same, the later one gets `_2`, `_3` and so on. The built-in layers keep
+  `CUT`, `SCORE`, `ENGRAVE` and `GUIDE`, so a layer of your own named `Cut`
+  becomes `CUT_2`.
 
 ## Limits
 

@@ -3,6 +3,7 @@
 import { parse as parseFont } from 'opentype.js';
 import { bounds, union, type Poly } from './geometry.js';
 import { flatten, type Cmd } from './paths.js';
+import { own } from './values.js';
 
 export type FontSource = ArrayBuffer | Uint8Array;
 
@@ -36,7 +37,7 @@ export class FontBook {
     }
     const hit = this.parsed.get(key);
     if (hit) return hit;
-    const src = this.sources[key];
+    const src = own(this.sources, key);
     if (!src) {
       this.missing.add(key);
       throw new Error(
@@ -81,9 +82,8 @@ function layoutCommands(
   return { cmds, advance: x };
 }
 
-export function textRegions(book: FontBook, text: string, o: TextOptions): Poly[] {
-  if (!text) return [];
-  const font = book.get(o.font);
+// The glyph outlines of the text as polygons, y up, before they are joined
+function outlines(font: OtFont, text: string, o: TextOptions): { polys: Poly[]; advance: number } {
   const { cmds, advance } = layoutCommands(font, text, o);
   const flipped = cmds.map((c): Cmd => {
     if (c.type === 'Z') return c;
@@ -92,7 +92,14 @@ export function textRegions(book: FontBook, text: string, o: TextOptions): Poly[
     return { ...c, y: -c.y };
   });
   const flat = flatten(flipped, Math.max(0.005, o.size / 2000));
-  const polys = union([...flat.closed, ...flat.open.filter((p) => p.length >= 3)]);
+  return { polys: [...flat.closed, ...flat.open.filter((p) => p.length >= 3)], advance };
+}
+
+export function textRegions(book: FontBook, text: string, o: TextOptions): Poly[] {
+  if (!text) return [];
+  const font = book.get(o.font);
+  const { polys: raw, advance } = outlines(font, text, o);
+  const polys = union(raw);
   const b = bounds(polys);
   if (!b) return [];
   const dx = o.halign === 'center' ? -advance / 2 : o.halign === 'right' ? -advance : 0;
@@ -109,8 +116,9 @@ export function textRegions(book: FontBook, text: string, o: TextOptions): Poly[
 
 export function textMetrics(book: FontBook, text: string, o: TextOptions) {
   const font = book.get(o.font);
-  const { advance } = layoutCommands(font, text, o);
-  const polys = textRegions(book, text, { ...o, halign: 'left', valign: 'baseline' });
+  const { polys, advance } = outlines(font, text, o);
+  // The outlines have the same bounds as the shape they make, which is much
+  // slower to work out for long text
   const b = bounds(polys) ?? [0, 0, 0, 0];
   return {
     advance,

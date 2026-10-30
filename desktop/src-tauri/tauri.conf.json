@@ -63,11 +63,13 @@
     },
     "linux": {
       "deb": {
+        "desktopTemplate": "../../packaging/linux/app.desktop",
         "files": {
           "/usr/share/mime/packages/com.mylasertools.KerfScript.xml": "../../packaging/linux/kerfscript.xml"
         }
       },
       "rpm": {
+        "desktopTemplate": "../../packaging/linux/app.desktop",
         "files": {
           "/usr/share/mime/packages/com.mylasertools.KerfScript.xml": "../../packaging/linux/kerfscript.xml"
         }

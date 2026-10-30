@@ -17,6 +17,10 @@ const el = (tag, attrs = {}, ...kids) => {
 
 const label = (name) => name.replace(/_+/g, ' ').replace(/^./, (c) => c.toUpperCase());
 
+// The number in a number box, or NaN while it is empty or half typed (the
+// browser gives "" for "-" or "1e"), so the code keeps its last number
+const typed = (input) => (input.value.trim() === '' ? NaN : Number(input.value));
+
 export function buildControls(container, params, values, onChange) {
   container.replaceChildren();
   let group = null;
@@ -66,7 +70,7 @@ export function buildControls(container, params, values, onChange) {
       const list = el('div', { class: 'vector' });
       // Each change sends what all the boxes show now: the code may have
       // changed the other numbers since the controls were made
-      const current = () => [...list.querySelectorAll('input')].map((x) => Number(x.value));
+      const current = () => [...list.querySelectorAll('input')].map(typed);
       [...value].forEach((v, i) => {
         const input = el('input', {
           type: 'number',
@@ -103,7 +107,7 @@ export function buildControls(container, params, values, onChange) {
     } else {
       const input = el('input', { id, type: 'number', value, step: p.step ?? 'any' });
       input.addEventListener('input', () => {
-        const n = Number(input.value);
+        const n = typed(input);
         if (Number.isFinite(n)) set(p.name, n);
       });
       row.append(title, input);

@@ -1,0 +1,2 @@
+swc_atoms 9.0.0 was published from commit 00ec64fe9a4da0973f14721d7b6dc1f13cd75413, which is not in the repository (https://github.com/swc-project/swc). These are its licence files at commit 5e6af6030ef8e3b15cef29913f507bfec6109ab6, the first where crates/swc_atoms/Cargo.toml has version 9.0.0:
+https://github.com/swc-project/swc/blob/5e6af6030ef8e3b15cef29913f507bfec6109ab6/LICENSE

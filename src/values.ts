@@ -25,6 +25,22 @@ export const isFn = (v: Value): v is Closure =>
   typeof v === 'object' && v !== null && !Array.isArray(v) && v.type === 'function';
 export const isNum = (v: Value): v is number => typeof v === 'number';
 
+// o[key] when o has its own property key, so names such as "toString" do not
+// find what every object inherits
+export const own = <T>(o: Record<string, T> | undefined, key: string): T | undefined =>
+  o && Object.prototype.hasOwnProperty.call(o, key) ? o[key] : undefined;
+
+// Throws when a setting from outside the program (render()'s params, kerf -p,
+// the WASM request) is not a value a KerfScript literal could give
+export function checkSetting(name: string, v: unknown, depth = 0): void {
+  if (v === null || v === undefined || ['number', 'string', 'boolean'].includes(typeof v)) return;
+  if (Array.isArray(v) && depth < 32) {
+    for (const x of v) checkSetting(name, x, depth + 1);
+    return;
+  }
+  throw new Error(`Setting "${name}" must be a number, string, boolean or list`);
+}
+
 export function rangeValues(r: Range, limit: number): number[] {
   const out: number[] = [];
   if (r.step === 0) return out;

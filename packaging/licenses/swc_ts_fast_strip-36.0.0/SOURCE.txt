@@ -1,0 +1,2 @@
+swc_ts_fast_strip 36.0.0 was published from commit 6f71ba0ceb4fc3de8b782a3b0afa4d5719024647, which is not in the repository (https://github.com/swc-project/swc). These are its licence files at commit 5e6af6030ef8e3b15cef29913f507bfec6109ab6, the first where crates/swc_ts_fast_strip/Cargo.toml has version 36.0.0:
+https://github.com/swc-project/swc/blob/5e6af6030ef8e3b15cef29913f507bfec6109ab6/LICENSE

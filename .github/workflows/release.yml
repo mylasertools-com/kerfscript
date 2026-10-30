@@ -101,6 +101,14 @@ jobs:
           npm test
       - name: Check the JavaScript engine's licence list
         run: node scripts/wasm-licenses.mjs --check
+      - name: Check the Deno runtime's licence list
+        run: |
+          deno="v$(deno --version | head -1 | cut -d' ' -f2)"
+          if ! grep -q "DENO_VERSION = '$deno'" scripts/cli-licenses.mjs; then
+            echo "::error::scripts/cli-licenses.mjs is not for Deno $deno, which builds kerf"
+            exit 1
+          fi
+          node scripts/cli-licenses.mjs --check
       - name: Make release files
         env:
           KERF_LABEL: ${{ needs.plan.outputs.label }}
@@ -135,6 +143,11 @@ jobs:
           - name: linux-arm64
             runner: ubuntu-22.04-arm
     runs-on: ${{ matrix.runner }}
+    # bash everywhere: on Windows a failed command then fails its step, which
+    # PowerShell does not do for any command but the last
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

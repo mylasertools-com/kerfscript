@@ -1,0 +1,2 @@
+swc_ecma_utils 24.0.0 was published from commit 8d4313921fb2e639ee1d6bacdfb5b071a8d07d36, which is not in the repository (https://github.com/swc-project/swc). These are its licence files at commit 5e6af6030ef8e3b15cef29913f507bfec6109ab6, the first where crates/swc_ecma_utils/Cargo.toml has version 24.0.0:
+https://github.com/swc-project/swc/blob/5e6af6030ef8e3b15cef29913f507bfec6109ab6/LICENSE

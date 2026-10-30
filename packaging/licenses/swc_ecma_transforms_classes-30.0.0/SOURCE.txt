@@ -1,0 +1,2 @@
+swc_ecma_transforms_classes 30.0.0 was published from commit b82dc67157b78e0deaaa2139d2d07902d8f61954, which is not in the repository (https://github.com/swc-project/swc). These are its licence files at commit 5e6af6030ef8e3b15cef29913f507bfec6109ab6, the first where crates/swc_ecma_transforms_classes/Cargo.toml has version 30.0.0:
+https://github.com/swc-project/swc/blob/5e6af6030ef8e3b15cef29913f507bfec6109ab6/LICENSE

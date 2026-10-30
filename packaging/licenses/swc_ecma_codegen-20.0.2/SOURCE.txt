@@ -1,0 +1,2 @@
+swc_ecma_codegen 20.0.2 was published from commit dc794548c75c63410b9f8f7ff32bb9b372f0668c, which is not in the repository (https://github.com/swc-project/swc). These are its licence files at commit f98ca273e88b851b27e5336ee6d3cc882c198dbe, the first where crates/swc_ecma_codegen/Cargo.toml has version 20.0.2:
+https://github.com/swc-project/swc/blob/f98ca273e88b851b27e5336ee6d3cc882c198dbe/LICENSE

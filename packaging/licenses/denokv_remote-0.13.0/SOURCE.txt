@@ -1,0 +1,1 @@
+https://github.com/denoland/denokv/blob/69965d9de110c5e95fa2d54702fbe10cde0aceeb/LICENSE

@@ -1,0 +1,2 @@
+better_scoped_tls 1.0.1 was published from commit 832d537695a07e539660096883fab52bb7f10ecf, which is not in the repository (https://github.com/swc-project/swc). These are its licence files at commit 20551778ff9ce4cbde59b36a1582993f656b2eef, the first where crates/better_scoped_tls/Cargo.toml has version 1.0.1:
+https://github.com/swc-project/swc/blob/20551778ff9ce4cbde59b36a1582993f656b2eef/LICENSE

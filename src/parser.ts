@@ -18,8 +18,9 @@ const KEYWORDS = new Set([
   'undef',
 ]);
 
-export function parse(src: string): { program: Program; comments: Comment[] } {
-  const { tokens, comments } = tokenize(src);
+// file names the library being parsed, for positions and errors
+export function parse(src: string, file?: string): { program: Program; comments: Comment[] } {
+  const { tokens, comments } = tokenize(src, file);
   const p = new Parser(tokens);
   const body: Stmt[] = [];
   while (!p.at('eof')) body.push(...p.statement());

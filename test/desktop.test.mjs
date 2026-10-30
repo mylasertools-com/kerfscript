@@ -10,7 +10,20 @@ function desktop({ invoke = {}, discard = false } = {}) {
   const calls = [];
   const prompts = [];
   let closeHandler = null;
-  const pg = { text: '', load(text) {}, source: () => pg.text };
+  const handlers = {};
+  const pg = {
+    text: '',
+    loads: [],
+    refreshes: 0,
+    load(text) {
+      pg.loads.push(text);
+      pg.text = text;
+    },
+    source: () => pg.text,
+    refresh() {
+      pg.refreshes++;
+    },
+  };
   const element = () => ({
     textContent: '',
     prepend() {},
@@ -20,7 +33,9 @@ function desktop({ invoke = {}, discard = false } = {}) {
   const page = {
     querySelector: () => element(),
     createElement: element,
-    addEventListener() {},
+    addEventListener(type, f) {
+      handlers[type] = f;
+    },
   };
   const window = {
     __TAURI__: {
@@ -36,7 +51,11 @@ function desktop({ invoke = {}, discard = false } = {}) {
           prompts.push(message);
           return discard;
         },
-        async message() {},
+        // What the dialog plugin gives back: the button pressed
+        async message(message) {
+          prompts.push(message);
+          return 'Ok';
+        },
       },
       event: { listen() {} },
       opener: { openUrl() {} },
@@ -67,7 +86,10 @@ function desktop({ invoke = {}, discard = false } = {}) {
     await closeHandler({ preventDefault: () => (prevented = true) });
     return prevented;
   };
-  return { host, pg, calls, prompts, start, close };
+  // Ctrl+<key> in the page
+  const keys = (key, shiftKey = false) =>
+    handlers.keydown({ ctrlKey: true, key, shiftKey, preventDefault() {} });
+  return { host, pg, calls, prompts, start, close, keys };
 }
 
 test('unsaved changes to an untitled design are not lost without asking', async () => {
@@ -136,4 +158,65 @@ test('an untitled design reads no files', async () => {
     d.calls.some(([cmd]) => cmd === 'read_library'),
     false,
   );
+});
+
+test('a file that cannot be opened leaves the open design as it was', async () => {
+  const d = desktop({
+    invoke: {
+      open_pending: { name: 'box', text: 'rect(1);' },
+      open_design: () => Promise.reject('big.kerf is larger than 3 MB'),
+    },
+  });
+  d.pg.text = await d.host.initial();
+  await d.start(d.pg.text);
+  await d.keys('o');
+  await new Promise((r) => setTimeout(r));
+  assert.deepEqual(d.prompts, ['big.kerf is larger than 3 MB']);
+  assert.deepEqual(d.pg.loads, [], 'nothing is loaded');
+  assert.equal(d.host.name(), 'box');
+  // Save still saves box.kerf, not over another file
+  d.pg.text = 'rect(2);';
+  d.calls.length = 0;
+  await d.keys('s');
+  await new Promise((r) => setTimeout(r));
+  assert.equal(d.calls.find(([cmd]) => cmd === 'save_design')[1].saveAs, false);
+});
+
+test('a save that fails keeps the changes unsaved', async () => {
+  const d = desktop({
+    invoke: {
+      open_pending: { name: 'box', text: 'rect(1);' },
+      save_design: () => Promise.reject('box.kerf: permission denied'),
+    },
+  });
+  d.pg.text = await d.host.initial();
+  await d.start(d.pg.text);
+  d.pg.text = 'rect(2);';
+  assert.equal(await d.host.save('box.kerf', 'rect(2);'), false);
+  assert.equal(d.host.name(), 'box');
+  assert.equal(await d.close(), true, 'closing still asks');
+});
+
+test('saving under a new name renders again, for libraries next to it', async () => {
+  const d = desktop({ invoke: { save_design: 'box' } });
+  await d.start('use <lib/tab>;', true);
+  d.pg.text = 'use <lib/tab>; rect(1);';
+  await d.host.save('design.kerf', d.pg.text);
+  assert.equal(d.pg.refreshes, 1);
+  await d.host.save('box.kerf', d.pg.text);
+  assert.equal(d.pg.refreshes, 1, 'not when the name stays');
+});
+
+test('one file dialog at a time', async () => {
+  let finish;
+  const d = desktop({
+    invoke: { save_design: () => new Promise((r) => (finish = r)), open_design: null },
+  });
+  await d.start('rect(1);');
+  d.pg.text = 'rect(2);';
+  const saving = d.host.save('design.kerf', d.pg.text);
+  await d.keys('o');
+  assert.equal(d.calls.filter(([cmd]) => cmd === 'open_design').length, 0);
+  finish('box');
+  assert.equal(await saving, true);
 });

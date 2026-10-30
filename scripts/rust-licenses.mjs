@@ -2,8 +2,9 @@
 
 // Lists the Rust crates compiled into a binary with their licences, source
 // links and licence texts, as Markdown. Used for the desktop app
-// (desktop/scripts/licenses.mjs) and for kerfscript.wasm, whose JavaScript
-// engine comes from Javy (scripts/wasm-licenses.mjs).
+// (desktop/scripts/licenses.mjs), for kerfscript.wasm, whose JavaScript
+// engine comes from Javy (scripts/wasm-licenses.mjs), and for the kerf
+// command line, whose runtime comes from Deno (scripts/cli-licenses.mjs).
 //
 // A crate's licence texts are the licence files it ships, including those of
 // C or C++ sources it bundles. A crate published without any comes from
@@ -22,7 +23,9 @@ const SKIP_DIRS = /^(\.|target$|tests?$|benches$|examples?$|fixtures$|docs?$)/;
 const UPSTREAM = fileURLToPath(new URL('../packaging/licenses/', import.meta.url));
 // Repositories of crates whose package metadata leaves them out
 const REPOSITORIES = {
+  'aead-gcm-stream': 'https://github.com/littledivy/aead-gcm-stream',
   'libappindicator-sys': 'https://github.com/tauri-apps/libappindicator-rs',
+  'zune-core': 'https://github.com/etemesi254/zune-image',
 };
 
 // Crates whose code is in the binary: normal dependencies, without
@@ -143,6 +146,7 @@ export function rustLicenses({
   const rows = [];
   const unresolved = [];
   for (const pkg of crates) {
+    const id = `${pkg.name} ${pkg.version}`;
     const dir = dirname(pkg.manifest_path);
     let files = licenceFiles(dir).map((path) => ({ path, label: relative(dir, path) }));
     // Workspace crates without their own licence use the workspace's
@@ -165,16 +169,17 @@ export function rustLicenses({
             .sort()
             .map((f) => ({ path: join(upstream, f), label: `${f} (added)` })),
         );
-      else unresolved.push(`${pkg.name} ${pkg.version}`);
+      else unresolved.push(id);
     }
-    if (!files.length) unresolved.push(`${pkg.name} ${pkg.version}`);
+    if (!files.length && !unresolved.includes(id)) unresolved.push(id);
     const refs = [];
     for (const { path, label } of files) {
       const body = normalise(readFileSync(path, 'utf8'));
       if (!body) continue;
       const hash = createHash('sha256').update(body).digest('hex').slice(0, 12);
       if (!texts.has(hash)) texts.set(hash, { body, crates: [] });
-      texts.get(hash).crates.push(`${pkg.name} ${pkg.version}`);
+      const users = texts.get(hash).crates;
+      if (!users.includes(id)) users.push(id);
       refs.push(`[${label.replace(/\\/g, '/')}](#${hash})`);
     }
     const source = pkg.source

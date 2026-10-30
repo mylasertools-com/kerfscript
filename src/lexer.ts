@@ -6,7 +6,14 @@ export interface Pos {
   line: number;
   col: number;
   offset: number;
+  // The library the position is in, as `use <path>` named it; none for the
+  // program itself
+  file?: string;
 }
+
+// "line 3, column 5", and "in <lib/tabs>" for a position in a library
+export const where = (pos: Pos, col = true) =>
+  `line ${pos.line}${col ? `, column ${pos.col}` : ''}${pos.file ? ` in <${pos.file}>` : ''}`;
 
 export interface Token {
   type: TokenType;
@@ -26,12 +33,15 @@ export class KerfError extends Error {
   col?: number;
   echoes: string[] = [];
   missingFonts?: string[];
+  // The library the error is in; line and col are in that file
+  file?: string;
   constructor(message: string, pos?: Pos) {
-    super(pos ? `${message} (line ${pos.line}, column ${pos.col})` : message);
+    super(pos ? `${message} (${where(pos)})` : message);
     this.name = 'KerfError';
     if (pos) {
       this.line = pos.line;
       this.col = pos.col;
+      this.file = pos.file;
     }
   }
 }
@@ -67,13 +77,13 @@ const PUNCT = [
   '#',
 ];
 
-export function tokenize(src: string): { tokens: Token[]; comments: Comment[] } {
+export function tokenize(src: string, file?: string): { tokens: Token[]; comments: Comment[] } {
   const tokens: Token[] = [];
   const comments: Comment[] = [];
   let i = 0;
   let line = 1;
   let lineStart = 0;
-  const pos = (): Pos => ({ line, col: i - lineStart + 1, offset: i });
+  const pos = (): Pos => ({ line, col: i - lineStart + 1, offset: i, ...(file && { file }) });
   const advance = (n: number) => {
     for (let k = 0; k < n; k++) {
       if (src[i] === '\n') {

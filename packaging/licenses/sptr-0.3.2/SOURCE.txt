@@ -1,0 +1,3 @@
+The repository (https://github.com/Gankra/sptr) has no licence file, at commit e59792814876b4948279ec3121921fbe827b1077 that 0.3.2 was published from or since, and its source files name none. Its Cargo.toml declares license = "MIT OR Apache-2.0"; LICENSE-APACHE and LICENSE-MIT are the licence texts from the SPDX licence list:
+https://github.com/spdx/license-list-data/blob/31846481de7ea17d92f2f46fad76abe58b2e9bb0/text/Apache-2.0.txt
+https://github.com/spdx/license-list-data/blob/31846481de7ea17d92f2f46fad76abe58b2e9bb0/text/MIT.txt

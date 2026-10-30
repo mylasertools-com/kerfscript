@@ -1,7 +1,7 @@
 // Copyright (c) 2026 MyLaserTools. SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-MyLaserTools-Commercial
 
 import type { Arg, Assign, Expr, ListItem, Param, Program, Stmt } from './ast.js';
-import { argumentWork, bindArgs, FUNCTIONS } from './functions.js';
+import { argumentWork, bindArgs, FUNCTIONS, givenTwice } from './functions.js';
 import {
   clipLines,
   difference,
@@ -27,7 +27,7 @@ import {
   type Shape,
 } from './geometry.js';
 import { fingerCount, fingerHoles, fingerRect, livingHinge, tslot, type Edge } from './joinery.js';
-import { KerfError, type Pos } from './lexer.js';
+import { KerfError, where, type Pos } from './lexer.js';
 import { parse } from './parser.js';
 import { LIBRARIES } from './stdlib.js';
 import { flatten, parseSvgPath } from './paths.js';
@@ -36,6 +36,7 @@ import {
   equals,
   isFn,
   isRange,
+  own,
   rangeValues,
   show,
   toNumber,
@@ -252,10 +253,10 @@ export class Evaluator {
   private load(path: string, at: Pos): Program {
     const hit = this.loaded.get(path);
     if (hit) return hit;
-    const src = STDLIB[path] ?? this.opts.resolve?.(path);
-    if (src === undefined) throw new KerfError(`Library <${path}> not found`, at);
+    const src = own(STDLIB, path) ?? this.opts.resolve?.(path);
+    if (typeof src !== 'string') throw new KerfError(`Library <${path}> not found`, at);
     this.loaded.set(path, { body: [] });
-    const { program } = parse(src);
+    const { program } = parse(src, path);
     this.loaded.set(path, program);
     return program;
   }
@@ -411,7 +412,11 @@ export class Evaluator {
   }
 
   private unknownArg(what: string, name: string, at: Pos) {
-    const warning = `${what}: unknown argument "${name}" (line ${at.line})`;
+    this.warn(`${what}: unknown argument "${name}" (${where(at, false)})`);
+  }
+
+  // A warning, once however often it comes up
+  private warn(warning: string) {
     if (!this.warnings.includes(warning)) this.warnings.push(warning);
   }
 
@@ -431,7 +436,7 @@ export class Evaluator {
         this.depth--;
       }
     }
-    const b = this.builtins[s.name];
+    const b = own(this.builtins, s.name);
     if (!b) {
       const hint =
         s.name === 'color'
@@ -640,14 +645,19 @@ export class Evaluator {
         if (f) return this.callFunction(f, this.evalArgs(x.args, env, x.pos), env, name);
         const special = this.specialFunction(name, x, env);
         if (special.handled) return special.value;
-        const b = FUNCTIONS[name];
+        const b = own(FUNCTIONS, name);
         if (b) {
           const args = this.evalArgs(x.args, env, x.pos);
           for (const k of args.named.keys())
             if (!k.startsWith('$') && !b.params.includes(k)) this.unknownArg(`${name}()`, k, x.pos);
+          for (const k of givenTwice(b, args.pos, args.named))
+            this.warn(
+              `${name}(): "${k}" is given by position and by name; the named value is used (${where(x.pos, false)})`,
+            );
           const ctx = {
             maxLength: this.limits.maxListLength,
             step: (n?: number) => this.tick(x.pos, n),
+            given: args.pos.length + b.params.filter((p) => args.named.has(p)).length,
           };
           const bound = bindArgs(b, args.pos, args.named);
           // Built-ins that go through their arguments take a step per item
@@ -787,6 +797,11 @@ export class Evaluator {
         };
         if (Array.isArray(b[0])) {
           const cols = (b[0] as Value[]).length;
+          if (a.length !== b.length || b.some((r) => !Array.isArray(r) || r.length !== cols))
+            throw new KerfError(
+              `Can't multiply a list of length ${a.length} by a matrix: it needs ${a.length} rows of the same length`,
+              at,
+            );
           this.checkSize(cols, false, at);
           this.tick(at, cols * a.length);
           return Array.from({ length: cols }, (_, j) =>
@@ -906,9 +921,16 @@ export class Evaluator {
         'text needs a font. Pass fonts to render(), or --font on the command line.',
         a.at,
       );
-    const text = toText(this.arg(a, 'text', 0, ''));
+    const shown = write(this.arg(a, 'text', 0, ''), this.limits.maxTextLength);
+    if (!shown.whole)
+      throw new KerfError(
+        `the text is more than ${this.limits.maxTextLength} characters, the limit for one text()`,
+        a.at,
+      );
+    // Laying out text takes a step for each character
+    this.tick(a.at, shown.text.length);
     try {
-      return textMetrics(this.opts.fonts, text, this.textOpts(a, env));
+      return textMetrics(this.opts.fonts, shown.text, this.textOpts(a, env));
     } catch (e) {
       if (e instanceof KerfError) throw e;
       throw new KerfError((e as Error).message, a.at);
@@ -1038,6 +1060,7 @@ export class Evaluator {
           throw new Error(
             `the text is more than ${this.limits.maxTextLength} characters, the limit for one text()`,
           );
+        this.tick(c.args.at, shown.text.length);
         return regionShape(textRegions(this.opts.fonts, shown.text, this.textOpts(c.args, c.env)));
       },
       translate: (c) => {

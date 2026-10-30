@@ -1,0 +1,2 @@
+swc_ecma_transforms_proposal 30.0.0 was published from commit b294d6f6a47934b3baa04229d232f9e1889db1a5, which is not in the repository (https://github.com/swc-project/swc). These are its licence files at commit 5e6af6030ef8e3b15cef29913f507bfec6109ab6, the first where crates/swc_ecma_transforms_proposal/Cargo.toml has version 30.0.0:
+https://github.com/swc-project/swc/blob/5e6af6030ef8e3b15cef29913f507bfec6109ab6/LICENSE

@@ -1,0 +1,2 @@
+The repository (https://github.com/kornelski/rust-lcms2-sys) has no licence file, at commit b8e9c3efcf266b88600318fb519c073b9ebb61b7 that 4.0.5 was published from or since; the crate ships only the licence of the Little CMS sources it bundles (vendor/LICENSE). Its Cargo.toml declares license = "MIT"; LICENSE is the licence text from the SPDX licence list:
+https://github.com/spdx/license-list-data/blob/31846481de7ea17d92f2f46fad76abe58b2e9bb0/text/MIT.txt

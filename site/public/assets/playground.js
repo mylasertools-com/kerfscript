@@ -9,7 +9,7 @@ import { highlight } from './highlight.js';
 import { buildControls, setInSource } from './controls.js';
 import { createEngine } from './engine.js';
 import { zip } from './zip.js';
-import { MAX_SOURCE, encode, startCode } from './source.js';
+import { MAX_SOURCE, encode, hasOwn, startCode } from './source.js';
 
 const DRAFT = 'kerfscript-playground';
 const root = document.querySelector('[data-playground]');
@@ -33,7 +33,18 @@ const run = createEngine();
 // Set by the desktop app (desktop/src/desktop.js): files on disk instead of
 // downloads, and libraries next to the open file.
 const host = window.kerfHost;
-const examples = await (await fetch('/assets/examples.json')).json();
+// The examples for the picker. Without them the page still works, with
+// the code from a link, a draft or the line below.
+let examples = {};
+let examplesProblem = null;
+try {
+  const res = await fetch('/assets/examples.json');
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  examples = await res.json();
+} catch (e) {
+  examplesProblem = `The examples could not be loaded (${e.message})`;
+}
+const FALLBACK = 'rect([60, 40]);\n';
 // Desktop app only: open the cut file in LightBurn, next to the SVG and DXF buttons
 const lightburnButton = host?.lightburn
   ? Object.assign(document.createElement('button'), {
@@ -90,6 +101,9 @@ function stale(on) {
 
 function edited() {
   notice = null;
+  // A link's code is now older than the editor's: reloading should keep the
+  // edits (from the draft), not open the link again
+  if (!host && location.hash) history.replaceState(null, '', location.pathname + location.search);
   setReady(null);
   stale(true);
   paint();
@@ -99,7 +113,7 @@ function edited() {
 
 // The example in the picker, or "Your code" once the code is edited by hand
 function showDesign(slug) {
-  picker.value = slug && examples[slug] ? slug : '';
+  picker.value = slug && hasOwn(examples, slug) ? slug : '';
   history.replaceState(null, '', picker.value ? `?model=${picker.value}` : location.pathname);
 }
 
@@ -146,7 +160,8 @@ function showFigure() {
 // Several sheets: a picker for the preview, and a cut file for each sheet
 function showSheets() {
   const many = last.sheets.length > 1;
-  if (shown >= last.sheets.length) shown = -1;
+  // One sheet has no cut file of its own: show the whole result
+  if (!many || shown >= last.sheets.length) shown = -1;
   sheetPick.parentElement.hidden = !many;
   svgButton.hidden = many;
   dxfButton.hidden = many;
@@ -213,6 +228,7 @@ function updateSettings() {
     if (next === input.value) return;
     input.value = next;
     edited();
+    if (picker.value) showDesign('');
     schedule(60);
   });
   if (!params.length)
@@ -321,6 +337,7 @@ picker.addEventListener('change', async () => {
     return;
   }
   picker.value = slug;
+  notice = null;
   load(examples[picker.value]);
   showDesign(picker.value);
   saveDraft();
@@ -407,6 +424,8 @@ host?.attach({
     showDesign('');
   },
   source: () => input.value,
+  // Render again, as when the libraries the code uses have changed
+  refresh: () => schedule(0),
 });
 let draft = null;
 try {
@@ -418,9 +437,12 @@ const { code: start, problem } = await startCode({
   model,
   examples,
   draft,
+  fallback: FALLBACK,
 });
 picker.value = Object.keys(examples).find((slug) => examples[slug] === start) ?? '';
-notice = problem
-  ? `${problem}. Showing ${picker.value ? 'an example' : 'your last code'} instead.`
-  : null;
+const instead = picker.value ? 'an example' : start === draft ? 'your last code' : 'a new design';
+notice =
+  [problem && `${problem}. Showing ${instead} instead.`, examplesProblem]
+    .filter(Boolean)
+    .join('. ') || null;
 load(start);

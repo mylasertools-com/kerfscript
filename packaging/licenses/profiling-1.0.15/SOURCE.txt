@@ -1,0 +1,2 @@
+https://github.com/aclysma/profiling/blob/2f000e192aa804e043021fd851ce1f077f73f76a/LICENSE-APACHE
+https://github.com/aclysma/profiling/blob/2f000e192aa804e043021fd851ce1f077f73f76a/LICENSE-MIT

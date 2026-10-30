@@ -1,0 +1,2 @@
+https://github.com/qnighy/yasna.rs/blob/b7e65f9a4c317494cce2d18ea02b3d6eaaea7985/LICENSE-APACHE
+https://github.com/qnighy/yasna.rs/blob/b7e65f9a4c317494cce2d18ea02b3d6eaaea7985/LICENSE-MIT

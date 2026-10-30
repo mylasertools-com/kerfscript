@@ -42,6 +42,7 @@ jobs:
           npm run wasm
           npm test
           node scripts/wasm-licenses.mjs --check
+          node scripts/cli-licenses.mjs --check
       - name: Website
         run: |
           npm --prefix site ci

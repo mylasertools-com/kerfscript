@@ -1,0 +1,2 @@
+https://github.com/libffi-rs/libffi-rs/blob/7b1471ad430dd899046280f79066fc2d9b0fac90/LICENSE-APACHE
+https://github.com/libffi-rs/libffi-rs/blob/7b1471ad430dd899046280f79066fc2d9b0fac90/LICENSE-MIT

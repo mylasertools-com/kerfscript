@@ -1,0 +1,2 @@
+https://github.com/etemesi254/zune-image/blob/d45a0a0380530e164ac9a58d62ea330c95d74daf/LICENSE-ZLIB
+https://github.com/etemesi254/zune-image/blob/d45a0a0380530e164ac9a58d62ea330c95d74daf/LICENSE.md

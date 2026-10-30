@@ -1,0 +1,1 @@
+https://github.com/bytecodealliance/wasmtime/blob/58282df898d79a787a726d829b166272dde155b9/LICENSE

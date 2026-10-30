@@ -85,6 +85,8 @@ for (const [name, triple] of targets) {
     work,
   );
   for (const [from, to] of DOCS) copyFileSync(from, join(work, dir, to));
+  // The Deno runtime that deno compile builds into kerf
+  copyFileSync('packaging/cli/THIRD-PARTY-LICENSES.md', join(work, dir, 'THIRD-PARTY-LICENSES.md'));
   if (name.startsWith('linux')) {
     copyFileSync('packaging/linux/kerf.1', join(work, dir, 'kerf.1'));
     copyFileSync('packaging/linux/kerfscript.xml', join(work, dir, 'kerfscript.xml'));
@@ -101,14 +103,15 @@ for (const [name, triple] of targets) {
 }
 
 // .deb and .rpm packages with nfpm (https://nfpm.goreleaser.com). nfpm reads
-// YAML, and JSON is YAML.
+// YAML, and JSON is YAML. The package is kerfscript-cli: the desktop app's
+// packages are named kerfscript, and both can be installed.
 function linuxPackages(dir, arch) {
   const config = join(work, `${dir}-nfpm.yaml`);
-  const docs = '/usr/share/doc/kerfscript/';
+  const docs = '/usr/share/doc/kerfscript-cli/';
   writeFileSync(
     config,
     JSON.stringify({
-      name: 'kerfscript',
+      name: 'kerfscript-cli',
       arch,
       version: label,
       maintainer: 'MyLaserTools <hi@mylasertools.com>',
@@ -119,12 +122,15 @@ function linuxPackages(dir, arch) {
         { src: `${dir}/kerf`, dst: '/usr/bin/kerf', file_info: { mode: 0o755 } },
         { src: `${dir}/kerf.1`, dst: '/usr/share/man/man1/kerf.1' },
         { src: `${dir}/kerfscript.xml`, dst: '/usr/share/mime/packages/kerfscript.xml' },
-        ...DOCS.map(([, to]) => ({ src: `${dir}/${to}`, dst: docs + to })),
+        ...[...DOCS.map(([, to]) => to), 'THIRD-PARTY-LICENSES.md'].map((to) => ({
+          src: `${dir}/${to}`,
+          dst: docs + to,
+        })),
       ],
     }),
   );
   return ['deb', 'rpm'].map((packager) => {
-    const file = `kerfscript-${label}-linux-${arch === 'arm64' ? 'arm64' : 'x64'}.${packager}`;
+    const file = `kerfscript-cli-${label}-linux-${arch === 'arm64' ? 'arm64' : 'x64'}.${packager}`;
     run(
       'nfpm',
       ['package', '-f', config, '-p', packager, '-t', join(process.cwd(), out, file)],

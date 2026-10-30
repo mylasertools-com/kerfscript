@@ -1,0 +1,1 @@
+https://github.com/denoland/import_map/blob/4696fcc03310ea0e7d3adf46810310fd9203403d/LICENSE

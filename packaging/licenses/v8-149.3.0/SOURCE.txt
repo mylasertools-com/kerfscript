@@ -1,0 +1,31 @@
+LICENSE (rusty_v8, the v8 crate's own code):
+https://github.com/denoland/rusty_v8/blob/ca9ea592f19c1aa580001aba1b7d81b645912a25/LICENSE
+
+The crate also builds in V8 and the C and C++ libraries below (its static
+library is built from rusty_v8's submodules at that commit), but excludes all
+of their licence files. The other files are those libraries' licence files at
+the submodule commits; libraries that are only used on other platforms, in
+tests or while building are left out.
+v8-LICENSE: https://github.com/denoland/v8/blob/73d19698991616a34a00ca691a6e697dbb69e2ef/LICENSE
+v8-LICENSE.fdlibm: https://github.com/denoland/v8/blob/73d19698991616a34a00ca691a6e697dbb69e2ef/LICENSE.fdlibm
+v8-LICENSE.strongtalk: https://github.com/denoland/v8/blob/73d19698991616a34a00ca691a6e697dbb69e2ef/LICENSE.strongtalk
+v8-LICENSE.v8: https://github.com/denoland/v8/blob/73d19698991616a34a00ca691a6e697dbb69e2ef/LICENSE.v8
+v8-inspector_protocol-LICENSE: https://github.com/denoland/v8/blob/73d19698991616a34a00ca691a6e697dbb69e2ef/third_party/inspector_protocol/LICENSE
+v8-siphash-LICENSE: https://github.com/denoland/v8/blob/73d19698991616a34a00ca691a6e697dbb69e2ef/third_party/siphash/LICENSE
+v8-utf8-decoder-LICENSE: https://github.com/denoland/v8/blob/73d19698991616a34a00ca691a6e697dbb69e2ef/third_party/utf8-decoder/LICENSE
+v8-rapidhash-v8-LICENSE: https://github.com/denoland/v8/blob/73d19698991616a34a00ca691a6e697dbb69e2ef/third_party/rapidhash-v8/LICENSE
+v8-glibc-LICENSE: https://github.com/denoland/v8/blob/73d19698991616a34a00ca691a6e697dbb69e2ef/third_party/glibc/LICENSE
+v8-valgrind-LICENSE: https://github.com/denoland/v8/blob/73d19698991616a34a00ca691a6e697dbb69e2ef/third_party/valgrind/LICENSE
+icu-LICENSE: https://chromium.googlesource.com/chromium/deps/icu/+/ee5f27adc28bd3f15b2c293f726d14d2e336cbd5/LICENSE
+abseil-cpp-LICENSE: https://chromium.googlesource.com/chromium/src/third_party/abseil-cpp/+/5e42a36a85a252d8cdee6c39661d2bfd9883fd5c/LICENSE
+simdutf-LICENSE: https://chromium.googlesource.com/chromium/src/third_party/simdutf/+/f7356eed293f8208c40b3c1b344a50bd70971983/LICENSE
+highway-LICENSE: https://chromium.googlesource.com/external/github.com/google/highway/+/2607d3b5b0113992fe84d3848859eae13b3b52c1/LICENSE
+fast_float-LICENSE-APACHE: https://chromium.googlesource.com/external/github.com/fastfloat/fast_float/+/05087a303dad9c98768b33c829d398223a649bc6/LICENSE-APACHE
+fast_float-LICENSE-BOOST: https://chromium.googlesource.com/external/github.com/fastfloat/fast_float/+/05087a303dad9c98768b33c829d398223a649bc6/LICENSE-BOOST
+fast_float-LICENSE-MIT: https://chromium.googlesource.com/external/github.com/fastfloat/fast_float/+/05087a303dad9c98768b33c829d398223a649bc6/LICENSE-MIT
+dragonbox-LICENSE-Apache2-LLVM: https://chromium.googlesource.com/external/github.com/jk-jeon/dragonbox/+/beeeef91cf6fef89a4d4ba5e95d47ca64ccb3a44/LICENSE-Apache2-LLVM
+dragonbox-LICENSE-Boost: https://chromium.googlesource.com/external/github.com/jk-jeon/dragonbox/+/beeeef91cf6fef89a4d4ba5e95d47ca64ccb3a44/LICENSE-Boost
+fp16-LICENSE: https://github.com/Maratyszcza/FP16/blob/3d2de1816307bac63c16a297e8c4dc501b4076df/LICENSE
+libc++-LICENSE.TXT: https://chromium.googlesource.com/external/github.com/llvm/llvm-project/libcxx/+/99457fa555797f8c5ac3c076ca288d8481d3b23a/LICENSE.TXT
+libc++abi-LICENSE.TXT: https://chromium.googlesource.com/external/github.com/llvm/llvm-project/libcxxabi/+/8f11bb1d4438d0239d0dfc1bd9456a9f31629dda/LICENSE.TXT
+llvm-libc-LICENSE.TXT: https://chromium.googlesource.com/external/github.com/llvm/llvm-project/libc/+/cb952785ccee13811f293f3c419958d1e3ddafbf/LICENSE.TXT

@@ -18,19 +18,19 @@ Desktop app (`desktop/`, Tauri):
 
 Command line, WebAssembly and library:
 
-| Channel            | Name                                                                                              | Made by                        | Releases                 | Nightlies                    |
-| ------------------ | ------------------------------------------------------------------------------------------------- | ------------------------------ | ------------------------ | ---------------------------- |
-| npm                | `@mylasertools/kerfscript`                                                                        | `npm publish` by hand          | yes                      | no                           |
-| GitHub releases    | `kerf-<v>-<os>-<arch>.zip/.tar.gz`, `kerfscript-<v>.wasm`, `kerfscript-<v>-linux-<arch>.deb/.rpm` | workflow                       | draft, published by hand | rolling `nightly` prerelease |
-| Docker             | `ghcr.io/mylasertools/kerfscript`, `mylasertools/kerfscript`                                      | workflow                       | `<v>`, `latest`          | `dev`, `dev.YYYY-MM-DD`      |
-| Snap Store         | `kerfscript`                                                                                      | workflow                       | `stable`                 | `edge`                       |
-| Homebrew           | `mylasertools/tap/kerfscript`                                                                     | manifest from the workflow     | yes                      | no                           |
-| Scoop              | `kerfscript`                                                                                      | manifest from the workflow     | yes                      | no                           |
-| winget             | `MyLaserTools.KerfScript.CLI`                                                                     | manifest from the workflow     | yes                      | no                           |
-| Chocolatey         | `kerfscript`                                                                                      | manifest from the workflow     | yes                      | no                           |
-| MacPorts           | `kerfscript`                                                                                      | manifest from the workflow     | yes                      | no                           |
-| AUR                | `kerfscript-bin`                                                                                  | manifest from the workflow     | yes                      | no                           |
-| Website playground | kerfscript.mylasertools.com                                                                       | `npm --prefix site run deploy` | yes                      | no                           |
+| Channel            | Name                                                                                                  | Made by                        | Releases                 | Nightlies                    |
+| ------------------ | ----------------------------------------------------------------------------------------------------- | ------------------------------ | ------------------------ | ---------------------------- |
+| npm                | `@mylasertools/kerfscript`                                                                            | `npm publish` by hand          | yes                      | no                           |
+| GitHub releases    | `kerf-<v>-<os>-<arch>.zip/.tar.gz`, `kerfscript-<v>.wasm`, `kerfscript-cli-<v>-linux-<arch>.deb/.rpm` | workflow                       | draft, published by hand | rolling `nightly` prerelease |
+| Docker             | `ghcr.io/mylasertools/kerfscript`, `mylasertools/kerfscript`                                          | workflow                       | `<v>`, `latest`          | `dev`, `dev.YYYY-MM-DD`      |
+| Snap Store         | `kerfscript`                                                                                          | workflow                       | `stable`                 | `edge`                       |
+| Homebrew           | `mylasertools/tap/kerfscript`                                                                         | manifest from the workflow     | yes                      | no                           |
+| Scoop              | `kerfscript`                                                                                          | manifest from the workflow     | yes                      | no                           |
+| winget             | `MyLaserTools.KerfScript.CLI`                                                                         | manifest from the workflow     | yes                      | no                           |
+| Chocolatey         | `kerfscript`                                                                                          | manifest from the workflow     | yes                      | no                           |
+| MacPorts           | `kerfscript`                                                                                          | manifest from the workflow     | yes                      | no                           |
+| AUR                | `kerfscript-bin`                                                                                      | manifest from the workflow     | yes                      | no                           |
+| Website playground | kerfscript.mylasertools.com                                                                           | `npm --prefix site run deploy` | yes                      | no                           |
 
 Every file in a GitHub release has a `.sha256` and `.sha512` file, and an
 `.asc` GPG signature once `GPG_PRIVATE_KEY` is set. `SHA256SUMS` lists them
@@ -96,13 +96,21 @@ links and licence texts:
 - `packaging/wasm/THIRD-PARTY-LICENSES.md`: the JavaScript engine Javy builds
   into kerfscript.wasm. After changing `JAVY_VERSION` (in both workflows and
   `scripts/wasm-licenses.mjs`), run `node scripts/wasm-licenses.mjs`.
+- `packaging/cli/THIRD-PARTY-LICENSES.md`: the Deno runtime, with V8, that
+  `deno compile` builds into the `kerf` binaries. After changing
+  `deno-version` in the release workflow (and `DENO_VERSION` in
+  `scripts/cli-licenses.mjs`, which the workflow checks), run
+  `node scripts/cli-licenses.mjs`. The `v8` crate ships none of the licence
+  files of V8 and the libraries built into it, so
+  `packaging/licenses/v8-<version>/` holds them, from rusty_v8's submodules;
+  a new `v8` version needs them fetched again.
 
-Both stop when a crate ships no licence file. Run them with `--fetch` to
+All three stop when a crate ships no licence file. Run them with `--fetch` to
 download the licence files of its repository at the commit it was published
 from into `packaging/licenses/<crate>-<version>/`, read what came back, and
 commit it. When a repository has none either, add the licence text the
 crate's source files name there by hand, with a SOURCE.txt saying where it is
-from. CI fails while either list is out of date.
+from. CI fails while a list is out of date.
 
 The installers, the WASM module and every archive carry LICENSE,
 COMMERCIAL-LICENSE.md, THIRD-PARTY-NOTICES.md and OFL.txt as well;

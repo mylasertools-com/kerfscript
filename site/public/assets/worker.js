@@ -4,6 +4,8 @@
 
 import { KerfError, render } from './kerfscript.js';
 
+const own = (o, k) => (Object.prototype.hasOwnProperty.call(o, k) ? o[k] : undefined);
+
 const font = fetch(new URL('./fonts/AtkinsonHyperlegible-Regular.ttf', import.meta.url)).then((r) =>
   r.arrayBuffer(),
 );
@@ -16,7 +18,7 @@ self.onmessage = async (event) => {
       params,
       fonts: { Atkinson: await font },
       defaultFont: 'Atkinson',
-      resolve: files ? (p) => files[p] ?? files[p + '.kerf'] : undefined,
+      resolve: files ? (p) => own(files, p) ?? own(files, p + '.kerf') : undefined,
     });
     self.postMessage({
       id,
@@ -43,7 +45,8 @@ self.onmessage = async (event) => {
       id,
       ok: false,
       error: error instanceof Error ? error.message : String(error),
-      line: error instanceof KerfError ? error.line : undefined,
+      // A line in the program, not in a library it uses
+      line: error instanceof KerfError && !error.file ? error.line : undefined,
       echoes: error instanceof KerfError ? error.echoes : [],
     });
   }

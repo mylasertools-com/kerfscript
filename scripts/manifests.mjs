@@ -328,7 +328,7 @@ if (has(cli('linux-x64'), cli('linux-arm64')))
   install -Dm755 kerf "$pkgdir/usr/bin/kerf"
   install -Dm644 kerf.1 "$pkgdir/usr/share/man/man1/kerf.1"
   install -Dm644 kerfscript.xml "$pkgdir/usr/share/mime/packages/kerfscript.xml"
-  install -Dm644 LICENSE COMMERCIAL-LICENSE.md OFL.txt THIRD-PARTY-NOTICES.md -t "$pkgdir/usr/share/licenses/$pkgname/"`,
+  install -Dm644 LICENSE COMMERCIAL-LICENSE.md OFL.txt THIRD-PARTY-NOTICES.md THIRD-PARTY-LICENSES.md -t "$pkgdir/usr/share/licenses/$pkgname/"`,
   });
 if (has(app('linux-x64.deb'), app('linux-arm64.deb')))
   aur('kerfscript-desktop-bin', {

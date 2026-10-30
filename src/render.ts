@@ -19,7 +19,7 @@ import {
 import { KerfError } from './lexer.js';
 import { parse } from './parser.js';
 import { FontBook, type FontSource } from './text.js';
-import { toNumber, toText, type Value } from './values.js';
+import { checkSetting, toNumber, toText, type Value } from './values.js';
 
 export interface RenderOptions {
   params?: Record<string, Value>;
@@ -89,6 +89,13 @@ const perimeter = (p: [number, number][], closed: boolean) => {
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
 export function render(source: string, options: RenderOptions = {}): RenderResult {
+  for (const [name, v] of Object.entries(options.params ?? {})) {
+    try {
+      checkSetting(name, v);
+    } catch (e) {
+      throw new KerfError((e as Error).message);
+    }
+  }
   const { program } = parse(source);
   const fonts = options.fonts ? new FontBook(options.fonts, options.defaultFont) : undefined;
   const ev = new Evaluator({

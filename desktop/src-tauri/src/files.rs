@@ -10,7 +10,7 @@ use serde::Serialize;
 use std::io::Read;
 use std::path::{Component, Path, PathBuf};
 use std::sync::Mutex;
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Manager, Window};
 use tauri_plugin_dialog::{DialogExt, FilePath, MessageDialogButtons, MessageDialogKind};
 
 /// Largest design or library file, in bytes: the playground's 1,000,000
@@ -29,23 +29,24 @@ const LEGAL: [&str; 5] = [
 pub struct Session {
     /// The open design
     design: Option<PathBuf>,
-    /// Files the system asked the app to open, not opened yet
-    pending: Vec<PathBuf>,
+    /// The file the system last asked the app to open, not opened yet. The
+    /// window shows one design, so a newer request replaces an older one.
+    pending: Option<PathBuf>,
 }
 
 pub type State = Mutex<Session>;
 
-pub fn session(pending: Vec<PathBuf>) -> State {
+pub fn session(pending: Option<PathBuf>) -> State {
     Mutex::new(Session {
         design: None,
         pending,
     })
 }
 
-/// Adds a file the system asked the app to open (macOS sends these as events).
+/// A file the system asked the app to open (macOS sends these as events).
 #[cfg(target_os = "macos")]
 pub fn add_pending(app: &AppHandle, path: PathBuf) {
-    app.state::<State>().lock().unwrap().pending.push(path);
+    app.state::<State>().lock().unwrap().pending = Some(path);
 }
 
 #[derive(Serialize)]
@@ -86,7 +87,8 @@ pub fn read_bounded(path: &Path, max: u64) -> Result<String, String> {
 }
 
 /// The file a `use <path>` or `include <path>` names, in the design's folder or
-/// below it, with or without .kerf.
+/// below it, with or without .kerf. Only .kerf files are read, so a design
+/// cannot read other files that happen to be in its folder.
 pub fn library_path(design: &Path, path: &str) -> Result<PathBuf, String> {
     let wanted = Path::new(path);
     if wanted
@@ -102,33 +104,36 @@ pub fn library_path(design: &Path, path: &str) -> Result<PathBuf, String> {
         .ok_or("The design has no folder")?
         .canonicalize()
         .map_err(|e| e.to_string())?;
-    for candidate in [path.to_string(), format!("{path}.kerf")] {
-        let full = root.join(&candidate);
-        if !full.is_file() {
-            continue;
-        }
-        // A link may point outside the folder
-        let real = full.canonicalize().map_err(|e| e.to_string())?;
-        if !real.starts_with(&root) {
-            return Err(format!("<{path}> is outside the design's folder"));
-        }
-        return Ok(real);
+    let full = with_extension(root.join(wanted), "kerf");
+    if !full.is_file() {
+        return Err(format!("<{path}> was not found next to the design"));
     }
-    Err(format!("<{path}> was not found next to the design"))
+    // A link may point outside the folder, or to a file that is not .kerf
+    let real = full.canonicalize().map_err(|e| e.to_string())?;
+    if !real.starts_with(&root) {
+        return Err(format!("<{path}> is outside the design's folder"));
+    }
+    if !has_extension(&real, "kerf") {
+        return Err(format!("<{path}> is not a .kerf file"));
+    }
+    Ok(real)
 }
 
-/// A design's file name ends in .kerf. Some save dialogs (GTK on Linux) return
-/// the name as typed, so .kerf is added after it: "box" becomes "box.kerf" and
-/// "box.v2" becomes "box.v2.kerf".
-fn with_kerf(path: PathBuf) -> PathBuf {
-    if path
-        .extension()
-        .is_some_and(|e| e.eq_ignore_ascii_case("kerf"))
-    {
+fn has_extension(path: &Path, ext: &str) -> bool {
+    path.extension()
+        .is_some_and(|e| e.eq_ignore_ascii_case(ext))
+}
+
+/// A file name that ends in `.ext`. Some save dialogs (GTK on Linux) return
+/// the name as typed, so the extension is added after it: "box" becomes
+/// "box.kerf" and "box.v2" becomes "box.v2.kerf".
+fn with_extension(path: PathBuf, ext: &str) -> PathBuf {
+    if has_extension(&path, ext) {
         return path;
     }
     let mut name = path.into_os_string();
-    name.push(".kerf");
+    name.push(".");
+    name.push(ext);
     PathBuf::from(name)
 }
 
@@ -159,22 +164,28 @@ async fn blocking<T: Send + 'static>(
         .map_err(|e| e.to_string())?
 }
 
-/// Opens the next file the system asked for, if any.
+/// Opens the file the system asked for, if any.
 #[tauri::command]
 pub fn open_pending(app: AppHandle) -> Result<Option<Design>, String> {
-    let next = {
-        let state = app.state::<State>();
-        let mut s = state.lock().unwrap();
-        (!s.pending.is_empty()).then(|| s.pending.remove(0))
-    };
+    let next = app.state::<State>().lock().unwrap().pending.take();
     next.map(|path| open(&app, path)).transpose()
+}
+
+/// The user kept the open design instead of the file the system asked for.
+#[tauri::command]
+pub fn clear_pending(app: AppHandle) {
+    app.state::<State>().lock().unwrap().pending = None;
 }
 
 /// Shows the open dialog and opens the chosen design.
 #[tauri::command]
-pub async fn open_design(app: AppHandle) -> Result<Option<Design>, String> {
-    blocking(app, |app| {
-        let mut dialog = app.dialog().file().add_filter("KerfScript", &["kerf"]);
+pub async fn open_design(app: AppHandle, window: Window) -> Result<Option<Design>, String> {
+    blocking(app, move |app| {
+        let mut dialog = app
+            .dialog()
+            .file()
+            .set_parent(&window)
+            .add_filter("KerfScript", &["kerf"]);
         if let Some(dir) = design_dir(&app) {
             dialog = dialog.set_directory(dir);
         }
@@ -190,6 +201,7 @@ pub async fn open_design(app: AppHandle) -> Result<Option<Design>, String> {
 #[tauri::command]
 pub async fn save_design(
     app: AppHandle,
+    window: Window,
     text: String,
     save_as: bool,
     name: String,
@@ -202,6 +214,7 @@ pub async fn save_design(
                 let mut dialog = app
                     .dialog()
                     .file()
+                    .set_parent(&window)
                     .add_filter("KerfScript", &["kerf"])
                     .set_file_name(format!("{name}.kerf"));
                 if let Some(dir) = design_dir(&app) {
@@ -210,16 +223,16 @@ pub async fn save_design(
                 let Some(chosen) = picked(dialog.blocking_save_file()) else {
                     return Ok(None);
                 };
-                let path = with_kerf(chosen.clone());
+                let path = with_extension(chosen.clone(), "kerf");
                 // The dialog asked before replacing the file it was given, not
                 // one whose name gained .kerf after it closed
-                if path != chosen && path.exists() && !replace(&app, &path) {
+                if path != chosen && path.exists() && !replace(&app, &window, &path) {
                     return Ok(None);
                 }
                 path
             }
         };
-        std::fs::write(&path, text).map_err(|e| format!("{}: {e}", path.display()))?;
+        write_whole(&path, text.as_bytes())?;
         let saved = name_of(&path);
         app.state::<State>().lock().unwrap().design = Some(path);
         Ok(Some(saved))
@@ -227,13 +240,32 @@ pub async fn save_design(
     .await
 }
 
-fn replace(app: &AppHandle, path: &Path) -> bool {
+/// Writes a file so that it is never left half written: the data goes to a
+/// file next to it, which then takes its place.
+fn write_whole(path: &Path, data: &[u8]) -> Result<(), String> {
+    let shown = path.display();
+    let name = path
+        .file_name()
+        .ok_or(format!("{shown} is not a file name"))?;
+    let mut temp_name = std::ffi::OsString::from(".");
+    temp_name.push(name);
+    temp_name.push(format!(".{}.tmp", std::process::id()));
+    let temp = path.with_file_name(temp_name);
+    let written = std::fs::write(&temp, data).and_then(|_| std::fs::rename(&temp, path));
+    if written.is_err() {
+        let _ = std::fs::remove_file(&temp);
+    }
+    written.map_err(|e| format!("{shown}: {e}"))
+}
+
+fn replace(app: &AppHandle, window: &Window, path: &Path) -> bool {
     let name = path
         .file_name()
         .map(|n| n.to_string_lossy().into_owned())
         .unwrap_or_default();
     app.dialog()
         .message(format!("{name} already exists. Replace it?"))
+        .parent(window)
         .title("Save as")
         .kind(MessageDialogKind::Warning)
         .buttons(MessageDialogButtons::OkCancelCustom(
@@ -248,6 +280,7 @@ fn replace(app: &AppHandle, path: &Path) -> bool {
 #[tauri::command]
 pub async fn export_file(
     app: AppHandle,
+    window: Window,
     name: String,
     text: Option<String>,
     bytes: Option<Vec<u8>>,
@@ -257,18 +290,26 @@ pub async fn export_file(
             .extension()
             .map(|e| e.to_string_lossy().to_lowercase())
             .unwrap_or_default();
-        let mut dialog = app.dialog().file().set_file_name(&name);
+        let mut dialog = app.dialog().file().set_parent(&window).set_file_name(&name);
         if !ext.is_empty() {
             dialog = dialog.add_filter(ext.to_uppercase(), &[ext.as_str()]);
         }
         if let Some(dir) = design_dir(&app) {
             dialog = dialog.set_directory(dir);
         }
-        let Some(path) = picked(dialog.blocking_save_file()) else {
+        let Some(chosen) = picked(dialog.blocking_save_file()) else {
             return Ok(false);
         };
+        let path = if ext.is_empty() {
+            chosen.clone()
+        } else {
+            with_extension(chosen.clone(), &ext)
+        };
+        if path != chosen && path.exists() && !replace(&app, &window, &path) {
+            return Ok(false);
+        }
         let data = bytes.unwrap_or_else(|| text.unwrap_or_default().into_bytes());
-        std::fs::write(&path, data).map_err(|e| format!("{}: {e}", path.display()))?;
+        write_whole(&path, &data)?;
         Ok(true)
     })
     .await
@@ -321,6 +362,10 @@ mod tests {
         assert!(found.ends_with(Path::new("lib").join("tab.kerf")));
         assert!(library_path(&design, "lib/tab.kerf").is_ok());
         assert!(library_path(&design, "lib/none").is_err());
+        // Files that are not .kerf are not read, with or without the extension
+        std::fs::write(dir.join("notes.txt"), "secret").unwrap();
+        assert!(library_path(&design, "notes.txt").is_err());
+        assert!(library_path(&design, "notes").is_err());
     }
 
     #[test]
@@ -346,8 +391,25 @@ mod tests {
             ("box.KERF", "box.KERF"),
             ("box.v2", "box.v2.kerf"),
         ] {
-            assert_eq!(with_kerf(PathBuf::from(typed)), PathBuf::from(saved));
+            assert_eq!(
+                with_extension(PathBuf::from(typed), "kerf"),
+                PathBuf::from(saved)
+            );
         }
+    }
+
+    #[test]
+    fn whole_writes_replace_the_file_and_leave_nothing_behind() {
+        let dir = folder("whole");
+        let file = dir.join("box.kerf");
+        write_whole(&file, b"rect(1);\n").unwrap();
+        assert_eq!(std::fs::read_to_string(&file).unwrap(), "rect(1);\n");
+        let names: Vec<_> = std::fs::read_dir(&dir)
+            .unwrap()
+            .map(|e| e.unwrap().file_name())
+            .collect();
+        assert_eq!(names.len(), 2, "{names:?}"); // box.kerf and lib
+        assert!(write_whole(&dir.join("none/box.kerf"), b"x").is_err());
     }
 
     #[test]

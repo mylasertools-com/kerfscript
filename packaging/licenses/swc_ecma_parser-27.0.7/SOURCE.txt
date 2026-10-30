@@ -1,0 +1,2 @@
+swc_ecma_parser 27.0.7 was published from commit b229ffef05bc3906a1badd9857bcd2b2298481af, which is not in the repository (https://github.com/swc-project/swc). These are its licence files at commit ffd76e720018190807ae090211b0dce9ca5d8d6d, the first where crates/swc_ecma_parser/Cargo.toml has version 27.0.7:
+https://github.com/swc-project/swc/blob/ffd76e720018190807ae090211b0dce9ca5d8d6d/LICENSE

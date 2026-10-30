@@ -13,11 +13,13 @@ import {
 
 const RAD = Math.PI / 180;
 
-// maxLength is the most items in a list or characters in a string, and
-// step(n) counts n steps of the program (one without n)
+// maxLength is the most items in a list or characters in a string,
+// step(n) counts n steps of the program (one without n), and given is the
+// number of arguments the call gave, positional and named
 export interface FnCtx {
   maxLength: number;
   step: (n?: number) => void;
+  given: number;
 }
 
 type Run = (args: Value[], c: FnCtx) => Value;
@@ -42,6 +44,12 @@ const def = (sig: string, run: Run, order?: (n: number) => string[]): Builtin =>
   run,
 });
 
+// Parameters given both by position and by name, as in min(1, values = [2])
+export function givenTwice(f: Builtin, pos: Value[], named: Map<string, Value>): string[] {
+  if (f.order) return []; // positional values go to the parameters not named
+  return f.params.filter((p, i) => i < pos.length && named.has(p));
+}
+
 // Arguments in parameter order: named ones by name, the rest by position
 export function bindArgs(f: Builtin, pos: Value[], named: Map<string, Value>): Value[] {
   if (f.rest) {
@@ -60,12 +68,15 @@ export function bindArgs(f: Builtin, pos: Value[], named: Map<string, Value>): V
   return f.params.map((p) => (named.has(p) ? named.get(p) : pos[free.indexOf(p)]));
 }
 
+// Values written as text. Writing takes a step for every 8 characters: a
+// list that holds the same list many times writes long text from few items.
 function text(vs: Value[], sep: string, c: FnCtx, fn: string): string {
   const out = joinText(vs, sep, c.maxLength);
   if (out === undefined)
     throw new Error(
       `${fn}(): the text would be longer than the limit of ${c.maxLength} characters`,
     );
+  c.step(Math.ceil(out.length / 8));
   return out;
 }
 
@@ -150,8 +161,8 @@ export const FUNCTIONS: Record<string, Builtin> = {
   // log(x) is base 10; log(base, x) takes the base first
   log: def(
     'x, base',
-    (a) =>
-      a[1] === undefined
+    (a, c) =>
+      c.given < 2
         ? clean(Math.log10(num(a[0], 'log')))
         : Math.log(num(a[0], 'log')) / Math.log(num(a[1], 'log')),
     (n) => (n >= 2 ? ['base', 'x'] : ['x', 'base']),

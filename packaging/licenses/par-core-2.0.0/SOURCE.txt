@@ -1,0 +1,1 @@
+https://github.com/dudykr/ddbase/blob/d46ef439d30d2b64eb87d4e197929548b51b21be/crates/par-core/LICENSE

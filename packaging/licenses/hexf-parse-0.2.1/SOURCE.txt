@@ -1,0 +1,2 @@
+The repository (https://github.com/lifthrasiir/hexf) had no licence file at commit 4225763d744183d720f575ae96d04161b4d08ea0, which 0.2.1 was published from (a 0BSD licence was added later). Its Cargo.toml declares license = "CC0-1.0"; LICENSE is the licence text from the SPDX licence list:
+https://github.com/spdx/license-list-data/blob/31846481de7ea17d92f2f46fad76abe58b2e9bb0/text/CC0-1.0.txt

@@ -1,0 +1,2 @@
+string_enum 1.0.2 was published from commit 0ce4fd737e260c0cbfffcfdb19f269a9cc221ef4, which is not in the repository (https://github.com/swc-project/swc). These are its licence files at commit 18311dfccdd919582083f1a025f04d4c0f0b4017, the first where crates/string_enum/Cargo.toml has version 1.0.2:
+https://github.com/swc-project/swc/blob/18311dfccdd919582083f1a025f04d4c0f0b4017/LICENSE

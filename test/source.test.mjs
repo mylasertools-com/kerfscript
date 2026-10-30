@@ -73,3 +73,24 @@ test('without a file: a link, then an example, then the draft, then the clock fa
   assert.equal(await pick({ draft: 'a'.repeat(MAX_SOURCE + 1) }), 'circle(50);');
   assert.equal(await pick({}), 'circle(50);');
 });
+
+test('names every object has are not examples', async () => {
+  for (const model of ['toString', 'constructor', '__proto__'])
+    assert.equal(
+      (await startCode({ file: null, hash: '', model, examples, draft: null })).code,
+      'circle(50);',
+      model,
+    );
+});
+
+test('without examples, a new design starts from the fallback', async () => {
+  const start = await startCode({
+    file: null,
+    hash: '',
+    model: 'box',
+    examples: {},
+    draft: null,
+    fallback: 'rect(1);',
+  });
+  assert.equal(start.code, 'rect(1);');
+});

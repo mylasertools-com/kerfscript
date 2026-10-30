@@ -159,3 +159,28 @@ test('every example renders at a quarter of the default limits', () => {
       limits,
     });
 });
+
+test('writing text from a list that holds the same list many times counts steps', () => {
+  const src =
+    'function d(n) = n == 0 ? 0 : let(h = d(n - 1)) [h, h]; x = d(17); t = [for (i = [1:1000]) contains("a", x)]; rect(1);';
+  const start = Date.now();
+  fails(src, /Stopped after 100000 steps/, { maxSteps: 100000 });
+  assert.ok(Date.now() - start < 5000, `took ${Date.now() - start} ms`);
+});
+
+test('measuring text is limited and counts a step per character', () => {
+  const font = readFileSync(new URL('../fonts/AtkinsonHyperlegible-Regular.ttf', import.meta.url));
+  const fonts = { Atkinson: font };
+  fails(
+    's = join([for (i = [1:3000]) "a"]); echo(text_width(s)); rect(1);',
+    /more than 2000 characters/,
+    { fonts },
+  );
+  const start = Date.now();
+  fails(
+    's = join([for (i = [1:2000]) "a"]); for (i = [1:100]) echo(text_width(s)); rect(1);',
+    /Stopped after 20000 steps/,
+    { fonts, maxSteps: 20000 },
+  );
+  assert.ok(Date.now() - start < 5000, `took ${Date.now() - start} ms`);
+});

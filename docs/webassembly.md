@@ -10,9 +10,11 @@ instead: it is smaller and faster.
 
 ## Getting the module
 
-Download `kerfscript.wasm` from the
-[releases](https://github.com/mylasertools/kerfscript/releases) page, or build
-it from the repository with [Javy](https://github.com/bytecodealliance/javy):
+Download `kerfscript-<version>.wasm` from the
+[releases](https://github.com/mylasertools/kerfscript/releases) page and save
+it as `kerfscript.wasm`, or get `kerfscript-wasm-<version>.zip`, which has the
+module with this guide and its licences. You can also build it from the
+repository with [Javy](https://github.com/bytecodealliance/javy):
 
 ```sh
 npm run build

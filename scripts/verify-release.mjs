@@ -12,21 +12,22 @@ import { join } from 'node:path';
 
 const LICENCES = ['LICENSE', 'COMMERCIAL-LICENSE.md', 'THIRD-PARTY-NOTICES.md', 'OFL.txt'];
 const APP = [...LICENCES, 'THIRD-PARTY-LICENSES.md'].map((f) => `usr/lib/KerfScript/${f}`);
+// The kerf command line also carries the licences of the Deno runtime in it
+const CLI = [...LICENCES, 'THIRD-PARTY-LICENSES.md'];
 
 // What each kind of file must contain, as paths inside it
 const RULES = [
   [
     /^kerf-.+-windows-\w+\.zip$/,
-    (top) => ['kerf.exe', 'README.md', ...LICENCES].map((f) => `${top}/${f}`),
+    (top) => ['kerf.exe', 'README.md', ...CLI].map((f) => `${top}/${f}`),
   ],
   [
     /^kerf-.+-macos-\w+\.tar\.gz$/,
-    (top) => ['kerf', 'README.md', ...LICENCES].map((f) => `${top}/${f}`),
+    (top) => ['kerf', 'README.md', ...CLI].map((f) => `${top}/${f}`),
   ],
   [
     /^kerf-.+-linux-\w+\.tar\.gz$/,
-    (top) =>
-      ['kerf', 'kerf.1', 'kerfscript.xml', 'README.md', ...LICENCES].map((f) => `${top}/${f}`),
+    (top) => ['kerf', 'kerf.1', 'kerfscript.xml', 'README.md', ...CLI].map((f) => `${top}/${f}`),
   ],
   [
     /^kerfscript-wasm-.+\.zip$/,
@@ -40,11 +41,11 @@ const RULES = [
     () => ['usr/bin/kerfscript', 'usr/share/mime/packages/com.mylasertools.KerfScript.xml', ...APP],
   ],
   [
-    /^kerfscript-(?!desktop|wasm).+\.deb$/,
+    /^kerfscript-cli-.+\.deb$/,
     () => [
       'usr/bin/kerf',
       'usr/share/man/man1/kerf.1',
-      ...LICENCES.map((f) => `usr/share/doc/kerfscript/${f}`),
+      ...CLI.map((f) => `usr/share/doc/kerfscript-cli/${f}`),
     ],
   ],
 ];
@@ -61,10 +62,19 @@ function list(path) {
     } catch {
       return run(systemTar, ['-tf', path]).split('\n');
     }
-  // dpkg-deb -c prints `ls -l` style lines ending in ./path
+  // dpkg-deb -c prints `ls -l` style lines: mode, owner, size, date, time,
+  // then the path, with ./ before it (nfpm) or without (Tauri)
   return run('dpkg-deb', ['-c', path])
     .split('\n')
-    .map((l) => l.replace(/^.*?\.\//, '').replace(/ -> .*$/, ''));
+    .map((l) =>
+      l
+        .trim()
+        .split(/\s+/)
+        .slice(5)
+        .join(' ')
+        .replace(/ -> .*$/, '')
+        .replace(/^\.?\//, ''),
+    );
 }
 
 let checked = 0;

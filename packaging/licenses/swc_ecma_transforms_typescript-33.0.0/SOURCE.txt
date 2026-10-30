@@ -1,0 +1,2 @@
+swc_ecma_transforms_typescript 33.0.0 was published from commit 83fba28883be9092ca3e5cffbd9cf35bfc73eabe, which is not in the repository (https://github.com/swc-project/swc). These are its licence files at commit 5e6af6030ef8e3b15cef29913f507bfec6109ab6, the first where crates/swc_ecma_transforms_typescript/Cargo.toml has version 33.0.0:
+https://github.com/swc-project/swc/blob/5e6af6030ef8e3b15cef29913f507bfec6109ab6/LICENSE

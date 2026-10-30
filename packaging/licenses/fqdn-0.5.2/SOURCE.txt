@@ -1,0 +1,2 @@
+The repository (https://github.com/Orange-OpenSource/fqdn) has no licence file, at commit a23fef8570522a3b98a79afc45322d6487166cd9 that 0.5.2 was published from or since, and its source files name none. Its Cargo.toml declares license = "MIT"; LICENSE is the licence text from the SPDX licence list:
+https://github.com/spdx/license-list-data/blob/31846481de7ea17d92f2f46fad76abe58b2e9bb0/text/MIT.txt

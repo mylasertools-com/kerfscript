@@ -11,22 +11,62 @@ mod files;
 mod lightburn;
 
 use std::path::{absolute, PathBuf};
+use tauri::menu::{Menu, MenuEvent, MenuItem, MenuItemKind};
+use tauri::{AppHandle, Manager, Runtime};
+
+const QUIT: &str = "quit";
+
+/// macOS: the app menu's Quit closes the window instead of ending the app, so
+/// the page asks about unsaved changes first. The system's own Quit item ends
+/// the app without the window hearing of it.
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+fn app_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
+    let menu = Menu::default(app)?;
+    if let Some(MenuItemKind::Submenu(first)) = menu.items()?.into_iter().next() {
+        if let Some(MenuItemKind::Predefined(quit)) = first.items()?.last() {
+            first.remove(quit)?;
+            let name = &app.package_info().name;
+            first.append(&MenuItem::with_id(
+                app,
+                QUIT,
+                format!("Quit {name}"),
+                true,
+                Some("CmdOrCtrl+Q"),
+            )?)?;
+        }
+    }
+    Ok(menu)
+}
+
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+fn menu_event<R: Runtime>(app: &AppHandle<R>, event: MenuEvent) {
+    if event.id() == QUIT {
+        for window in app.webview_windows().values() {
+            let _ = window.close();
+        }
+    }
+}
 
 fn main() {
-    // Windows and Linux pass a double-clicked file as an argument
-    let pending: Vec<PathBuf> = std::env::args_os()
+    // Windows and Linux pass a double-clicked file as an argument. The window
+    // shows one design: the last file given.
+    let pending: Option<PathBuf> = std::env::args_os()
         .skip(1)
         .map(PathBuf::from)
         .filter(|p| p.is_file())
         .map(|p| absolute(&p).unwrap_or(p))
-        .collect();
+        .next_back();
 
-    tauri::Builder::default()
+    let builder = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
-        .manage(files::session(pending))
+        .manage(files::session(pending));
+    #[cfg(target_os = "macos")]
+    let builder = builder.menu(app_menu).on_menu_event(menu_event);
+    builder
         .invoke_handler(tauri::generate_handler![
             files::open_pending,
+            files::clear_pending,
             files::open_design,
             files::save_design,
             files::export_file,

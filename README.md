@@ -122,6 +122,12 @@ it as the start of your own design.
 npm install @mylasertools/kerfscript
 ```
 
+The `kerf` command line also comes as a standalone binary that needs no
+Node.js, and through Homebrew, winget, Chocolatey, Scoop, Snap, the AUR,
+MacPorts and Docker: see [Command line](docs/cli.md#without-nodejs). The
+desktop app is in [Desktop app](docs/desktop.md), and the WebAssembly module
+in [WebAssembly](docs/webassembly.md).
+
 ## Command line
 
 ```sh

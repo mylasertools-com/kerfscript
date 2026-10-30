@@ -1,0 +1,2 @@
+The repository (https://github.com/littledivy/aead-gcm-stream) had no licence file at commit 2737345ddbccd5b3e1ae41060b136cfc3e0cb610, which 0.4.0 was published from. LICENSE.md is the MIT licence its author added later:
+https://github.com/littledivy/aead-gcm-stream/blob/34483de068985e32665292d736e9801ad7ec2502/LICENSE.md

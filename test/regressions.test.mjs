@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { render } from '../dist/index.js';
+import { KerfError, render } from '../dist/index.js';
 
 const layers = (r) => r.sheets[0].items.map((it) => it.layers);
 
@@ -138,5 +138,80 @@ test('an unknown named argument to a built-in function is a warning', () => {
   assert.deepEqual(r.warnings, [
     'sin(): unknown argument "y" (line 1)',
     'str(): unknown argument "sep" (line 1)',
+  ]);
+});
+
+test('names every object has are not functions, modules or libraries', () => {
+  for (const name of ['toString', 'constructor', 'valueOf', 'hasOwnProperty'])
+    assert.throws(
+      () => render(`echo(${name}(1)); rect(1);`),
+      new RegExp(`Unknown function ${name}\(\)`),
+    );
+  assert.throws(() => render('toString(); rect(1);'), KerfError);
+  assert.throws(() => render('include <toString>\nrect(1);'), /Library <toString> not found/);
+  assert.throws(
+    () => render('include <constructor>\nrect(1);', { resolve: (p) => ({})[p] }),
+    /Library <constructor> not found/,
+  );
+});
+
+test('an error in a library says which library', () => {
+  const resolve = (p) => (p === 'lib/tab' ? 'module tab() {\n  rect(nope + 1);\n}\n' : undefined);
+  const e = (() => {
+    try {
+      render('use <lib/tab>\ntab();', { resolve });
+    } catch (e) {
+      return e;
+    }
+  })();
+  assert.ok(e instanceof KerfError);
+  assert.equal(e.file, 'lib/tab');
+  assert.match(e.message, /line 2, column \d+ in <lib\/tab>/);
+  assert.throws(
+    () => render('use <lib/tab>\nfunction f( = 1;', { resolve }),
+    (err) => !err.file,
+  );
+});
+
+test('log takes its form from the number of arguments', () => {
+  assert.throws(() => render('echo(log(undef, 8)); rect(1);'), /log\(\) needs a number, got undef/);
+  assert.deepEqual(render('echo(log(8), log(x = 100)); rect(1);').echoes, ['0.903089987, 2']);
+});
+
+test('an argument given by position and by name is a warning', () => {
+  const r = render('echo(min(1, values = [5, 0]), pow(2, x = 3, y = 2)); rect(1);');
+  assert.deepEqual(r.echoes, ['0, 9']);
+  assert.deepEqual(r.warnings, [
+    'min(): "values" is given by position and by name; the named value is used (line 1)',
+    'pow(): "x" is given by position and by name; the named value is used (line 1)',
+  ]);
+});
+
+test('built-in layers keep their DXF names', () => {
+  const r = render(
+    'part("a") { layer("Cut", mode = "line") translate([1, 1]) rect(3); rect(10); }',
+    { dxf: true },
+  );
+  const layers = r.sheets[0].dxf.split(/\r?\n/).filter((l, i, a) => a[i - 1] === '8');
+  assert.deepEqual([...new Set(layers)], ['CUT_2', 'CUT']);
+});
+
+test('a list times a matrix of the wrong size is an error', () => {
+  for (const src of ['[1, 2] * [[1, 2]]', '[1, 2] * [[1, 2], 3]', '[1, 2] * [[1, 2], [3]]'])
+    assert.throws(
+      () => render(`echo(${src}); rect(1);`),
+      /Can't multiply a list of length 2 by a matrix/,
+    );
+  assert.deepEqual(render('echo([1, 2] * [[1, 0], [0, 1]]); rect(1);').echoes, ['[1, 2]']);
+});
+
+test('settings from outside the program are values a program could have', () => {
+  for (const bad of [{ type: 'function' }, { type: 'range' }, [1, { a: 1 }], () => 1])
+    assert.throws(
+      () => render('w = 1; echo(w); rect(1);', { params: { w: bad } }),
+      /Setting "w" must be/,
+    );
+  assert.deepEqual(render('w = 1; echo(w); rect(1);', { params: { w: [1, 'a', true] } }).echoes, [
+    '[1, "a", true]',
   ]);
 });

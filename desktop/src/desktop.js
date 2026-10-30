@@ -18,7 +18,8 @@
 
   let name = null; // the open design's file name without .kerf, or null if untitled
   let saved = null; // its text when it was opened, saved or loaded from an example
-  let pg = null; // the playground: load(text), source()
+  let pg = null; // the playground: load(text), source(), refresh()
+  let busy = false; // a file dialog is open
 
   const dirty = () => pg !== null && pg.source() !== (saved ?? '');
   const title = () =>
@@ -32,8 +33,23 @@
     );
   }
 
-  const failed = (what) => (e) =>
-    dialog.message(String(e), { title: `Could not ${what}`, kind: 'error' });
+  // Shows why a command failed. The result is null: nothing was opened or saved.
+  const failed = (what) => async (e) => {
+    await dialog.message(String(e), { title: `Could not ${what}`, kind: 'error' }).catch(() => {});
+    return null;
+  };
+
+  // Runs one file dialog at a time: another Open or Save while one is open
+  // would act on the design the first one is changing.
+  async function single(task) {
+    if (busy) return null;
+    busy = true;
+    try {
+      return await task();
+    } finally {
+      busy = false;
+    }
+  }
 
   function show(design) {
     name = design.name;
@@ -42,30 +58,38 @@
     title();
   }
 
-  async function open() {
-    if (!(await discardOk())) return;
-    const design = await core.invoke('open_design').catch(failed('open the file'));
-    if (design) show(design);
-  }
+  const open = () =>
+    single(async () => {
+      if (!(await discardOk())) return;
+      const design = await core.invoke('open_design').catch(failed('open the file'));
+      if (design) show(design);
+    });
 
-  // Files the system asks the app to open: a double click, or macOS's Open With
-  async function openPending() {
-    if (!(await discardOk())) return;
-    const design = await core.invoke('open_pending').catch(failed('open the file'));
-    if (design) show(design);
-  }
+  // A file the system asks the app to open: macOS's Open With, or a double
+  // click while the app is running
+  const openPending = () =>
+    single(async () => {
+      if (!pg) return; // the page takes it with initial() once it is ready
+      if (!(await discardOk())) return core.invoke('clear_pending');
+      const design = await core.invoke('open_pending').catch(failed('open the file'));
+      if (design) show(design);
+    });
 
-  async function save(as) {
-    const text = pg.source();
-    const result = await core
-      .invoke('save_design', { text, saveAs: as || name === null, name: name ?? 'design' })
-      .catch(failed('save the file'));
-    if (!result) return false;
-    name = result;
-    saved = text;
-    title();
-    return true;
-  }
+  const save = (as) =>
+    single(async () => {
+      const text = pg.source();
+      const result = await core
+        .invoke('save_design', { text, saveAs: as || name == null, name: name ?? 'design' })
+        .catch(failed('save the file'));
+      if (!result) return false;
+      const moved = result !== name;
+      name = result;
+      saved = text;
+      title();
+      // In a new folder, the design's libraries may now be found
+      if (moved) pg.refresh();
+      return true;
+    });
 
   async function exportFile(fileName, data) {
     const args =
@@ -77,7 +101,7 @@
               new Uint8Array(data instanceof Blob ? await data.arrayBuffer() : data),
             ),
           };
-    await core.invoke('export_file', args).catch(failed('save the file'));
+    await single(() => core.invoke('export_file', args).catch(failed('save the file')));
   }
 
   // The libraries a program uses (`use <path>` and `include <path>`, found by

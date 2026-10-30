@@ -1,0 +1,2 @@
+The repository (https://github.com/denoland/deno_native_certs) has no licence file, at commit 700f235fe029ea839f5a64eea251abf8116ddb4c that 0.3.0 was published from or since, and its source files name none. Its Cargo.toml declares license = "MIT"; LICENSE is the MIT licence text from the SPDX licence list:
+https://github.com/spdx/license-list-data/blob/31846481de7ea17d92f2f46fad76abe58b2e9bb0/text/MIT.txt

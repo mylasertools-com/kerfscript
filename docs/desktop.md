@@ -37,9 +37,13 @@ The app is not signed with an Apple or Microsoft certificate yet:
 Double-click a `.kerf` file to open it in the app. The title bar shows the
 file name, or Untitled, and a dot when there are unsaved changes. The app asks
 before it closes, or opens another design or an example over them, also for a
-design you have not saved yet. Files can be up to 3 MB.
+design you have not saved yet. A design can be up to 1,000,000 characters
+long, the same as in the playground. Saving writes the whole file before it
+replaces the old one, so a full disk or a crash cannot leave half a design.
 
 SVG, DXF and sheet ZIP exports open a save dialog in the design's folder.
+On Linux, a name typed without `.kerf`, `.svg`, `.dxf` or `.zip` gets it, and
+the app asks before replacing a file of that name.
 
 ## LightBurn
 
@@ -68,9 +72,10 @@ endorsed or certified by LightBurn Software.
 `use <path>` and `include <path>` find files in the open design's folder and
 the folders below it: with the design at `projects/box.kerf`,
 `use <lib/tabs>` reads `projects/lib/tabs.kerf`. Unlike the
-[command line](cli.md), the app does not read libraries from folders above the
-design's, such as `use <../shared/tabs>`; keep them next to the design or in
-a folder below it. Standard library paths such as `use <kerf/box>` work
+[command line](cli.md), the app reads only `.kerf` files, and not from folders
+above the design's, such as `use <../shared/tabs>`; keep them next to the
+design or in a folder below it. That way a design you download cannot read
+other files on your computer. Standard library paths such as `use <kerf/box>` work
 everywhere. A design that has not been saved yet can only use the standard
 library.
 

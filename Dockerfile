@@ -1,6 +1,9 @@
 # KerfScript command line in a container:
 #
-#   docker run --rm -v "$PWD:/work" ghcr.io/mylasertools/kerfscript render box.kerf
+#   docker run --rm -v "$PWD:/work" --user "$(id -u):$(id -g)" \
+#     ghcr.io/mylasertools/kerfscript render box.kerf
+#
+# --user runs kerf as you, so it can write box.svg into your folder.
 #
 # dist/cli.js is a single bundled file with no dependencies, so the image only
 # needs Node.js.

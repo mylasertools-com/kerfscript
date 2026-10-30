@@ -1,0 +1,2 @@
+The repository (https://github.com/denoland/deno_tunnel) has no licence file, at commit c0572b46beac220e105e69317ff9e207babc7f09 that 0.8.1 was published from or since. Its source files state "Copyright 2018-2025 the Deno authors. MIT license."; LICENSE.md is Deno's MIT licence, at Deno v2.8.3:
+https://github.com/denoland/deno/blob/ba699088698c7b4a2fbea33acc4dcd6571789452/LICENSE.md

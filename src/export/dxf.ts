@@ -1,6 +1,6 @@
 // Copyright (c) 2026 MyLaserTools. SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-MyLaserTools-Commercial
 
-import type { LayerDef } from '../evaluator.js';
+import { DEFAULT_LAYERS, type LayerDef } from '../evaluator.js';
 import { area, type Poly } from '../geometry.js';
 import type { Placed } from '../render.js';
 import { tidy } from './svg.js';
@@ -26,14 +26,21 @@ const aci = (color: string) => {
 };
 
 // DXF layer names: upper case with other characters as _. Layers whose names
-// come out the same get _2, _3 and so on, in layer order, so each stays its own
-// layer; the first of them, and every name without a clash, is kept as it is.
+// come out the same get _2, _3 and so on, so each stays its own layer. The
+// built-in layers (CUT, SCORE, ENGRAVE, GUIDE) keep their names, then the
+// others in layer order: the first of them, and every name without a clash,
+// is kept as it is.
 function dxfNames(layers: LayerDef[]): Map<string, string> {
   const base = (s: string) => s.toUpperCase().replace(/[^A-Z0-9_-]/g, '_');
+  const builtIn = new Set(DEFAULT_LAYERS.map((l) => l.name));
   const taken = new Set(layers.map((l) => base(l.name)));
   const used = new Set<string>();
   const out = new Map<string, string>();
-  for (const l of layers) {
+  const ordered = [
+    ...layers.filter((l) => builtIn.has(l.name)),
+    ...layers.filter((l) => !builtIn.has(l.name)),
+  ];
+  for (const l of ordered) {
     let n = base(l.name);
     if (used.has(n)) {
       let i = 2;

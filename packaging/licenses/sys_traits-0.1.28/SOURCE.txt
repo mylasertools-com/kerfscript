@@ -1,0 +1,2 @@
+The repository (https://github.com/dsherret/sys_traits) had no licence file at commit 709e02e198721f81b485c078ccdf1835fa3e6a40, which 0.1.28 was published from. LICENSE is the MIT licence its author added later:
+https://github.com/dsherret/sys_traits/blob/4e60da07c2cb1828e359f4a3be21d5e4ae511404/LICENSE

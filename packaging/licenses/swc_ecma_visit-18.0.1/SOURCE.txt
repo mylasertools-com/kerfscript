@@ -1,0 +1,2 @@
+swc_ecma_visit 18.0.1 was published from commit fc7d43ce157083059e2b83acf0a6af8d78c131c7, which is not in the repository (https://github.com/swc-project/swc). These are its licence files at commit ea89f663b05b91e9b4e2d02d3f387780f0a1534f, the first where crates/swc_ecma_visit/Cargo.toml has version 18.0.1:
+https://github.com/swc-project/swc/blob/ea89f663b05b91e9b4e2d02d3f387780f0a1534f/LICENSE
