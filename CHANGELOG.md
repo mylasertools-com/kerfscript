@@ -7,6 +7,8 @@
   `assembly` (outline, thickness and a 4 × 4 matrix per copy) so apps can show
   the design put together, and warns when two placed parts collide, which is
   how a wrong finger edge shows up. Overlaps under about 1 mm³ are ignored.
+  Parts without a placement lie flat beside the assembly, marked
+  `placed: false`, so a divider added to a `box()` still shows.
   `box()` from `kerf/box` places its own panels.
 
 ## 0.3.0 (2026-10-30)

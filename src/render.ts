@@ -1,6 +1,6 @@
 // Copyright (c) 2026 MyLaserTools. SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-MyLaserTools-Commercial
 
-import { collisions, placementMatrix, type AssemblyPart } from './assembly.js';
+import { besideAssembly, collisions, placementMatrix, type AssemblyPart } from './assembly.js';
 import { Evaluator, type LayerDef, type Limits } from './evaluator.js';
 import { toDxf } from './export/dxf.js';
 import { layerPaths, toSvg, type LayerPath } from './export/svg.js';
@@ -146,6 +146,7 @@ export function render(source: string, options: RenderOptions = {}): RenderResul
 
   const infos: PartInfo[] = [];
   const assembly: AssemblyPart[] = [];
+  const loose: AssemblyPart[] = [];
   const ready: { info: PartInfo; layers: Map<string, Layer> }[] = [];
   for (const p of parts) {
     const material = union(
@@ -166,16 +167,16 @@ export function render(source: string, options: RenderOptions = {}): RenderResul
       }
       if (regions.length || lines.length) layers.set(k, { regions, lines });
     }
-    if (p.placements && material.length)
-      p.placements.forEach((placement, i) =>
-        assembly.push({
-          name: p.name,
-          copy: i + 1,
-          thickness: p.thickness,
-          matrix: placementMatrix(placement),
-          outline: material,
-        }),
-      );
+    if (material.length) {
+      const flat = { name: p.name, thickness: p.thickness, outline: material };
+      if (p.placements)
+        p.placements.forEach((placement, i) =>
+          assembly.push({ ...flat, copy: i + 1, matrix: placementMatrix(placement), placed: true }),
+        );
+      else
+        for (let i = 0; i < p.qty; i++)
+          loose.push({ ...flat, copy: i + 1, matrix: placementMatrix({ at: [0, 0, 0], rotate: [0, 0, 0] }), placed: false });
+    }
     const n = pieces(material).length;
     if (n > 1)
       warnings.push(
@@ -223,6 +224,13 @@ export function render(source: string, options: RenderOptions = {}): RenderResul
       `Parts "${a.name}"${a.copy > 1 ? ` (copy ${a.copy})` : ''} and "${b.name}"${b.copy > 1 ? ` (copy ${b.copy})` : ''} collide in the assembly. Check their edges and where they are placed.`,
     );
   if (clashes.length > 5) warnings.push(`${clashes.length - 5} more pairs of parts collide in the assembly.`);
+  if (assembly.length && loose.length) {
+    const names = [...new Set(loose.map((p) => `"${p.name}"`))];
+    warnings.push(
+      `${names.length === 1 ? 'Part' : 'Parts'} ${names.slice(0, 5).join(', ')}${names.length > 5 ? ` and ${names.length - 5} more` : ''} ${names.length === 1 ? 'has' : 'have'} no at or rotate, so ${names.length === 1 ? 'it lies' : 'they lie'} flat beside the assembly.`,
+    );
+    assembly.push(...besideAssembly(assembly, loose));
+  }
 
   let outputPoints = 0;
   for (const r of ready) {

@@ -15,6 +15,7 @@ export interface AssemblyPart {
   thickness: number;
   matrix: number[];
   outline: Poly[];
+  placed: boolean;
 }
 
 const RAD = Math.PI / 180;
@@ -105,6 +106,37 @@ function worldBox(p: AssemblyPart): [Vec3, Vec3] {
         }
       }
   return [lo, hi];
+}
+
+export function besideAssembly(
+  placed: AssemblyPart[],
+  loose: AssemblyPart[],
+  gap = 10,
+): AssemblyPart[] {
+  const lo: Vec3 = [Infinity, Infinity, Infinity];
+  const hi: Vec3 = [-Infinity, -Infinity, -Infinity];
+  for (const [a, b] of placed.map(worldBox))
+    for (let k = 0; k < 3; k++) {
+      lo[k] = Math.min(lo[k], a[k]);
+      hi[k] = Math.max(hi[k], b[k]);
+    }
+  const sizes = loose.map((p) => bounds2(p.outline));
+  const limit = sizes.reduce((w, [x0, , x1]) => Math.max(w, x1 - x0), hi[0] - lo[0]);
+  let x = 0;
+  let y = 0;
+  let row = 0;
+  return loose.map((p, i) => {
+    const [x0, y0, x1, y1] = sizes[i];
+    if (x > 0 && x + x1 - x0 > limit) {
+      x = 0;
+      y += row + gap;
+      row = 0;
+    }
+    const matrix = [1, 0, 0, hi[0] + gap + x - x0, 0, 1, 0, lo[1] + y - y0, 0, 0, 1, lo[2], 0, 0, 0, 1];
+    x += x1 - x0 + gap;
+    row = Math.max(row, y1 - y0);
+    return { ...p, matrix: matrix.map(clean) };
+  });
 }
 
 const overlaps = (a: [Vec3, Vec3], b: [Vec3, Vec3], eps: number) =>

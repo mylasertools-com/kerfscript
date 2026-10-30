@@ -52,7 +52,8 @@ part("leg", qty = 4, at = [[0, 0, 0], [80, 0, 0], [0, 40, 0], [80, 40, 0]],
 ```
 
 `box()` from `kerf/box` places its panels itself, so every box assembles.
-Parts without `at` or `rotate` stay out of the assembled view. When placed
+Parts without `at` or `rotate` lie flat beside the assembled view, each copy
+in rows to its right, and the render names them in a warning. When placed
 parts run into each other, the render warns which two collide. That is what
 a finger edge set to `"out"` where it should be `"in"` looks like, or a part
 placed one thickness off. Joints that interlock exactly do not count, and
