@@ -1,0 +1,76 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "KerfScript",
+  "mainBinaryName": "kerfscript",
+  "version": "../../package.json",
+  "identifier": "com.mylasertools.KerfScript",
+  "build": {
+    "frontendDist": "../web"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "label": "main",
+        "title": "KerfScript",
+        "width": 1440,
+        "height": 900,
+        "minWidth": 820,
+        "minHeight": 560
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; worker-src 'self' blob:; connect-src 'self' ipc: http://ipc.localhost"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "publisher": "MyLaserTools",
+    "copyright": "Copyright (c) 2026 MyLaserTools",
+    "homepage": "https://kerfscript.mylasertools.com",
+    "license": "AGPL-3.0-only",
+    "licenseFile": "../../LICENSE",
+    "resources": {
+      "../../LICENSE": "LICENSE",
+      "../../THIRD-PARTY-NOTICES.md": "THIRD-PARTY-NOTICES.md",
+      "../THIRD-PARTY-LICENSES.md": "THIRD-PARTY-LICENSES.md",
+      "../../fonts/OFL.txt": "OFL.txt"
+    },
+    "category": "GraphicsAndDesign",
+    "shortDescription": "A programming language for laser cutting",
+    "longDescription": "Write parametric 2D parts with cut, score and engrave layers, kerf compensation and joinery, see them as you type, and export SVG or DXF packed onto sheets.",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "fileAssociations": [
+      {
+        "ext": ["kerf"],
+        "name": "KerfScript design",
+        "description": "KerfScript laser cutting design",
+        "mimeType": "text/x-kerfscript",
+        "role": "Editor"
+      }
+    ],
+    "macOS": {
+      "signingIdentity": "-",
+      "minimumSystemVersion": "11.0"
+    },
+    "linux": {
+      "deb": {
+        "files": {
+          "/usr/share/mime/packages/com.mylasertools.KerfScript.xml": "../../packaging/linux/kerfscript.xml"
+        }
+      },
+      "rpm": {
+        "files": {
+          "/usr/share/mime/packages/com.mylasertools.KerfScript.xml": "../../packaging/linux/kerfscript.xml"
+        }
+      }
+    }
+  }
+}

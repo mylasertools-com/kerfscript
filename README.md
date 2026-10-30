@@ -156,7 +156,9 @@ Errors are thrown as `KerfError` with `line` and `col`.
 - [Getting started](docs/getting-started.md), then the guides on
   [layers](docs/layers.md), [kerf](docs/kerf.md),
   [parts and sheets](docs/parts-and-sheets.md), [settings](docs/customizer.md),
-  the [command line](docs/cli.md) and the [JavaScript API](docs/javascript.md)
+  the [desktop app](docs/desktop.md), the [command line](docs/cli.md), the
+  [JavaScript API](docs/javascript.md)
+  and [WebAssembly](docs/webassembly.md) for other languages
 - [Coming from OpenSCAD](docs/openscad.md): what is the same and what is not
 - [LANGUAGE.md](LANGUAGE.md): the full language reference
 - [Versions](docs/versions.md): language and package versions, and what stays

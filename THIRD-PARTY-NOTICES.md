@@ -117,8 +117,17 @@ OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-## Atkinson Hyperlegible (test fixture only, not published to npm)
+## Desktop app
 
-`test/fixtures/AtkinsonHyperlegible-Regular.ttf`, Copyright 2020 Braille
-Institute of America, Inc., licensed under the SIL Open Font License 1.1. See
-`test/fixtures/OFL.txt`.
+The desktop app is also built from Rust crates (Tauri and its dependencies)
+under MIT, Apache-2.0, MPL-2.0, BSD, ISC, Zlib, Unicode and similar licences.
+`desktop/THIRD-PARTY-LICENSES.md` lists each one with its licence text, and
+the installers place it next to the app.
+
+## Atkinson Hyperlegible (built into the command line and kerfscript.wasm)
+
+`fonts/AtkinsonHyperlegible-Regular.ttf`, Copyright 2020 Braille Institute
+of America, Inc., licensed under the SIL Open Font License 1.1. See
+`fonts/OFL.txt`. It is embedded unmodified in `dist/cli.js` and
+`kerfscript.wasm`, and the playground serves it; `dist/index.js` does not
+include it.

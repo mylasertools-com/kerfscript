@@ -1,7 +1,7 @@
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { render } from '../dist/index.js';
 
-const font = readFileSync('test/fixtures/AtkinsonHyperlegible-Regular.ttf');
+const font = readFileSync('fonts/AtkinsonHyperlegible-Regular.ttf');
 mkdirSync('out', { recursive: true });
 for (const name of readdirSync('examples').filter((f) => f.endsWith('.kerf'))) {
   const r = render(readFileSync(`examples/${name}`, 'utf8'), { fonts: { atkinson: font } });

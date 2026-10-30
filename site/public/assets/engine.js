@@ -21,7 +21,7 @@ export function createEngine() {
     };
   };
 
-  return function run(source, params) {
+  return function run(source, params, files) {
     if (!worker) start();
     const id = ++latest;
     if (pending) {
@@ -41,7 +41,7 @@ export function createEngine() {
         });
       }, TIMEOUT_MS);
       pending = { id, resolve, timer };
-      worker.postMessage({ id, source, params });
+      worker.postMessage({ id, source, params, files });
     });
   };
 }

@@ -19,7 +19,7 @@ const PX = 25.4 / 96;
 const TOLERANCE = 0.02;
 const out = join('out', 'compat');
 mkdirSync(out, { recursive: true });
-const fonts = { Atkinson: readFileSync('test/fixtures/AtkinsonHyperlegible-Regular.ttf') };
+const fonts = { Atkinson: readFileSync('fonts/AtkinsonHyperlegible-Regular.ttf') };
 
 const MODELS = [
   ['calibration-square', 'holes, kerf, engraved text, score'],

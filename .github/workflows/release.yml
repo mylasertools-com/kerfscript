@@ -1,0 +1,298 @@
+# Builds and publishes KerfScript. See RELEASING.md.
+#
+# A tag v1.2.3 makes a draft GitHub release with the desktop app (Windows
+# installer and MSI, macOS dmg, Linux AppImage, .deb and .rpm), standalone
+# `kerf` binaries, kerfscript.wasm, command line .deb and .rpm packages,
+# checksums and GPG signatures; uploads package manager manifests as a
+# workflow artifact; and publishes the Docker image (latest) and the snap
+# (stable).
+#
+# Every night with new commits, and on a manual run, the same files go to the
+# rolling "nightly" prerelease, named by date like OpenSCAD's snapshots, with
+# the Docker image tagged dev and the snap on the edge channel.
+#
+# Optional secrets: GPG_PRIVATE_KEY and GPG_PASSPHRASE (signatures),
+# DOCKERHUB_USERNAME and DOCKERHUB_TOKEN (Docker Hub, next to ghcr.io),
+# SNAPCRAFT_STORE_CREDENTIALS (Snap Store). Steps without them are skipped.
+
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  schedule:
+    - cron: '0 4 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  JAVY_VERSION: v9.1.0
+  JAVY_SHA256: a68b122d48eb3dfc1b801d4e14c39271fde3638243d3272d206e376ac9189e39
+  NFPM_VERSION: 2.48.0
+  NFPM_SHA256: 6d7f9a28b2f397934403950fcbba83f598b08d02edbe79a0815b3b4897341750
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      kind: ${{ steps.what.outputs.kind }}
+      label: ${{ steps.what.outputs.label }}
+      skip: ${{ steps.what.outputs.skip }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Decide what to build
+        id: what
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            label="${GITHUB_REF_NAME#v}"
+            version="$(node -p "require('./package.json').version")"
+            [[ "$label" == "$version" ]] || { echo "::error::Tag $GITHUB_REF_NAME does not match package.json version $version"; exit 1; }
+            echo "kind=release" >> "$GITHUB_OUTPUT"
+          else
+            label="$(date -u +%Y.%m.%d)"
+            echo "kind=nightly" >> "$GITHUB_OUTPUT"
+            if [[ "$GITHUB_EVENT_NAME" == schedule && -z "$(git log --since=24.hours --oneline | head -1)" ]]; then
+              echo "No commits in the last day; skipping the nightly."
+              echo "skip=true" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+          echo "label=$label" >> "$GITHUB_OUTPUT"
+
+  # Command line binaries, kerfscript.wasm and the command line .deb and .rpm
+  cli:
+    needs: plan
+    if: needs.plan.outputs.skip != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Install Javy and nfpm
+        run: |
+          mkdir -p "$HOME/.local/bin"
+          curl -fsSL -o javy.gz "https://github.com/bytecodealliance/javy/releases/download/$JAVY_VERSION/javy-x86_64-linux-$JAVY_VERSION.gz"
+          echo "$JAVY_SHA256  javy.gz" | sha256sum -c
+          gunzip -c javy.gz > "$HOME/.local/bin/javy" && chmod +x "$HOME/.local/bin/javy" && rm javy.gz
+          curl -fsSL -o nfpm.tar.gz "https://github.com/goreleaser/nfpm/releases/download/v$NFPM_VERSION/nfpm_${NFPM_VERSION}_Linux_x86_64.tar.gz"
+          echo "$NFPM_SHA256  nfpm.tar.gz" | sha256sum -c
+          tar -xzf nfpm.tar.gz -C "$HOME/.local/bin" nfpm && rm nfpm.tar.gz
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Build and test
+        run: |
+          npm ci
+          npm run build
+          npm run wasm
+          npm test
+      - name: Make release files
+        env:
+          KERF_LABEL: ${{ needs.plan.outputs.label }}
+        run: |
+          node scripts/release.mjs ${{ needs.plan.outputs.kind == 'release' && '--linux-packages' || '' }}
+          tar -xzf "release/kerf-$KERF_LABEL-linux-x64.tar.gz" -C "$RUNNER_TEMP"
+          "$RUNNER_TEMP/kerf-$KERF_LABEL-linux-x64/kerf" --version
+          printf 'text("Oak", size = 10);\n' > "$RUNNER_TEMP/sign.kerf"
+          "$RUNNER_TEMP/kerf-$KERF_LABEL-linux-x64/kerf" render "$RUNNER_TEMP/sign.kerf" -o "$RUNNER_TEMP/sign.svg"
+          grep -q '<path' "$RUNNER_TEMP/sign.svg"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: files-cli
+          path: release/*
+
+  # The desktop app, built natively on each platform
+  desktop:
+    needs: plan
+    if: needs.plan.outputs.skip != 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: windows-x64
+            runner: windows-latest
+          - name: macos-universal
+            runner: macos-latest
+            args: --target universal-apple-darwin
+            rust-targets: aarch64-apple-darwin,x86_64-apple-darwin
+          - name: linux-x64
+            runner: ubuntu-22.04
+          - name: linux-arm64
+            runner: ubuntu-22.04-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            site/package-lock.json
+            desktop/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust-targets }}
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: desktop/src-tauri
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libfuse2 xdg-utils
+      - name: Build the playground
+        run: |
+          npm ci
+          npm run build
+          npm --prefix site ci
+          npm --prefix site run build
+      - name: Check the Rust licence list
+        if: matrix.name == 'linux-x64'
+        working-directory: desktop
+        run: node scripts/licenses.mjs --check
+      - name: Build the app
+        working-directory: desktop
+        run: |
+          npm ci
+          npm run web
+          npx tauri build ${{ matrix.args }}
+      - name: Collect installers
+        working-directory: desktop
+        env:
+          KERF_LABEL: ${{ needs.plan.outputs.label }}
+        run: node scripts/collect.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: files-desktop-${{ matrix.name }}
+          path: release/*
+
+  # Checksums, signatures and manifests over every file, then the GitHub release
+  github:
+    needs: [plan, cli, desktop]
+    if: needs.plan.outputs.skip != 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+      GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+      GH_TOKEN: ${{ github.token }}
+      KERF_LABEL: ${{ needs.plan.outputs.label }}
+      KIND: ${{ needs.plan.outputs.kind }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: files-*
+          path: release
+          merge-multiple: true
+      - name: Checksums and manifests
+        run: |
+          rm -f release/*.sha256 release/*.sha512 release/SHA256SUMS
+          node scripts/checksums.mjs
+          if [[ "$KIND" == release ]]; then node scripts/manifests.mjs; fi
+      - name: Sign with GPG
+        if: env.GPG_PRIVATE_KEY != ''
+        run: |
+          echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+          for f in release/*; do
+            [[ -f "$f" && "$f" != *.sha256 && "$f" != *.sha512 ]] || continue
+            gpg --batch --yes --pinentry-mode loopback --passphrase "$GPG_PASSPHRASE" --armor --detach-sign "$f"
+          done
+      - uses: actions/upload-artifact@v4
+        if: needs.plan.outputs.kind == 'release'
+        with:
+          name: manifests
+          path: release/manifests
+      - name: Draft the release
+        if: needs.plan.outputs.kind == 'release'
+        run: |
+          awk -v v="## $KERF_LABEL" 'index($0, v) == 1 { on = 1; next } /^## / { on = 0 } on' CHANGELOG.md > notes.md
+          find release -maxdepth 1 -type f -print0 | xargs -0 gh release create "v$KERF_LABEL" --draft --verify-tag --title "KerfScript $KERF_LABEL" --notes-file notes.md
+      - name: Replace the nightly prerelease
+        if: needs.plan.outputs.kind == 'nightly'
+        run: |
+          gh release delete nightly --cleanup-tag --yes 2>/dev/null || true
+          find release -maxdepth 1 -type f -print0 | xargs -0 gh release create nightly --prerelease --target "$GITHUB_SHA" \
+            --title "Nightly $KERF_LABEL" \
+            --notes "Built from $GITHUB_SHA on $KERF_LABEL. Nightlies are untested on real machines; use a release to cut."
+
+  docker:
+    needs: plan
+    if: needs.plan.outputs.skip != 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+      LABEL: ${{ needs.plan.outputs.label }}
+      KIND: ${{ needs.plan.outputs.kind }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - uses: docker/login-action@v3
+        if: env.DOCKERHUB_TOKEN != ''
+        with:
+          username: ${{ env.DOCKERHUB_USERNAME }}
+          password: ${{ env.DOCKERHUB_TOKEN }}
+      - name: Choose tags
+        id: tags
+        run: |
+          images="ghcr.io/mylasertools/kerfscript"
+          [[ -n "$DOCKERHUB_TOKEN" ]] && images="$images mylasertools/kerfscript"
+          tags=""
+          for image in $images; do
+            if [[ "$KIND" == release ]]; then
+              tags="$tags,$image:$LABEL,$image:latest"
+            else
+              tags="$tags,$image:dev,$image:dev.${LABEL//./-}"
+            fi
+          done
+          echo "tags=${tags#,}" >> "$GITHUB_OUTPUT"
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.tags.outputs.tags }}
+
+  snap:
+    needs: plan
+    if: needs.plan.outputs.skip != 'true'
+    strategy:
+      matrix:
+        runner: [ubuntu-latest, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.runner }}
+    env:
+      SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: snapcore/action-build@v1
+        id: snap
+      - uses: snapcore/action-publish@v1
+        if: env.SNAPCRAFT_STORE_CREDENTIALS != ''
+        with:
+          snap: ${{ steps.snap.outputs.snap }}
+          release: ${{ needs.plan.outputs.kind == 'release' && 'stable' || 'edge' }}

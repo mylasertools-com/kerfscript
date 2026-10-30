@@ -29,7 +29,19 @@ const zipButton = $('[data-download="zip"]');
 const sheetPick = $('[data-sheet]');
 const sheetsBox = $('[data-sheets]');
 const run = createEngine();
+// Set by the desktop app (desktop/src/desktop.js): files on disk instead of
+// downloads, and libraries next to the open file.
+const host = window.kerfHost;
 const examples = await (await fetch('/assets/examples.json')).json();
+// Desktop app only: open the cut file in LightBurn, next to the SVG and DXF buttons
+const lightburnButton = host?.lightburn
+  ? Object.assign(document.createElement('button'), {
+      className: 'button',
+      textContent: 'Open in LightBurn',
+      disabled: true,
+    })
+  : null;
+if (lightburnButton) dxfButton.after(lightburnButton);
 
 let last = null;
 let ready = null;
@@ -54,6 +66,7 @@ function setReady(result, source) {
   svgButton.disabled = !ready;
   dxfButton.disabled = !ready?.result.dxf;
   zipButton.disabled = !ready;
+  if (lightburnButton) lightburnButton.disabled = !ready;
 }
 
 function current() {
@@ -71,6 +84,7 @@ function edited() {
   stale(true);
   paint();
   saveDraft();
+  host?.changed();
 }
 
 // The example in the picker, or "Your code" once the code is edited by hand
@@ -79,7 +93,7 @@ function showDesign(slug) {
   history.replaceState(null, '', picker.value ? `?model=${picker.value}` : location.pathname);
 }
 
-const baseName = () => picker.value || 'design';
+const baseName = () => host?.name() ?? (picker.value || 'design');
 
 function syncScroll() {
   viewPre.scrollTop = input.scrollTop;
@@ -157,6 +171,7 @@ function showSheets() {
   svgButton.hidden = many;
   dxfButton.hidden = many;
   zipButton.hidden = !many;
+  if (lightburnButton) lightburnButton.hidden = many;
   if (!many) {
     sheetsBox.replaceChildren();
     return;
@@ -168,7 +183,7 @@ function showSheets() {
   sheetPick.value = String(shown);
   const rows = last.sheets.map(
     (s, i) =>
-      `<tr><td>${esc(sheetLabel(s, i))}, ${partsText(s.items.length)}</td><td>${fmt(s.width)} × ${fmt(s.height)} mm</td><td><button class="link" data-file="svg" data-index="${i}">SVG</button> · <button class="link" data-file="dxf" data-index="${i}">DXF</button></td></tr>`,
+      `<tr><td>${esc(sheetLabel(s, i))}, ${partsText(s.items.length)}</td><td>${fmt(s.width)} × ${fmt(s.height)} mm</td><td><button class="link" data-file="svg" data-index="${i}">SVG</button> · <button class="link" data-file="dxf" data-index="${i}">DXF</button>${lightburnButton ? ` · <button class="link" data-file="lightburn" data-index="${i}">LightBurn</button>` : ''}</td></tr>`,
   );
   sheetsBox.innerHTML = `<h3>Cut files</h3><table class="parts sheet-files"><thead><tr><th>Sheet</th><th>Size</th><th>Download</th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
 }
@@ -220,7 +235,7 @@ async function update() {
   updateSettings();
   status.textContent = 'Rendering…';
   const source = input.value;
-  const reply = await run(source, {});
+  const reply = await run(source, {}, await host?.libraries(source));
   if (reply.stale || source !== input.value) return;
   const echoes = (reply.ok ? reply.result.echoes : (reply.echoes ?? [])).map((e) => [
     'echo',
@@ -288,7 +303,13 @@ input.addEventListener('keydown', (e) => {
   input.dispatchEvent(new Event('input'));
 });
 
-picker.addEventListener('change', () => {
+picker.addEventListener('change', async () => {
+  const slug = picker.value;
+  if (host && !(await host.release())) {
+    picker.value = '';
+    return;
+  }
+  picker.value = slug;
   load(examples[picker.value]);
   showDesign(picker.value);
   saveDraft();
@@ -308,6 +329,7 @@ for (const tab of root.querySelectorAll('[data-view]'))
   });
 
 function download(name, data, type) {
+  if (host) return host.save(name, data);
   const url = URL.createObjectURL(data instanceof Blob ? data : new Blob([data], { type }));
   const a = Object.assign(document.createElement('a'), { href: url, download: name });
   a.click();
@@ -325,6 +347,10 @@ dxfButton.addEventListener('click', () => {
   const result = current();
   if (result?.dxf) download(`${baseName()}.dxf`, result.dxf, 'application/dxf');
 });
+lightburnButton?.addEventListener('click', () => {
+  const result = current();
+  if (result) host.lightburn(`${baseName()}.svg`, result.svg, lightburnButton);
+});
 zipButton.addEventListener('click', () => {
   const result = current();
   if (!result) return;
@@ -340,12 +366,14 @@ sheetsBox.addEventListener('click', (e) => {
   if (!button || !result) return;
   const i = Number(button.dataset.index);
   const s = result.sheets[i];
-  if (button.dataset.file === 'svg') download(`${sheetFile(s, i)}.svg`, s.svg, 'image/svg+xml');
+  if (button.dataset.file === 'lightburn') host.lightburn(`${sheetFile(s, i)}.svg`, s.svg, button);
+  else if (button.dataset.file === 'svg')
+    download(`${sheetFile(s, i)}.svg`, s.svg, 'image/svg+xml');
   else download(`${sheetFile(s, i)}.dxf`, s.dxf, 'application/dxf');
 });
 root.querySelector('[data-share]').addEventListener('click', async (e) => {
-  const url = `${location.origin}${location.pathname}#${await encode(input.value)}`;
-  history.replaceState(null, '', url);
+  const url = `${host?.shareBase ?? location.origin + location.pathname}#${await encode(input.value)}`;
+  if (!host) history.replaceState(null, '', url);
   try {
     await navigator.clipboard.writeText(url);
     e.target.textContent = 'Link copied';
@@ -356,9 +384,16 @@ root.querySelector('[data-share]').addEventListener('click', async (e) => {
 });
 
 const model = new URLSearchParams(location.search).get('model');
-let start = null;
+host?.attach({
+  load(text) {
+    load(text);
+    showDesign('');
+  },
+  source: () => input.value,
+});
+let start = host ? await host.initial() : null;
 try {
-  start = await decode(location.hash.slice(1));
+  if (!start) start = await decode(location.hash.slice(1));
 } catch {}
 if (!start && model && examples[model]) start = examples[model];
 if (!start) {

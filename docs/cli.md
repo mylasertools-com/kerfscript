@@ -36,7 +36,7 @@ reports parts, dimensions, cut lengths, sheets and warnings.
 | `-o, --out <file>` | Output path ending in `.svg`, `.dxf` or `.json`; defaults to `<file>.svg` |
 | `-D name=value` | Override a parameter; repeat for multiple values |
 | `-p, --params <file>` | Load parameter values from a JSON file |
-| `--font <file.ttf>` | Supply a font file; repeat for multiple fonts |
+| `--font <file.ttf>` | Supply a font file; repeat for multiple fonts. `Atkinson` is built in |
 | `--kerf <mm>` | Override kerf for every part |
 | `--sheet <W>x<H>` | Set the sheet width and height in millimetres |
 | `--gap <mm>` | Set spacing between parts |
@@ -68,9 +68,11 @@ a non-zero exit code.
 
 ## Fonts
 
-Supply font files with `--font` for designs that use text. The CLI does not
-look up fonts installed on your system.
+The CLI has one font built in, Atkinson Hyperlegible, as `Atkinson`: the same
+font and name as the playground. Text that names no font uses it.
 
-`--font Inter-Bold.ttf` makes the font available as `Inter-Bold`. A design
-can request it with `font = "Inter-Bold"`. The first supplied font is the
-default for text that does not name one.
+Supply other font files with `--font`. The CLI does not look up fonts
+installed on your system. `--font Inter-Bold.ttf` makes the font available
+as `Inter-Bold`. A design can request it with `font = "Inter-Bold"`. The
+first supplied font becomes the default for text that does not name one, and
+`Atkinson` stays available.

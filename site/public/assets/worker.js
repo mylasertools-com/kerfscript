@@ -9,13 +9,14 @@ const font = fetch(new URL('./fonts/AtkinsonHyperlegible-Regular.ttf', import.me
 );
 
 self.onmessage = async (event) => {
-  const { id, source, params } = event.data;
+  const { id, source, params, files } = event.data;
   const started = performance.now();
   try {
     const result = render(source, {
       params,
       fonts: { Atkinson: await font },
       defaultFont: 'Atkinson',
+      resolve: files ? (p) => files[p] ?? files[p + '.kerf'] : undefined,
     });
     self.postMessage({
       id,

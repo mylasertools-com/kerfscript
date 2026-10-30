@@ -82,3 +82,11 @@ test('check lists each sheet, and a stacked SVG suggests --split', () => {
   assert.match(svg.stderr, /2 sheets are stacked .* --split/);
   assert.doesNotMatch(run('render', input).stderr, /stacked/);
 });
+
+test('text() uses the built-in font without --font', () => {
+  const sign = join(dir, 'sign.kerf');
+  writeFileSync(sign, 'text("Oak", size = 10);\ntext("Ash", size = 10, font = "Atkinson");\n');
+  const r = run('render', sign, '-o', join(dir, 'sign.svg'));
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(readFileSync(join(dir, 'sign.svg'), 'utf8'), /<path/);
+});

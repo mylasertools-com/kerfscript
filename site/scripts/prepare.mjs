@@ -16,4 +16,4 @@ if (!existsSync(bundle))
 mkdirSync(join(site, 'public/assets/fonts'), { recursive: true });
 copyFileSync(bundle, join(site, 'public/assets/kerfscript.js'));
 for (const f of ['AtkinsonHyperlegible-Regular.ttf', 'OFL.txt'])
-  copyFileSync(join(repo, 'test/fixtures', f), join(site, 'public/assets/fonts', f));
+  copyFileSync(join(repo, 'fonts', f), join(site, 'public/assets/fonts', f));

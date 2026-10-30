@@ -2,6 +2,30 @@
 
 ## 0.2.1
 
+- `kerfscript.wasm`: a WASI module that runs KerfScript from Python, Rust,
+  Go, C# and other languages. It takes a JSON request on standard input and
+  writes SVG, DXF, parts and warnings as JSON. Build it with `npm run wasm`;
+  see [docs/webassembly.md](docs/webassembly.md).
+- A desktop app for Windows, macOS and Linux: the playground with `.kerf`
+  files on disk (Open, Save, Save as, double-click to open), exports through a
+  save dialog, and `use`/`include` libraries read from the design's folder.
+  Installers: Windows setup and MSI, a universal macOS dmg, and an AppImage,
+  `.deb` and `.rpm` for Linux x64 and arm64; Flathub, winget, Chocolatey and
+  AUR manifests. See [docs/desktop.md](docs/desktop.md).
+- Open in LightBurn in the desktop app: sends the cut file (or one sheet) to
+  LightBurn 2.2 or later through its REST API. KerfScript asks LightBurn only
+  for permission to send files.
+- Chocolatey and MacPorts manifests for the command line.
+- Standalone `kerf` binaries for Windows, macOS and Linux that need no
+  Node.js, `.deb` and `.rpm` packages, a Docker image, a snap, and Homebrew,
+  Scoop, winget and AUR manifests, all built by the release workflow with
+  SHA-256, SHA-512 and GPG signatures. Nightly builds go to a rolling
+  `nightly` prerelease. See RELEASING.md.
+- A `kerf(1)` man page and a `text/x-kerfscript` MIME type for `*.kerf` files
+  in the Linux packages.
+- The command line and `kerfscript.wasm` have a font built in, Atkinson
+  Hyperlegible as `Atkinson` (the playground's font), so `text()` works
+  without `--font`. The JavaScript library still takes fonts from the host.
 - Memory limits, so a program cannot make a browser tab run out of memory:
   part copies, circle segments and polygon corners, list and string sizes,
   all list items together, `text()` length, shape points, exported points

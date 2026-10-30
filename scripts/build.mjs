@@ -30,6 +30,7 @@ await build({
   format: 'esm',
   platform: 'node',
   target: 'node20',
+  loader: { '.ttf': 'binary' },
   banner: { js: '#!/usr/bin/env node\n' + banner.js },
 });
 for (const name of await readdir('dist', { recursive: true })) {

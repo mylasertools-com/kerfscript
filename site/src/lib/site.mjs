@@ -45,8 +45,10 @@ export const GUIDES = [
   ['kerf', 'Kerf'],
   ['parts-and-sheets', 'Parts and sheets'],
   ['customizer', 'Settings'],
+  ['desktop', 'Desktop app'],
   ['cli', 'Command line'],
   ['javascript', 'JavaScript API'],
+  ['webassembly', 'WebAssembly'],
   ['openscad', 'Coming from OpenSCAD'],
   ['compatibility', 'Laser software'],
   ['versions', 'Versions'],
@@ -135,7 +137,7 @@ export function markdown(path) {
 
 const FONT_FILE = 'AtkinsonHyperlegible-Regular.ttf';
 const FONTS = {
-  fonts: { Atkinson: readFileSync(join(repo, 'test/fixtures', FONT_FILE)) },
+  fonts: { Atkinson: readFileSync(join(repo, 'fonts', FONT_FILE)) },
   defaultFont: 'Atkinson',
 };
 

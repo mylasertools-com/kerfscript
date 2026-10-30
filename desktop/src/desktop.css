@@ -1,0 +1,9 @@
+/* The desktop app has no website header or footer, so the editor gets the room. */
+
+main.wide {
+  padding-top: 12px;
+}
+
+.editor {
+  height: calc(100vh - 210px);
+}

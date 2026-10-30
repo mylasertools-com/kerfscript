@@ -1,0 +1,17 @@
+{
+  "name": "kerfscript-desktop",
+  "private": true,
+  "type": "module",
+  "description": "The KerfScript desktop app: the playground with files on disk",
+  "license": "AGPL-3.0-only",
+  "scripts": {
+    "web": "node scripts/web.mjs",
+    "dev": "npm run web && tauri dev",
+    "build": "npm run web && tauri build",
+    "collect": "node scripts/collect.mjs",
+    "icons": "tauri icon icon.png"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "2.12.4"
+  }
+}

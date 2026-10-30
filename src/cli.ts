@@ -5,6 +5,7 @@ import { basename, dirname, extname, join, resolve } from 'node:path';
 import { parameters, render, KerfError, LANGUAGE_VERSION, VERSION, type Value } from './index.js';
 import { parse } from './parser.js';
 import { Evaluator } from './evaluator.js';
+import { BUILTIN_FONT, withBuiltinFont } from './font.js';
 
 const HELP = `kerf ${VERSION}: the KerfScript laser cutting language
 
@@ -17,7 +18,8 @@ Options:
   -o, --out <file>        output file (.svg, .dxf or .json); default <file>.svg
   -D name=value           set a parameter (value is KerfScript: 40, "Oak", true, [1,2])
   -p, --params <file>     JSON file of parameter values
-  --font <file.ttf>       font for text(); repeat for more fonts (name = file name)
+  --font <file.ttf>       font for text(); repeat for more fonts (name = file name).
+                          Built in: ${BUILTIN_FONT}
   --kerf <mm>             override kerf compensation for all parts
   --sheet <W>x<H>         sheet size for packing, in mm
   --gap <mm>              space between packed parts
@@ -117,7 +119,7 @@ function main(argv: string[]) {
   const result = render(source, {
     ...opts,
     params,
-    fonts: Object.keys(fonts).length ? fonts : undefined,
+    fonts: withBuiltinFont(fonts),
     resolve: resolveLib,
   });
   for (const e of result.echoes) process.stderr.write(`ECHO: ${e}\n`);

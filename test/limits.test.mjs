@@ -68,7 +68,7 @@ test('limits can be changed', () => {
 });
 
 test('every example renders at a quarter of the default limits', () => {
-  const font = readFileSync('test/fixtures/AtkinsonHyperlegible-Regular.ttf');
+  const font = readFileSync('fonts/AtkinsonHyperlegible-Regular.ttf');
   const limits = Object.fromEntries(
     Object.entries(DEFAULT_LIMITS).map(([k, v]) => [k, Math.ceil(v / 4)]),
   );

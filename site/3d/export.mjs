@@ -11,7 +11,7 @@ const repo = new URL('../../', import.meta.url);
 const out = new URL('./.build/', import.meta.url);
 mkdirSync(out, { recursive: true });
 
-const font = readFileSync(new URL('test/fixtures/AtkinsonHyperlegible-Regular.ttf', repo));
+const font = readFileSync(new URL('fonts/AtkinsonHyperlegible-Regular.ttf', repo));
 const all = JSON.parse(readFileSync(new URL('site/models.json', repo), 'utf8')).map((m) => m.file);
 const slugs = process.argv.slice(2).length ? process.argv.slice(2) : all;
 

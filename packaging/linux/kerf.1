@@ -1,0 +1,85 @@
+.TH KERF 1 "2026-10-29" "KerfScript" "User Commands"
+.SH NAME
+kerf \- the KerfScript laser cutting language
+.SH SYNOPSIS
+.B kerf render
+.I file.kerf
+.RB [ \-o
+.IR out.svg ]
+.RI [ options ]
+.br
+.B kerf params
+.I file.kerf
+.br
+.B kerf check
+.I file.kerf
+.SH DESCRIPTION
+KerfScript is a programming language for laser cutting. A program describes
+parametric 2D parts with cut, score and engrave layers, kerf compensation and
+joinery.
+.B kerf
+runs a program and exports SVG or DXF files, packed onto sheets.
+.SH COMMANDS
+.TP
+.B render
+Run the program and write the output file.
+.TP
+.B params
+Print the customizer parameters as JSON.
+.TP
+.B check
+Run the program and print its parts, sheets and warnings.
+.SH OPTIONS
+.TP
+.BR \-o ", " \-\-out " \fIfile\fR"
+Output file ending in .svg, .dxf or .json. Defaults to
+.IR file .svg.
+.TP
+.BI \-D " name" = value
+Set a parameter. The value is KerfScript: 40, "Oak", true, [1,2].
+.TP
+.BR \-p ", " \-\-params " \fIfile\fR"
+Read parameter values from a JSON file.
+.TP
+.BI \-\-font " file.ttf"
+Supply a font for text(), named after the file. Repeat for more fonts.
+Atkinson Hyperlegible is built in as
+.BR Atkinson .
+.TP
+.BI \-\-kerf " mm"
+Override kerf compensation for every part.
+.TP
+.BI \-\-sheet " W" x H
+Sheet size for packing, in millimetres.
+.TP
+.BI \-\-gap " mm"
+Space between packed parts.
+.TP
+.BI \-\-margin " mm"
+Space between the parts and the sheet edge. Defaults to the gap.
+.TP
+.B \-\-no\-pack
+Keep parts where the program placed them.
+.TP
+.B \-\-guides
+Include guide layer geometry.
+.TP
+.B \-\-split
+Write one file per sheet: out-1.svg, out-2.svg, ...
+.TP
+.BR \-h ", " \-\-help
+Show help.
+.TP
+.BR \-v ", " \-\-version
+Show the package and language versions.
+.SH EXIT STATUS
+0 on success. 1 when the program has an error, which is printed with its
+line and column.
+.SH EXAMPLES
+.nf
+kerf render box.kerf \-D width=120 \-\-sheet 600x400 \-o box.svg
+kerf render box.kerf \-o box.dxf \-\-split
+kerf params box.kerf
+.fi
+.SH SEE ALSO
+https://kerfscript.mylasertools.com/docs/

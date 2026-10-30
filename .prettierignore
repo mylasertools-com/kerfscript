@@ -5,3 +5,7 @@ src/stdlib.ts
 site/dist
 site/.astro
 site/public/assets/kerfscript.js
+release/
+desktop/web/
+desktop/src-tauri/target/
+desktop/THIRD-PARTY-LICENSES.md

@@ -1,0 +1,39 @@
+name: kerfscript
+title: KerfScript
+summary: A programming language for laser cutting
+description: |
+  KerfScript is a programming language for laser cutting. Write parametric 2D
+  parts with cut, score and engrave layers, kerf compensation and joinery,
+  and export SVG or DXF packed onto sheets.
+
+  Run `kerfscript.kerf render design.kerf`, or ask for the `kerf` alias.
+website: https://kerfscript.mylasertools.com
+source-code: https://github.com/mylasertools/kerfscript
+license: AGPL-3.0-only
+adopt-info: kerf
+base: core24
+grade: stable
+confinement: strict
+platforms:
+  amd64:
+  arm64:
+
+apps:
+  kerf:
+    command: bin/kerf
+    plugs: [home, removable-media]
+
+parts:
+  kerf:
+    plugin: nil
+    source: .
+    build-snaps: [node/22/stable]
+    override-build: |
+      craftctl set version="$(node -p "require('./package.json').version")"
+      npm ci --ignore-scripts
+      npm run build
+      install -Dm755 "$(command -v node)" "$CRAFT_PART_INSTALL/bin/node"
+      install -Dm644 dist/cli.js "$CRAFT_PART_INSTALL/lib/kerfscript/cli.js"
+      install -Dm644 LICENSE fonts/OFL.txt THIRD-PARTY-NOTICES.md -t "$CRAFT_PART_INSTALL/share/doc/kerfscript/"
+      printf '#!/bin/sh\nexec "$SNAP/bin/node" "$SNAP/lib/kerfscript/cli.js" "$@"\n' > "$CRAFT_PART_INSTALL/bin/kerf"
+      chmod +x "$CRAFT_PART_INSTALL/bin/kerf"

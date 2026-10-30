@@ -230,7 +230,9 @@ export examples.
 
 Supply geometry as children of a shape-processing module, for example
 `translate([10, 0]) circle(d = 5);`. Fonts used by `text()` must be supplied
-by the application or through the [command line](docs/cli.md).
+by the application or through the [command line](docs/cli.md). The
+playground, the command line and `kerfscript.wasm` have `Atkinson`
+(Atkinson Hyperlegible) built in.
 
 ### Transforms
 

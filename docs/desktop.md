@@ -1,0 +1,82 @@
+# Desktop app
+
+The KerfScript app is the [playground](https://kerfscript.mylasertools.com/playground/)
+on your computer: the same editor, settings and preview, with your designs
+saved as `.kerf` files. It works offline.
+
+## Install
+
+Download the app for your system from the
+[releases](https://github.com/mylasertools/kerfscript/releases):
+
+| System | File |
+| --- | --- |
+| Windows | `kerfscript-desktop-<version>-windows-x64-setup.exe`, or the `.msi` |
+| macOS | `kerfscript-desktop-<version>-macos-universal.dmg` (Apple silicon and Intel) |
+| Linux | `.AppImage`, `.deb` or `.rpm`, for x64 or arm64 |
+
+Package manager listings (winget, Chocolatey, Flathub and the AUR) follow as
+each one is approved.
+
+The app is not signed with an Apple or Microsoft certificate yet:
+
+- **macOS** says the app cannot be checked for malicious software. Open it
+  once with right click → **Open**, or run
+  `xattr -d com.apple.quarantine /Applications/KerfScript.app`.
+- **Windows** SmartScreen may say it protected your PC. Choose
+  **More info** → **Run anyway**.
+
+## Files
+
+| Action | Keys |
+| --- | --- |
+| Open a `.kerf` file | Ctrl+O (⌘O on a Mac), or the **Open…** button |
+| Save | Ctrl+S |
+| Save under a new name | Ctrl+Shift+S, or **Save as…** |
+
+Double-click a `.kerf` file to open it in the app. The title bar shows the
+file name, and a dot when there are unsaved changes; the app asks before it
+closes or opens another design over them.
+
+SVG, DXF and sheet ZIP exports open a save dialog in the design's folder.
+
+## LightBurn
+
+**Open in LightBurn** sends the cut file straight to
+[LightBurn](https://lightburnsoftware.com) 2.2 or later, through LightBurn's
+[REST API](https://github.com/LightBurnSoftware/LightBurn-REST). With several
+sheets, each sheet in the cut files list has its own **LightBurn** link.
+
+LightBurn has to be open on the same computer. The first time, LightBurn
+asks whether to allow KerfScript; choose **Allow** within 30 seconds. The
+window may open behind KerfScript. KerfScript asks only to send files: it
+cannot read your projects, change cut settings or start the laser.
+
+The file opens as a new LightBurn project, as if you had used File → Open,
+and LightBurn asks first if your current project has unsaved changes. Check
+the layers and cut settings in LightBurn before you run the job.
+
+To stop KerfScript sending files, remove it in LightBurn under
+Settings → Extensions → Manage API Authorizations.
+
+LightBurn is a trademark of LightBurn Software, Inc. KerfScript is not made,
+endorsed or certified by LightBurn Software.
+
+## Libraries
+
+`use <path>` and `include <path>` find files next to the open design, as on
+the [command line](cli.md): with the design at `projects/box.kerf`,
+`use <lib/tabs>` reads `projects/lib/tabs.kerf`. Standard library paths such
+as `use <kerf/box>` work everywhere. A design that has not been saved yet can
+only use the standard library.
+
+## Fonts
+
+`text()` uses Atkinson Hyperlegible, as in the playground. The app does not
+read fonts installed on your system yet; use the [command line](cli.md) with
+`--font` for other fonts.
+
+## Sharing
+
+**Copy web link** copies a link that opens your code in the playground on the
+website, so people without the app can see it.

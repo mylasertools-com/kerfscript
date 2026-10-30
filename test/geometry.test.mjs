@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { KerfError, render } from '../dist/index.js';
 
-const font = readFileSync(new URL('./fixtures/AtkinsonHyperlegible-Regular.ttf', import.meta.url));
+const font = readFileSync(new URL('../fonts/AtkinsonHyperlegible-Regular.ttf', import.meta.url));
 
 const area = (p) => {
   let a = 0;

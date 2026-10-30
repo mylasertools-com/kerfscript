@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
 import { render } from '../dist/index.js';
 
-const font = readFileSync(new URL('./fixtures/AtkinsonHyperlegible-Regular.ttf', import.meta.url));
+const font = readFileSync(new URL('../fonts/AtkinsonHyperlegible-Regular.ttf', import.meta.url));
 const docs = new URL('../docs/', import.meta.url);
 
 for (const file of readdirSync(docs).filter((f) => f.endsWith('.md'))) {

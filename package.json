@@ -45,12 +45,14 @@
   },
   "files": [
     "dist",
+    "!dist/kerfscript.wasm",
     "README.md",
     "docs",
     "LANGUAGE.md",
     "LICENSE",
     "COMMERCIAL-LICENSE.md",
     "THIRD-PARTY-NOTICES.md",
+    "fonts/OFL.txt",
     "CHANGELOG.md",
     "TRADEMARKS.md",
     "CLA.md"
@@ -73,6 +75,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "compat": "node scripts/compat.mjs",
+    "wasm": "node scripts/wasm.mjs",
     "readme-images": "npm run build && cd site && node ../scripts/readme-images.mjs"
   },
   "devDependencies": {
