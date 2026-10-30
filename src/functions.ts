@@ -51,8 +51,13 @@ export function bindArgs(f: Builtin, pos: Value[], named: Map<string, Value>): V
     });
     return out;
   }
-  const order = f.order?.(pos.length) ?? f.params;
-  return f.params.map((p) => (named.has(p) ? named.get(p) : pos[order.indexOf(p)]));
+  if (!f.order) return f.params.map((p, i) => (named.has(p) ? named.get(p) : pos[i]));
+  // Overloads such as log(x) and log(base, x) pick an order by the number of
+  // arguments, positional and named. Positional ones go to the parameters
+  // not named, so log(2, x = 8) and log(8, base = 2) are both 3.
+  const given = pos.length + f.params.filter((p) => named.has(p)).length;
+  const free = f.order(given).filter((p) => !named.has(p));
+  return f.params.map((p) => (named.has(p) ? named.get(p) : pos[free.indexOf(p)]));
 }
 
 function text(vs: Value[], sep: string, c: FnCtx, fn: string): string {

@@ -29,10 +29,11 @@ const KINDS = [
 ];
 const OS = { nsis: 'windows', msi: 'windows', dmg: 'macos' };
 
-// Tauri puts the version in each installer's name (KerfScript_0.3.0_x64.msi,
-// KerfScript-0.3.0-1.x86_64.rpm). Installers of other versions, left from
-// earlier builds, are not copied.
-const built = new RegExp(`[_-]${version.replace(/\./g, '\\.')}[_-]`);
+// Tauri puts the version in each installer's name, followed by _ or, for an
+// rpm, its release number (KerfScript_0.3.0_x64.msi,
+// KerfScript-0.3.0-1.x86_64.rpm). Installers of other versions left from
+// earlier builds, 0.3.0-beta.1 among them, are not copied.
+const built = new RegExp(`[_-]${version.replace(/\./g, '\\.')}(?:_|-\\d+\\.)`);
 
 const arch = (name) =>
   /universal/.test(name) ? 'universal' : /aarch64|arm64/.test(name) ? 'arm64' : 'x64';

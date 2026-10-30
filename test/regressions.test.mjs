@@ -117,10 +117,16 @@ test('built-in functions take named arguments', () => {
   const r = render(
     'echo(sin(30), sin(x = 30), pow(x = 2, y = 10), pow(2, y = 3), pow(y = 3, x = 2), atan2(y = 1, x = 1));' +
       'echo(log(100), log(2, 8), log(x = 8, base = 2), log(8, base = 2), min(values = [3, 1]), max(4, 5));' +
+      'echo(log(2, x = 8), log(x = 100), log(base = 2, x = 8));' +
       'echo(slice("hello", start = 1, end = 3), join(values = [1, 2], separator = "-"), lookup(x = 1, table = [[0, 0], [2, 4]]));' +
       'rect(1);',
   );
-  assert.deepEqual(r.echoes, ['0.5, 0.5, 1024, 8, 8, 45', '2, 3, 3, 3, 1, 5', 'el, 1-2, 2']);
+  assert.deepEqual(r.echoes, [
+    '0.5, 0.5, 1024, 8, 8, 45',
+    '2, 3, 3, 3, 1, 5',
+    '3, 2, 3',
+    'el, 1-2, 2',
+  ]);
   assert.deepEqual(r.warnings, []);
 });
 

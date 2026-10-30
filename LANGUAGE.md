@@ -240,7 +240,7 @@ playground, the command line and `kerfscript.wasm` have `Atkinson`
 | ---------------------------- | ---------------------------------------------------------------------- |
 | `translate([x, y])`          | Move geometry by x and y                                               |
 | `rotate(a, center = [x, y])` | Rotate by `a` degrees around a point; the default centre is the origin |
-| `scale(s)`                   | Scale both axes by the same factor                                     |
+| `scale(v)`                   | Scale both axes by the number `v`                                      |
 | `scale([sx, sy])`            | Scale each axis separately                                             |
 | `mirror([nx, ny])`           | Reflect across a line through the origin, perpendicular to this vector |
 | `multmatrix(m)`              | Apply a 2 × 3 transformation matrix                                    |
@@ -268,11 +268,11 @@ playground, the command line and `kerfscript.wasm` have `Atkinson`
 
 ### Other
 
-| Module                  | Effect                                                                       |
-| ----------------------- | ---------------------------------------------------------------------------- |
-| `echo(...)`             | Report values without creating geometry                                      |
-| `assert(cond, message)` | Stop with `message` when `cond` is false                                     |
-| `children(i)`           | Render a child passed to the current module; omit `i` to render all children |
+| Module                       | Effect                                                                           |
+| ---------------------------- | -------------------------------------------------------------------------------- |
+| `echo(...)`                  | Report values without creating geometry                                          |
+| `assert(condition, message)` | Stop with `message` when `condition` is false                                    |
+| `children(index)`            | Render a child passed to the current module; omit `index` to render all children |
 
 ## Built-in functions
 
@@ -347,14 +347,28 @@ list can appear as editable settings. Comments supply captions, ranges,
 choices and groups:
 
 ```kerf
-/* [Size] */             // group for the following parameters
-// Outer width           <- caption: the comment line above
-width = 120; // [40:5:400]   min:step:max
-depth = 80;  // [200]        max
-shape = "round"; // [round:Round, square:Square]   choices with labels
-count = 3; // [2, 3, 4]      choices
-/* [Hidden] */           // not listed
+/* [Size] */
+// Outer width
+width = 120; // [40:5:400]
+depth = 80; // [200]
+shape = "round"; // [round:Round, square:Square]
+count = 3; // [2, 3, 4]
+/* [Hidden] */
+seed = 7;
 ```
+
+- `/* [Size] */` starts a group; the settings below it are listed under
+  _Size_.
+- `// Outer width`, the comment line just above an assignment, is its caption.
+- `[40:5:400]` is a slider from 40 to 400 in steps of 5; `[200]` is a slider
+  up to 200.
+- `[round:Round, square:Square]` is a menu of values with labels; `[2, 3, 4]`
+  is a menu of values.
+- Settings after `/* [Hidden] */` are not listed.
+
+Nothing else may follow the brackets on the same line: with
+`// [40:5:400] min:step:max` the setting is a plain number field, not a
+slider.
 
 These comments follow OpenSCAD's customizer format. Read
 [Settings](docs/customizer.md) for supported controls, or use `kerf params`

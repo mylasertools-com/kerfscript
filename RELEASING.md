@@ -120,9 +120,11 @@ signed either; SmartScreen may warn the first time.
 
 ## Each release
 
-1. Update `version` in `package.json`, `VERSION` in `src/index.ts` and
-   `version` in `desktop/src-tauri/Cargo.toml`, give the CHANGELOG section a
-   date, and add the release to
+1. Update `version` in `package.json`, `VERSION` in `src/index.ts`,
+   `version` and the `@mylasertools/kerfscript` dependency in
+   `alias/package.json`, and `version` in `desktop/src-tauri/Cargo.toml`
+   (`npm version <version> --no-git-tag-version` does the first and the
+   lock file). Give the CHANGELOG section a date, and add the release to
    `packaging/flatpak/com.mylasertools.KerfScript.metainfo.xml`. The workflow
    refuses a tag that does not match `package.json`.
 2. `npm run check`, then commit and push.
@@ -131,7 +133,9 @@ signed either; SmartScreen may warn the first time.
    with the CHANGELOG section as notes.
 4. Check the draft's files, then publish it. Package manager manifests point
    at its download URLs, so publish before submitting them.
-5. `npm publish` (runs the checks again through `prepack`).
+5. `npm publish` (runs the checks again through `prepack`), then
+   `npm publish` in `alias/` for the `kerfscript` package name. The alias
+   depends on the exact version just published, so it goes second.
 6. Download the `manifests` artifact from the workflow run and submit:
    - `homebrew/kerfscript.rb` → `homebrew-tap/Formula/kerfscript.rb`
    - `scoop/kerfscript.json` → `scoop-bucket/bucket/kerfscript.json`
