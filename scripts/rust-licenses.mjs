@@ -9,7 +9,7 @@
 // C or C++ sources it bundles. A crate published without any comes from
 // packaging/licenses/<crate>-<version>/: the licence files of its repository
 // at the commit the crate was published from. `--fetch` downloads those with
-// the GitHub CLI for review; without them, the list is not written.
+// the GitHub CLI to be checked; without them, the list is not written.
 
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -186,7 +186,7 @@ export function rustLicenses({
   }
   if (unresolved.length)
     throw new Error(
-      `No licence text for ${unresolved.join(', ')}. Run with --fetch to download the licence files of their repositories into packaging/licenses/, then review them.`,
+      `No licence text for ${unresolved.join(', ')}. Run with --fetch to download the licence files of their repositories into packaging/licenses/, then check them.`,
     );
   const fence = (body) => {
     let ticks = '```';
