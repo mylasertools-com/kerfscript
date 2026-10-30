@@ -89,6 +89,21 @@ def mat_plain(name, color, rough=0.85):
     return m
 
 
+def mat_metal(name, color, rough):
+    m = mat_plain(name, color, rough)
+    m.node_tree.nodes["Principled BSDF"].inputs["Metallic"].default_value = 1.0
+    return m
+
+
+# Hardware a recipe can ask for by name
+HARDWARE = {
+    "steel": lambda: mat_metal("steel", "#c9ccd1", 0.18),
+    "brass": lambda: mat_metal("brass", "#c9a45c", 0.3),
+    "dowel": lambda: mat_plain("dowel", "#d8b483", 0.7),
+    "pencil": lambda: mat_plain("pencil", "#e2b23a", 0.6),
+}
+
+
 def mat_acrylic():
     if "acrylic" in _mats:
         return _mats["acrylic"]
@@ -109,8 +124,32 @@ def mat_acrylic():
 
 # Geometry
 
+def clean(ring, eps=0.005):
+    """The ring without repeated points or spikes that go out and straight
+    back (contours traced from a sampled field have both). Blender's curve
+    fill leaves large holes when it meets them."""
+    near = lambda a, b: abs(a[0] - b[0]) <= eps and abs(a[1] - b[1]) <= eps
+    pts = []
+    for q in ring:
+        if not pts or not near(q, pts[-1]):
+            pts.append(q)
+    while len(pts) > 1 and near(pts[0], pts[-1]):
+        pts.pop()
+    changed = True
+    while changed and len(pts) > 3:
+        changed = False
+        keep = [True] * len(pts)
+        for i in range(len(pts)):
+            if keep[i - 1] and near(pts[i - 1], pts[(i + 1) % len(pts)]):
+                keep[i] = keep[(i + 1) % len(pts)] = False
+                changed = True
+        pts = [q for q, k in zip(pts, keep) if k]
+    return pts
+
+
 def fill_mesh(name, rings, z0, z1):
     """An extruded even-odd fill of the rings, from z0 to z1 (mm)."""
+    rings = [clean(r) for r in rings]
     cu = bpy.data.curves.new(name, "CURVE")
     cu.dimensions = "2D"
     cu.fill_mode = "BOTH"
@@ -344,15 +383,32 @@ def build(slug):
         ball = bpy.context.active_object
         ball.name = f"ball{k}"
         bpy.ops.object.shade_smooth()
-        ball.data.materials.append(mat_plain("steel", "#c9ccd1", 0.18))
-        ball.data.materials[0].node_tree.nodes["Principled BSDF"].inputs["Metallic"].default_value = 1.0
+        ball.data.materials.append(HARDWARE["steel"]())
     for k, (x, y, z0, z1, d) in enumerate(recipe.get("rods", []) if isinstance(recipe, dict) else []):
         bpy.ops.mesh.primitive_cylinder_add(radius=d / 2 * MM, depth=(z1 - z0) * MM, location=(x * MM, y * MM, (z0 + z1) / 2 * MM), vertices=32)
         rod = bpy.context.active_object
         rod.name = f"rod{k}"
         bpy.ops.object.shade_smooth()
-        rod.data.materials.append(mat_plain("dowel", "#d8b483", 0.7))
-    wall = recipe.get("wall") if isinstance(recipe, dict) else None
+        rod.data.materials.append(HARDWARE["dowel"]())
+    # Pins: bolts, bushes, shafts and nuts, as prisms from a to b (mm) with
+    # d across the corners. 4 sides makes a square bar d across the flats.
+    for k, (a, b, d, kind, sides) in enumerate(recipe.get("pins", []) if isinstance(recipe, dict) else []):
+        a, b = Vector(a), Vector(b)
+        r = d / 2 * (math.sqrt(2) if sides == 4 else 1)
+        bpy.ops.mesh.primitive_cylinder_add(radius=r * MM, depth=(b - a).length * MM, location=(a + b) / 2 * MM, vertices=sides)
+        pin = bpy.context.active_object
+        pin.name = f"pin{k}"
+        twist = Matrix.Rotation(math.radians(45 if sides == 4 else 0), 4, "Z")
+        pin.matrix_world = Matrix.Translation((a + b) / 2 * MM) @ Vector((0, 0, 1)).rotation_difference(b - a).to_matrix().to_4x4() @ twist
+        if sides > 8:
+            bpy.ops.object.shade_smooth()
+        pin.data.materials.append(HARDWARE[kind]())
+    # Flats: a thin sheet (paper) with lines drawn on it
+    for k, f in enumerate(recipe.get("flats", []) if isinstance(recipe, dict) else []):
+        o = add(f"flat{k}", fill_mesh(f"flat{k}", f["rings"], f["z"], f["z"] + f.get("depth", 0.1)), [mat_plain(f"flat{k}", f["color"], 0.9)], None)
+        if f.get("lines"):
+            add(f"flatline{k}", line_mesh(f"flatline{k}", f["lines"], f["z"] + f.get("depth", 0.1), f.get("line_width", 0.25) / 2), [mat_plain(f"flatline{k}", f["line_color"], 0.8)], None)
+    wall =recipe.get("wall") if isinstance(recipe, dict) else None
     if wall:
         (x0, x1), (z0, z1) = wall["x"], wall["z"]
         bpy.ops.mesh.primitive_plane_add(size=1)

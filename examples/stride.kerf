@@ -1,0 +1,194 @@
+// Stride: Theo Jansen's walking linkage on a standing board. Seven flat
+// links turn on brass bushes in front of the board; turn the crank and the
+// foot traces the scored path, lifting and stepping like a Strandbeest leg.
+
+/* [Mechanism] */
+// Overall size: every Jansen length is multiplied by this
+unit_scale = 2; // [1.6:0.1:2.2]
+// Crank radius in Jansen units; changes the shape of the foot path
+crank_radius = 15; // [14:0.5:15]
+// Width of the links in mm, whatever the scale
+link_width = 10; // [8:1:12]
+
+/* [Fit] */
+// Added to the 6 mm holes the brass bushes turn in
+pivot_clearance = 0.3; // [0.2:0.05:0.4]
+
+/* [Export] */
+// All parts, or one group at a time
+output = "all"; // [all:All parts, links:Links, frame:Backboard, feet:Stand feet, accessories:Spacers and handle, coupon:Fit test]
+
+/* [Material] */
+// Sheet thickness
+$thickness = 3; // [2.8:0.1:3.2]
+// Beam width
+$kerf = 0.15; // [0:0.01:0.25]
+
+/* [Hidden] */
+$material = "plywood";
+$sheet = [600, 400];
+$gap = 5;
+$fn = 96;
+s = unit_scale;
+t = $thickness;
+r = link_width / 2;
+hole = 6 + pivot_clearance;
+assert(s >= 1.6 && s <= 2.2, "Scale: 1.6 to 2.2");
+assert(crank_radius >= 14 && crank_radius <= 15, "Crank radius: 14 to 15");
+assert(link_width >= 8 && link_width <= 12, "Link width: 8 to 12 mm");
+assert(pivot_clearance >= 0.2 && pivot_clearance <= 0.4, "Pivot clearance: 0.2 to 0.4 mm");
+assert(t >= 2.8 && t <= 3.2, "Thickness: 2.8 to 3.2 mm");
+assert($kerf >= 0 && $kerf <= 0.25, "Kerf: 0 to 0.25 mm");
+assert(contains(["all", "links", "frame", "feet", "accessories", "coupon"], output), "Unknown output");
+
+function polar(rad, a) = [rad * cos(a), rad * sin(a)];
+// Where circles round p (radius rad) and q (radius rad2) cross; sgn picks the side
+function meet(p, rad, q, rad2, sgn) = let(v = q - p, d = norm(v), a = (rad * rad - rad2 * rad2 + d * d) / (2 * d), h = sqrt(max(0, rad * rad - a * a)))
+  p + v * a / d + [-v[1], v[0]] * h / d * sgn;
+// Joints O, Y, Z, X, W, V, U, T at crank angle theta: Jansen's lengths, scaled
+function joints(theta) = let(
+  O = [0, 0],
+  Y = [-38, -7.8],
+  Z = polar(crank_radius, theta),
+  X = meet(Z, 50, Y, 41.5, -1),
+  W = meet(Z, 61.9, Y, 39.3, 1),
+  V = meet(Y, 40.1, X, 55.8, 1),
+  U = meet(V, 39.4, W, 36.7, -1),
+  T = meet(W, 49, U, 65.7, 1))
+  [for (p = [O, Y, Z, X, W, V, U, T]) p * s];
+J = joints(0);
+FW = 180 * s;
+FH = 170 * s;
+// Where the crank axle O sits on the board
+origin = [125 * s, 133 * s];
+
+module capsule(a, b, rr) {
+  hull() {
+    translate(a) circle(r = rr);
+    translate(b) circle(r = rr);
+  }
+}
+
+module rod(a, b, n) {
+  difference() {
+    union() {
+      capsule(a, b, r);
+      translate(a) circle(r = 7);
+      translate(b) circle(r = 7);
+    }
+    translate(a) circle(d = hole);
+    translate(b) circle(d = hole);
+  }
+  score() line(a, b);
+  score() translate((a + b) / 2 + [0, -1.5]) text(n, size = 3, halign = "center");
+}
+
+module triangle(a, b, c, n) {
+  difference() {
+    union() {
+      capsule(a, b, r);
+      capsule(b, c, r);
+      capsule(c, a, r);
+      for (p = [a, b, c]) translate(p) circle(r = 7);
+    }
+    for (p = [a, b, c]) translate(p) circle(d = hole);
+  }
+  score() translate((a + b) / 2 + [0, -1.5]) text(n, size = 3, halign = "center");
+}
+
+module crank() {
+  difference() {
+    capsule([0, 0], [crank_radius * s, 0], 8);
+    circle(d = 4.4);
+    translate([crank_radius * s, 0]) circle(d = hole);
+  }
+  score() line([0, 0], [crank_radius * s, 0]);
+}
+
+module frame() {
+  difference() {
+    rect([FW, FH], r = 8);
+    translate(origin) circle(d = 6.2);
+    translate(origin + J[1]) circle(d = 4.4);
+    // Slots for the two stand feet
+    for (x = [25 * s, 155 * s]) translate([x - t, 0]) rect([2 * t, 15]);
+  }
+  // The path the foot T follows through a full turn
+  score() polyline([for (a = [0:2:360]) origin + joints(a)[7]]);
+  score() translate([FW / 2, FH - 18]) text("STRIDE", size = 12, halign = "center");
+  score() translate([FW / 2, FH - 30]) text("JANSEN LINKAGE / TURN SLOWLY", size = 4, halign = "center");
+  score() translate(origin + [9, 0]) text("O", size = 4);
+  score() translate(origin + J[1] + [-9, 0]) text("Y", size = 4);
+}
+
+module stand_foot() {
+  difference() {
+    rect([130, 35], r = 3);
+    translate([65 - 1.5 * t, 15]) rect([3 * t, 22]);
+  }
+}
+
+module disc(d, inner) {
+  difference() {
+    circle(d = d);
+    circle(d = inner);
+  }
+}
+
+// Spacer rings on the bushes: joint, the layers they sit between, and the gap in mm
+spacers = [
+  ["Z, C to A", 5],
+  ["Z, A to B", 2 * t + 15],
+  ["X, A to R", 5],
+  ["W, D to B", 5],
+  ["W, B to F", t + 10],
+  ["U, E to F", 5],
+  ["V, R to E", 2 * t + 15],
+  ["Y, R to D", 5],
+  ["Y, board to R", 10 + 2 * (t + 5)]
+];
+
+if (output == "all" || output == "links") {
+  part("C crank") crank();
+  part("A upper link") rod([0, 0], [50 * s, 0], "A");
+  part("B lower link") rod([0, 0], [61.9 * s, 0], "B");
+  part("R rocker") triangle(J[1], J[3], J[5], "R");
+  part("D anchor link") rod([0, 0], [39.3 * s, 0], "D");
+  part("E coupler") rod([0, 0], [39.4 * s, 0], "E");
+  part("F foot") triangle(J[4], J[6], J[7], "F");
+}
+if (output == "all" || output == "frame") part("Backboard", qty = 3) frame();
+if (output == "all" || output == "feet") part("Stand foot", qty = 4) stand_foot();
+if (output == "all" || output == "accessories") {
+  // As many rings as fit each gap; make up the rest with metal shims
+  for (sp = spacers) part(str("Spacer ", sp[0]), qty = floor(sp[1] / t)) disc(12, 6.4);
+  part("Handle grip", qty = 6) disc(18, hole);
+  part("Rear crank", qty = 2) difference() {
+    capsule([0, 0], [40, 0], 10);
+    circle(d = 4.4);
+    translate([40, 0]) circle(d = 4.4);
+  }
+  part("Hex socket", qty = 2) difference() {
+    circle(d = 18);
+    circle(d = 8.31, $fn = 6);
+  }
+}
+if (output == "all" || output == "coupon") part("Fit test") {
+  difference() {
+    rect([130, 50], r = 3);
+    for (i = [0:3]) translate([18 + 28 * i, 18]) circle(d = 6.1 + 0.1 * i);
+    translate([20, 35]) circle(d = 4.4);
+    translate([45, 32]) rect([3 * t, 12]);
+    translate([80, 32]) rect([2 * t, 12]);
+  }
+  for (i = [0:3]) score() translate([18 + 28 * i, 5]) text(str(6.1 + 0.1 * i), size = 3, halign = "center");
+}
+
+echo(str("Board ", FW, " x ", FH, " mm; crank radius ", crank_radius * s, " mm"));
+
+// Assembly: glue the three backboards together and stand them in the two
+// feet (two plies each). The links go in front of the board on 6 mm brass
+// bushes, back to front in this order: C, A, R, D, B, E, F, with a rear face
+// every t + 5 mm from 10 mm out. Thread the spacer rings onto the bushes
+// between the layers they are named for. The M4 spindle at O turns the front
+// crank C and, behind the board, the rear crank with its handle grip.

@@ -1,0 +1,125 @@
+// Fracture: a recursive vortex in relief. Each triangle drops its middle
+// triangle and repeats in its three corners, then every point turns by an
+// angle that grows with its distance from the centre. Deeper layers inset
+// each opening a step further, so small holes stay shallow and large channels
+// run down to a solid backer.
+
+/* [Composition] */
+// A ready recipe, or custom to use the settings below
+preset = "vortex"; // [vortex:Vortex, counterflow:Counterflow, crystalline:Crystalline, custom:Custom]
+// All panels, or one panel at a time
+output = "all"; // [all:All panels, layer0:Layer 0 (front), layer1:Layer 1, layer2:Layer 2, layer3:Layer 3, layer4:Layer 4, layer5:Layer 5, backer:Backer]
+// Panel diameter
+size = 400; // [360:10:420]
+// How many times the triangles split
+depth = 4; // [2:1:5]
+
+/* [Custom] */
+// Triangular sectors around the centre
+sectors = 6; // [5:1:8]
+// Turn at the rim, in degrees; 0 for straight triangles, negative to reverse
+twist = 38; // [-45:1:45]
+
+/* [Relief] */
+// Relief layers, plus the backer
+layers = 5; // [3:1:6]
+// How much each deeper layer insets the openings
+terrace = 0.85; // [0.6:0.05:1.2]
+// Wood left between openings, before the turn
+web = 3.2; // [3:0.2:5]
+// Smallest opening kept, as the diameter of its inscribed circle
+min_opening = 2.5; // [2.5:0.5:5]
+
+/* [Material] */
+// Sheet thickness
+$thickness = 3; // [2:0.5:4]
+// Beam width
+$kerf = 0.15; // [0:0.01:0.25]
+
+/* [Hidden] */
+$material = "plywood";
+$sheet = [450, 450];
+$gap = 6;
+$fn = 180;
+// Each recipe: [sectors, twist]
+recipes = [[6, 38], [7, -35], [6, 0]];
+keys = ["vortex", "counterflow", "crystalline"];
+p = preset == "custom" ? [sectors, twist] : recipes[search(preset, keys)];
+n = p[0];
+turn = p[1];
+R = size / 2;
+reach = R - 18;
+border = 2;
+samples = 24;
+
+assert(size >= 360 && size <= 420, "Size: 360 to 420 mm");
+assert(sectors >= 5 && sectors <= 8 && sectors == floor(sectors), "Sectors: a whole number from 5 to 8");
+assert(depth >= 2 && depth <= 5 && depth == floor(depth), "Depth: a whole number from 2 to 5");
+assert(twist >= -45 && twist <= 45, "Twist: -45 to 45 degrees");
+assert(layers >= 3 && layers <= 6 && layers == floor(layers), "Layers: a whole number from 3 to 6");
+assert(terrace >= 0.6 && terrace <= 1.2, "Terrace: 0.6 to 1.2 mm");
+assert(web >= 3 && web <= 5, "Web: 3 to 5 mm");
+assert(min_opening >= 2.5 && min_opening <= 5, "Smallest opening: 2.5 to 5 mm");
+assert($thickness >= 2 && $thickness <= 4 && $kerf >= 0 && $kerf <= 0.25, "Thickness: 2 to 4 mm; kerf: 0 to 0.25 mm");
+assert(contains(["all", "layer0", "layer1", "layer2", "layer3", "layer4", "layer5", "backer"], output), "Unknown output");
+assert(output != "layer5" || layers >= 6, "Layer 5 needs six layers");
+assert(output != "layer4" || layers >= 5, "Layer 4 needs five or more layers");
+assert(output != "layer3" || layers >= 4, "Layer 3 needs four or more layers");
+
+function polar(r, a) = [r * cos(a), r * sin(a)];
+function side(t, i) = norm(t[(i + 1) % 3] - t[(i + 2) % 3]);
+function perimeter(t) = side(t, 0) + side(t, 1) + side(t, 2);
+// Incentre and inscribed radius of a triangle
+function center(t) = let(a = side(t, 0), b = side(t, 1), c = side(t, 2)) (t[0] * a + t[1] * b + t[2] * c) / (a + b + c);
+function area(t) = abs((t[1][0] - t[0][0]) * (t[2][1] - t[0][1]) - (t[1][1] - t[0][1]) * (t[2][0] - t[0][0])) / 2;
+function radius(t) = 2 * area(t) / perimeter(t);
+// Move every side of a triangle inwards by d
+function inset(t, d) = let(c = center(t), k = 1 - d / radius(t)) [for (p = t) c + (p - c) * k];
+// Each point turns by its own angle, growing with the square of its radius
+function warp(p) = polar(norm(p), atan2(p[1], p[0]) + turn * pow(norm(p) / reach, 2));
+// The sides sampled, so straight edges bend into curves
+function curved(t) = [for (e = [0:2]) let(a = t[e], b = t[(e + 1) % 3]) for (i = [0:samples - 1]) let(f = i / samples) warp([a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f])];
+function hole_count(k, r, z) = k < 1 || r / 2 - web / 2 - z * terrace < min_opening / 2 ? 0 : 1 + 3 * hole_count(k - 1, r / 2, z);
+
+// Cut the middle triangle, then repeat in the three corners
+module cutouts(t, k, z) {
+  if (k > 0 && radius(t) / 2 - web / 2 - z * terrace >= min_opening / 2) {
+    ab = (t[0] + t[1]) / 2;
+    bc = (t[1] + t[2]) / 2;
+    ca = (t[2] + t[0]) / 2;
+    polygon(curved(inset([ab, bc, ca], web / 2 + z * terrace)));
+    cutouts([t[0], ab, ca], k - 1, z);
+    cutouts([ab, t[1], bc], k - 1, z);
+    cutouts([ca, bc, t[2]], k - 1, z);
+  }
+}
+
+sector = inset([[0, 0], polar(reach, -180 / n), polar(reach, 180 / n)], border);
+
+// A round panel with three bolt holes
+module blank() {
+  difference() {
+    circle(r = R);
+    for (a = [30:120:270]) translate(polar(R - 8, a)) circle(d = 4.5, $fn = 48);
+  }
+}
+
+module relief(z) {
+  part(str("Layer ", z)) difference() {
+    blank();
+    for (a = [0:n - 1]) rotate(a * 360 / n) cutouts(sector, depth, z);
+  }
+  echo("Layer", z, "openings", n * hole_count(depth, radius(sector), z));
+}
+
+if (output == "all") {
+  for (z = [0:layers - 1]) relief(z);
+  part("Backer") blank();
+} else if (output == "backer") part("Backer") blank();
+else for (z = [0:layers - 1]) if (output == "layer" + str(z)) relief(z);
+
+// Assembly: lay the backer down, then the layers from the deepest up to
+// layer 0 on top, all face up and none flipped. The bolt holes are
+// symmetric, so turn each layer until the channels line up. Join the stack
+// with three M4 bolts, a washer on each side and locknuts; six 3 mm panels
+// take M4 x 30 mm bolts.

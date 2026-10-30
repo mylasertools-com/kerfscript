@@ -57,6 +57,36 @@
     "tags": ["math", "layers", "presets"]
   },
   {
+    "file": "orbit",
+    "title": "Orbit planetary gears",
+    "tags": ["math", "parts", "mechanism"]
+  },
+  {
+    "file": "trace",
+    "title": "Trace drawing machine",
+    "tags": ["math", "parts", "mechanism"]
+  },
+  {
+    "file": "stride",
+    "title": "Stride walking linkage",
+    "tags": ["math", "parts", "mechanism"]
+  },
+  {
+    "file": "tidal",
+    "title": "Tidal wave automaton",
+    "tags": ["joinery", "parts", "mechanism"]
+  },
+  {
+    "file": "fracture",
+    "title": "Fracture recursive relief",
+    "tags": ["recursion", "layers", "presets"]
+  },
+  {
+    "file": "morphogen",
+    "title": "Morphogen terrain relief",
+    "tags": ["math", "layers", "presets"]
+  },
+  {
     "file": "tilt-maze",
     "title": "Tilt maze",
     "tags": ["recursion", "random", "parts"]

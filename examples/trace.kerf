@@ -1,0 +1,193 @@
+// Trace: a drawing machine. A crank turns the carrier, which rolls a 24-tooth
+// gear around the inside of a fixed ring. A pencil held in that gear, off its
+// centre, draws a hypotrochoid on paper laid on the base: with the 80-tooth
+// ring, ten lobes that close after three turns of the crank.
+
+/* [Drawing] */
+// Teeth on the fixed ring: 72 draws 3 lobes, 80 draws 10, 84 draws 7
+ring_teeth = 80; // [72, 80, 84]
+// Distance from the rolling gear's centre to the pencil
+pen_offset = 22; // [18:1:24]
+// Total play between the two gears, at the pitch circle
+backlash = 0.3; // [0.2:0.05:0.5]
+
+/* [Output] */
+// All parts, one group at a time, or a stencil for cutting the paper
+output = "all"; // [all:All parts, gears:Gears, frame:Base standoffs and feet, drive:Carrier and handle, holder:Pencil sleeve, coupon:Fit test, paper:Paper template]
+
+/* [Material] */
+// Sheet thickness
+$thickness = 3; // [2.8:0.1:3.2]
+// Added to the 6 mm shaft holes
+bearing_clearance = 0.3; // [0.2:0.05:0.4]
+// Beam width
+$kerf = 0.15; // [0:0.01:0.25]
+
+/* [Hidden] */
+$material = "plywood";
+$sheet = [600, 400];
+$gap = 5;
+$fn = 160;
+t = $thickness;
+nr = ring_teeth;
+np = 24;
+m = 3;
+R = nr * m / 2;
+r = np * m / 2;
+// Distance from the centre to the rolling gear's axle
+a = R - r;
+d = pen_offset;
+outer = R + 20;
+mount = R + 12;
+// Crank turns until the drawing closes
+turns = np / gcd(nr, np);
+assert(contains([72, 80, 84], nr), "Ring teeth: 72, 80 or 84");
+assert(d >= 18 && d <= 24, "Pen offset: 18 to 24 mm");
+assert(backlash >= 0.2 && backlash <= 0.5, "Backlash: 0.2 to 0.5 mm");
+assert(bearing_clearance >= 0.2 && bearing_clearance <= 0.4, "Bearing clearance: 0.2 to 0.4 mm");
+assert(t >= 2.8 && t <= 3.2, "Thickness: 2.8 to 3.2 mm");
+assert($kerf >= 0 && $kerf <= 0.25, "Kerf: 0 to 0.25 mm");
+assert(contains(["all", "gears", "frame", "drive", "holder", "coupon", "paper"], output), "Unknown output");
+
+function gcd(a, b) = b == 0 ? a : gcd(b, a % b);
+function polar(r, a) = [r * cos(a), r * sin(a)];
+// Where the pencil is when the carrier has turned theta degrees
+function pen(theta) = polar(a, theta) + polar(d, (1 - nr / np) * theta);
+module mounts() {
+  for (q = [30, 150, 270]) translate(polar(mount, q)) circle(d = 4.5);
+}
+// n scored tally marks, to number the parts
+module tally(n, p) {
+  score() for (j = [0:n - 1]) translate(p + [2 * j, 0]) rect([0.3, 4]);
+}
+
+// Involute teeth with a 20 degree pressure angle. backlash is shared between
+// the two gears: every tooth is thinned, and every ring space widened, by
+// backlash / 2. The roots get a plain radial relief.
+function gear_inv(a) = tan(a) * 180 / PI - a;
+function gear_polar(r, a) = [r * cos(a), r * sin(a)];
+// Half the angular width of a tooth (or of a ring space) at radius r
+function gear_half(z, m, r, backlash, internal = false) =
+  let(rp = m * z / 2, rb = rp * cos(20), ar = acos(min(1, rb / r)))
+  90 / z + gear_inv(20) - gear_inv(ar) + (internal ? 1 : -1) * backlash / (4 * rp) * 180 / PI;
+function gear_outline(z, m, backlash, internal = false, steps = 24) =
+  let(rp = m * z / 2, rb = rp * cos(20), lo = rp - (internal ? 1 : 1.25) * m,
+    hi = rp + (internal ? 1.25 : 1) * m, start = max(lo, rb),
+    hs = gear_half(z, m, start, backlash, internal), ht = gear_half(z, m, hi, backlash, internal))
+  [for (k = [0:z - 1]) each concat(
+    [gear_polar(lo, 360 * k / z - hs)],
+    [for (j = [(start > lo ? 0 : 1):steps]) let(r = start + (hi - start) * j / steps) gear_polar(r, 360 * k / z - gear_half(z, m, r, backlash, internal))],
+    [for (j = [1:8]) gear_polar(hi, 360 * k / z - ht + 2 * ht * j / 8)],
+    [for (j = [steps - 1:-1:0]) let(r = start + (hi - start) * j / steps) gear_polar(r, 360 * k / z + gear_half(z, m, r, backlash, internal))],
+    [if (start > lo) gear_polar(lo, 360 * k / z + hs)],
+    [for (j = [1:7]) gear_polar(lo, 360 * k / z + hs + (360 / z - 2 * hs) * j / 8)]
+  )];
+module externalgear(z, m, backlash) {
+  polygon(gear_outline(z, m, backlash, false));
+}
+module internalhole(z, m, backlash) {
+  polygon(gear_outline(z, m, backlash, true));
+}
+
+// Timing: a ring space and a rolling-gear tooth are both centred on +X. The
+// rolling gear turns (1 - ring_teeth / 24) times the carrier angle.
+module ring() {
+  difference() {
+    circle(r = outer);
+    internalhole(nr, m, backlash);
+    mounts();
+  }
+  score() line([R + 5, 0], [outer - 3, 0]);
+}
+
+module planet() {
+  difference() {
+    externalgear(np, m, backlash);
+    circle(d = 6 + bearing_clearance);
+    translate([d, 0]) circle(d = 8.4);
+  }
+  score() line([7, 0], [d - 6, 0]);
+}
+
+module base() {
+  difference() {
+    circle(r = outer);
+    circle(d = 6.2);
+    mounts();
+  }
+  score() outline() circle(r = R - 6);
+}
+
+module carrier() {
+  difference() {
+    hull() {
+      translate([-35, 0]) circle(r = 11);
+      circle(r = 15);
+      translate([a, 0]) circle(r = 11);
+    }
+    circle(d = 6 + bearing_clearance);
+    translate([a, 0]) circle(d = 4.4);
+    translate([-35, 0]) circle(d = 4.4);
+  }
+  score() line([15, 0], [a - 14, 0]);
+}
+
+module washer(od, id) {
+  difference() {
+    circle(d = od);
+    circle(d = id);
+  }
+}
+
+module paper_template() {
+  difference() {
+    circle(r = R - 6);
+    circle(d = 26);
+  }
+  score() {
+    outline() circle(r = a);
+    line([-14, 0], [-22, 0]);
+  }
+}
+
+if (output == "all" || output == "gears") {
+  part("Ring gear", qty = 2) ring();
+  part("Rolling gear", qty = 2) planet();
+}
+if (output == "all" || output == "frame") {
+  part("Base", qty = 2) base();
+  part("Ring standoff", qty = 12) washer(16, 4.5);
+  part("Pedestal", qty = 9) washer(22, 6.2);
+  part("Foot", qty = 15) washer(18, 12);
+}
+if (output == "all" || output == "drive") {
+  part("Carrier", qty = 2) carrier();
+  part("Planet spacer", qty = 3) washer(14, 6.2);
+  part("Handle", qty = 5) washer(18, 6 + bearing_clearance);
+}
+if (output == "all" || output == "holder") part("Pencil sleeve", qty = 3) washer(14, 8.4);
+if (output == "all" || output == "coupon") part("Fit test") {
+  difference() {
+    rect([130, 45], r = 3);
+    for (i = [0:3]) translate([15 + 25 * i, 15]) circle(d = 6.1 + i * 0.1);
+    translate([113, 15]) circle(d = 8.4);
+    translate([65, 34]) circle(d = 4.4);
+  }
+  for (i = [0:3]) tally(i + 1, [12 + 25 * i, 29]);
+}
+// Trace this onto paper and cut the paper by hand; it is not part of the kit
+if (output == "paper") part("Paper template") paper_template();
+
+echo(str("Trace: ", turns, " crank turns per drawing, pencil ", a - d, " to ", a + d, " mm from the centre, ", 2 * outer, " mm across"));
+
+// Assembly, with base bottom at z = 0 and t the sheet thickness: glue the
+// two-layer ring, rolling gear, base and carrier, then three standoffs of 4
+// discs, three feet of 5 under the mounting holes and a pedestal of 9 at the
+// centre of the base. Fix a 6 mm steel spindle in the pedestal. Bolt the ring
+// on its standoffs (6t to 8t). Glue the 3 pencil sleeves under the rolling
+// gear's pencil hole and the 3 planet spacers under the carrier's axle hole;
+// the gear turns on a brass bush bolted to the carrier. Lay the paper on the
+// base around the pedestal, put the carrier on the spindle (11t up), mesh the
+// gear with its tooth and score line at +X, and add the handle stack on a
+// bush at the carrier's short end. A short pencil stub, wrapped in paper for
+// a snug fit, goes up through the sleeve with its tip just on the paper.

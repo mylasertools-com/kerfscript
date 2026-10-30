@@ -14,7 +14,9 @@ node 3d/export.mjs [slug ...]          # parts of each model as JSON, in 3d/.bui
   them and no kerf, and writes their cut outlines, engraving and score lines.
 - `assemblies.py` says where each part goes. Parts are drawn in x/y and are
   their thickness deep in z; a recipe returns the matrix that puts a part in
-  place. Models without a recipe are laid out flat.
+  place. Models without a recipe are laid out flat. A recipe can also add
+  hardware that is not cut (`pins`: bolts, bushes, shafts and nuts) and thin
+  sheets such as paper (`flats`).
 - `build.py` extrudes the parts, adds engraving and score lines, assembles
   them, exports the GLB and renders the picture with Cycles. `SAMPLES=32` for
   quick drafts; `NOGLB=1` or `NORENDER=1` skips one output.
