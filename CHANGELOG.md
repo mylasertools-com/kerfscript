@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.2.1
+## 0.3.0
 
 - `kerfscript.wasm`: a WASI module that runs KerfScript from Python, Rust,
   Go, C# and other languages. It takes a JSON request on standard input and

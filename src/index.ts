@@ -15,5 +15,5 @@ export type { LayerPath } from './export/svg.js';
 export type { FontSource } from './text.js';
 export type { Value } from './values.js';
 
-export const VERSION = '0.2.1';
+export const VERSION = '0.3.0';
 export const LANGUAGE_VERSION = '0.1';
