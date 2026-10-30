@@ -101,17 +101,20 @@ it as the start of your own design.
   cuts come before outer ones, and the whole part is offset by half the kerf.
 - **Parts, not just shapes.** `part("lid", qty = 2)` names a piece; the
   renderer packs parts by material and thickness onto sheets.
-- **Joinery that fits.** `finger_rect`, `finger_holes`, `tslot` and
-  `living_hinge` use `$thickness`, so changing the material keeps joints
-  tight.
-- **Familiar syntax.** If you know OpenSCAD, you can read KerfScript. The
-  customizer comments are the same, so editors that understand OpenSCAD
-  parameters understand KerfScript ones.
+- **Joinery that follows the material.** `finger_rect`, `finger_holes`,
+  `tslot` and `living_hinge` use `$thickness`, so the joints resize when the
+  material changes. Measure your kerf and cut a test piece for a snug fit.
+- **Readable code.** Variables, modules, functions, loops and transforms like
+  `translate()` and `rotate()`. Settings come from comments such as
+  `// [10:1:100]`, which the playground turns into sliders. If you have used
+  OpenSCAD, [Coming from OpenSCAD](docs/openscad.md) lists what differs.
 - **Runs anywhere.** Pure TypeScript with no native code: the same interpreter
   runs in browsers, Node, workers and the command line.
-- **Safe to run.** Programs read libraries only through the resolver you
-  provide. Step and recursion limits stop runaway programs, and errors name
-  the line.
+- **Contained.** Programs read libraries only through the resolver you
+  provide and have no other access to files or the network. Step, recursion
+  and size limits stop runaway programs, and errors name the line. Run
+  programs you did not write in a worker or process you can stop; see
+  [Running untrusted code](docs/javascript.md#running-untrusted-code).
 
 ## Install
 

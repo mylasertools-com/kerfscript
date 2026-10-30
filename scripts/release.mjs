@@ -59,7 +59,7 @@ function archive(name, files, zip) {
       ['-a', '-cf', target, ...files],
       work,
     );
-  else run('zip', ['-q', target, ...files], work);
+  else run('zip', ['-q', '-r', target, ...files], work);
   return name;
 }
 
@@ -138,6 +138,10 @@ const wasmDir = `kerfscript-wasm-${label}`;
 mkdirSync(join(work, wasmDir));
 copyFileSync('dist/kerfscript.wasm', join(work, wasmDir, 'kerfscript.wasm'));
 copyFileSync('docs/webassembly.md', join(work, wasmDir, 'webassembly.md'));
+copyFileSync(
+  'packaging/wasm/THIRD-PARTY-LICENSES.md',
+  join(work, wasmDir, 'THIRD-PARTY-LICENSES.md'),
+);
 for (const [from, to] of DOCS) copyFileSync(from, join(work, wasmDir, to));
 made.push(archive(`${wasmDir}.zip`, [wasmDir], true));
 copyFileSync('dist/kerfscript.wasm', join(out, `kerfscript-${label}.wasm`));

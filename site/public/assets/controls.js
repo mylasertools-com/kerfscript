@@ -64,8 +64,10 @@ export function buildControls(container, params, values, onChange) {
       row.append(title, input);
     } else if (Array.isArray(p.initial)) {
       const list = el('div', { class: 'vector' });
-      const current = [...value];
-      current.forEach((v, i) => {
+      // Each change sends what all the boxes show now: the code may have
+      // changed the other numbers since the controls were made
+      const current = () => [...list.querySelectorAll('input')].map((x) => Number(x.value));
+      [...value].forEach((v, i) => {
         const input = el('input', {
           type: 'number',
           value: v,
@@ -76,10 +78,8 @@ export function buildControls(container, params, values, onChange) {
         });
         if (i === 0) input.id = id;
         input.addEventListener('input', () => {
-          const n = Number(input.value);
-          if (!Number.isFinite(n)) return;
-          current[i] = n;
-          set(p.name, [...current]);
+          const next = current();
+          if (next.every(Number.isFinite)) set(p.name, next);
         });
         list.append(input);
       });

@@ -1,0 +1,76 @@
+# Checks every pull request and push: the library, command line and
+# WebAssembly tests, the website build, and the desktop app's Rust code and
+# licence lists. Releases are built by release.yml.
+
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  JAVY_VERSION: v9.1.0
+  JAVY_SHA256: a68b122d48eb3dfc1b801d4e14c39271fde3638243d3272d206e376ac9189e39
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            site/package-lock.json
+      - name: Install Javy
+        run: |
+          mkdir -p "$HOME/.local/bin"
+          curl -fsSL -o javy.gz "https://github.com/bytecodealliance/javy/releases/download/$JAVY_VERSION/javy-x86_64-linux-$JAVY_VERSION.gz"
+          echo "$JAVY_SHA256  javy.gz" | sha256sum -c
+          gunzip -c javy.gz > "$HOME/.local/bin/javy" && chmod +x "$HOME/.local/bin/javy" && rm javy.gz
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Library, command line and WebAssembly
+        run: |
+          npm ci
+          npm run build
+          npm run wasm
+          npm test
+          node scripts/wasm-licenses.mjs --check
+      - name: Website
+        run: |
+          npm --prefix site ci
+          npm --prefix site run build
+
+  desktop:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: desktop/src-tauri
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+      - name: Rust checks
+        working-directory: desktop/src-tauri
+        run: |
+          mkdir -p ../web && touch ../web/index.html
+          cargo fmt --check
+          cargo clippy --locked --all-targets -- -D warnings
+          cargo test --locked
+      - name: Licence list
+        working-directory: desktop
+        run: node scripts/licenses.mjs --check

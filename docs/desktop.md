@@ -35,8 +35,9 @@ The app is not signed with an Apple or Microsoft certificate yet:
 | Save under a new name | Ctrl+Shift+S, or **Save as…** |
 
 Double-click a `.kerf` file to open it in the app. The title bar shows the
-file name, and a dot when there are unsaved changes; the app asks before it
-closes or opens another design over them.
+file name, or Untitled, and a dot when there are unsaved changes. The app asks
+before it closes, or opens another design or an example over them, also for a
+design you have not saved yet. Files can be up to 1 MB.
 
 SVG, DXF and sheet ZIP exports open a save dialog in the design's folder.
 
@@ -64,17 +65,25 @@ endorsed or certified by LightBurn Software.
 
 ## Libraries
 
-`use <path>` and `include <path>` find files next to the open design, as on
-the [command line](cli.md): with the design at `projects/box.kerf`,
-`use <lib/tabs>` reads `projects/lib/tabs.kerf`. Standard library paths such
-as `use <kerf/box>` work everywhere. A design that has not been saved yet can
-only use the standard library.
+`use <path>` and `include <path>` find files in the open design's folder and
+the folders below it: with the design at `projects/box.kerf`,
+`use <lib/tabs>` reads `projects/lib/tabs.kerf`. Unlike the
+[command line](cli.md), the app does not read libraries from folders above the
+design's, such as `use <../shared/tabs>`; keep them next to the design or in
+a folder below it. Standard library paths such as `use <kerf/box>` work
+everywhere. A design that has not been saved yet can only use the standard
+library.
 
 ## Fonts
 
 `text()` uses Atkinson Hyperlegible, as in the playground. The app does not
 read fonts installed on your system yet; use the [command line](cli.md) with
 `--font` for other fonts.
+
+## About and licences
+
+**About** shows the app's version, a link to its source code, and the
+licences of KerfScript and of everything built into the app.
 
 ## Sharing
 

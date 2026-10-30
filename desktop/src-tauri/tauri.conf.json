@@ -33,6 +33,7 @@
     "licenseFile": "../../LICENSE",
     "resources": {
       "../../LICENSE": "LICENSE",
+      "../../COMMERCIAL-LICENSE.md": "COMMERCIAL-LICENSE.md",
       "../../THIRD-PARTY-NOTICES.md": "THIRD-PARTY-NOTICES.md",
       "../THIRD-PARTY-LICENSES.md": "THIRD-PARTY-LICENSES.md",
       "../../fonts/OFL.txt": "OFL.txt"

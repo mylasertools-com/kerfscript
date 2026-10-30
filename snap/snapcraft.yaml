@@ -34,6 +34,6 @@ parts:
       npm run build
       install -Dm755 "$(command -v node)" "$CRAFT_PART_INSTALL/bin/node"
       install -Dm644 dist/cli.js "$CRAFT_PART_INSTALL/lib/kerfscript/cli.js"
-      install -Dm644 LICENSE fonts/OFL.txt THIRD-PARTY-NOTICES.md -t "$CRAFT_PART_INSTALL/share/doc/kerfscript/"
+      install -Dm644 LICENSE COMMERCIAL-LICENSE.md fonts/OFL.txt THIRD-PARTY-NOTICES.md -t "$CRAFT_PART_INSTALL/share/doc/kerfscript/"
       printf '#!/bin/sh\nexec "$SNAP/bin/node" "$SNAP/lib/kerfscript/cli.js" "$@"\n' > "$CRAFT_PART_INSTALL/bin/kerf"
       chmod +x "$CRAFT_PART_INSTALL/bin/kerf"

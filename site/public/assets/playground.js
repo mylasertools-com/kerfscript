@@ -9,6 +9,7 @@ import { highlight } from './highlight.js';
 import { buildControls, setInSource } from './controls.js';
 import { createEngine } from './engine.js';
 import { zip } from './zip.js';
+import { MAX_SOURCE, encode, startCode } from './source.js';
 
 const DRAFT = 'kerfscript-playground';
 const root = document.querySelector('[data-playground]');
@@ -106,36 +107,6 @@ function saveDraft() {
   } catch {}
 }
 
-function toBase64(bytes) {
-  let bin = '';
-  for (const b of bytes) bin += String.fromCharCode(b);
-  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
-
-const fromBase64 = (text) =>
-  Uint8Array.from(atob(text.replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0));
-
-const piped = async (bytes, stream) =>
-  new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(stream)).arrayBuffer());
-
-// Share links carry the code compressed (#z=), or as it is (#code=) in
-// browsers without compression streams. Both kinds open.
-async function encode(text) {
-  const bytes = new TextEncoder().encode(text);
-  if (typeof CompressionStream === 'undefined') return `code=${toBase64(bytes)}`;
-  return `z=${toBase64(await piped(bytes, new CompressionStream('deflate-raw')))}`;
-}
-
-async function decode(hash) {
-  const params = new URLSearchParams(hash);
-  if (params.get('z'))
-    return new TextDecoder().decode(
-      await piped(fromBase64(params.get('z')), new DecompressionStream('deflate-raw')),
-    );
-  if (params.get('code')) return new TextDecoder().decode(fromBase64(params.get('code')));
-  return null;
-}
-
 const mm = (v) => `${fmt(v)} mm`;
 const partsText = (n) => `${n} ${n === 1 ? 'part' : 'parts'}`;
 const sheetLabel = (s, i) =>
@@ -196,14 +167,29 @@ function updateSettings() {
     return;
   }
   const key = JSON.stringify(
-    params.map((p) => [p.name, p.group, p.caption, p.min, p.max, p.step, p.options, p.type]),
+    params.map((p) => [
+      p.name,
+      p.group,
+      p.caption,
+      p.min,
+      p.max,
+      p.step,
+      p.options,
+      p.type,
+      Array.isArray(p.initial) && p.initial.length,
+    ]),
   );
   if (key === paramKey) {
     for (const p of params) {
       const control = settings.querySelector(`#ctl-${CSS.escape(p.name)}`);
       if (!control || document.activeElement === control) continue;
       if (control.type === 'checkbox') control.checked = Boolean(p.initial);
-      else if (!Array.isArray(p.initial)) {
+      else if (Array.isArray(p.initial)) {
+        const boxes = control.parentElement.querySelectorAll('input');
+        p.initial.forEach((v, i) => {
+          if (boxes[i] && document.activeElement !== boxes[i]) boxes[i].value = String(v);
+        });
+      } else {
         control.value = String(p.initial);
         const out = control.parentElement.querySelector('output');
         if (out) out.textContent = String(p.initial);
@@ -235,6 +221,14 @@ async function update() {
   updateSettings();
   status.textContent = 'Rendering…';
   const source = input.value;
+  if (source.length > MAX_SOURCE) {
+    setReady(null);
+    showConsole([
+      ['error', `The code is longer than ${MAX_SOURCE.toLocaleString('en')} characters.`],
+    ]);
+    status.textContent = 'Error';
+    return;
+  }
   const reply = await run(source, {}, await host?.libraries(source));
   if (reply.stale || source !== input.value) return;
   const echoes = (reply.ok ? reply.result.echoes : (reply.echoes ?? [])).map((e) => [
@@ -279,6 +273,7 @@ function schedule(delay = 250) {
 
 function load(text) {
   input.value = text;
+  host?.loaded(text, Object.values(examples).includes(text));
   shown = -1;
   setReady(null);
   stale(true);
@@ -391,16 +386,16 @@ host?.attach({
   },
   source: () => input.value,
 });
-let start = host ? await host.initial() : null;
+let draft = null;
 try {
-  if (!start) start = await decode(location.hash.slice(1));
+  draft = localStorage.getItem(DRAFT);
 } catch {}
-if (!start && model && examples[model]) start = examples[model];
-if (!start) {
-  try {
-    start = localStorage.getItem(DRAFT);
-  } catch {}
-}
-if (!start) start = examples['clock-face'];
+const start = await startCode({
+  file: host ? await host.initial() : null,
+  hash: location.hash.slice(1),
+  model,
+  examples,
+  draft,
+});
 picker.value = Object.keys(examples).find((slug) => examples[slug] === start) ?? '';
 load(start);

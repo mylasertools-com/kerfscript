@@ -1,147 +1,127 @@
 // Copyright (c) 2026 MyLaserTools. SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-MyLaserTools-Commercial
 
 // The desktop app's side of the playground. It runs before playground.js
-// and gives it window.kerfHost: .kerf files on disk with Open and Save,
-// a save dialog instead of downloads, and `use <...>` / `include <...>`
-// libraries read from the open file's folder, as on the command line.
+// and gives it window.kerfHost: .kerf files on disk with Open and Save, a save
+// dialog instead of downloads, `use <...>` / `include <...>` libraries from the
+// design's folder, Open in LightBurn, and an About window with the licences.
+// The page never names a file path: the dialogs and the files they allow are
+// handled in Rust (src-tauri/src/files.rs).
 
 (() => {
-  const { core, dialog, event, opener, path } = window.__TAURI__;
+  const { core, dialog, event, opener } = window.__TAURI__;
   const win = window.__TAURI__.window.getCurrentWindow();
   const SITE = 'https://kerfscript.mylasertools.com';
-  const KERF = [{ name: 'KerfScript', extensions: ['kerf'] }];
-  const TYPES = {
-    svg: [{ name: 'SVG', extensions: ['svg'] }],
-    dxf: [{ name: 'DXF', extensions: ['dxf'] }],
-    zip: [{ name: 'ZIP', extensions: ['zip'] }],
-    kerf: KERF,
-  };
+  const SOURCE = 'https://github.com/mylasertools/kerfscript';
+  // Libraries a design may read in one go
+  const MAX_LIBRARIES = 64;
+  const MAX_LIBRARY_TEXT = 4_000_000;
 
-  let file = null; // path of the open .kerf file
-  let saved = null; // its text when last opened or saved
+  let name = null; // the open design's file name without .kerf, or null if untitled
+  let saved = null; // its text when it was opened, saved or loaded from an example
   let pg = null; // the playground: load(text), source()
 
-  const base = () =>
-    file
-      ? file
-          .split(/[\\/]/)
-          .pop()
-          .replace(/\.kerf$/i, '')
-      : null;
-  const dirty = () => file !== null && pg !== null && pg.source() !== saved;
+  const dirty = () => pg !== null && pg.source() !== (saved ?? '');
   const title = () =>
-    win.setTitle(`${file ? `${base()}.kerf` : 'Untitled'}${dirty() ? ' •' : ''} - KerfScript`);
+    win.setTitle(`${name ? `${name}.kerf` : 'Untitled'}${dirty() ? ' •' : ''} - KerfScript`);
 
   async function discardOk() {
     if (!dirty()) return true;
-    return dialog.ask(`${base()}.kerf has unsaved changes. Discard them?`, {
-      title: 'KerfScript',
-      kind: 'warning',
-      okLabel: 'Discard',
-      cancelLabel: 'Cancel',
-    });
+    return dialog.ask(
+      `${name ? `${name}.kerf has` : 'This design has'} unsaved changes. Discard them?`,
+      { title: 'KerfScript', kind: 'warning', okLabel: 'Discard', cancelLabel: 'Cancel' },
+    );
   }
 
-  async function readFile(p) {
-    return core.invoke('read_text', { path: p });
-  }
+  const failed = (what) => (e) =>
+    dialog.message(String(e), { title: `Could not ${what}`, kind: 'error' });
 
-  async function openPath(p) {
-    if (!(await discardOk())) return;
-    let text;
-    try {
-      text = await readFile(p);
-    } catch (e) {
-      await dialog.message(String(e), { title: 'Could not open the file', kind: 'error' });
-      return;
-    }
-    file = p;
-    saved = text;
-    pg.load(text);
+  function show(design) {
+    name = design.name;
+    saved = design.text;
+    pg.load(design.text);
     title();
   }
 
   async function open() {
-    const p = await dialog.open({ filters: KERF, multiple: false, directory: false });
-    if (p) await openPath(p);
+    if (!(await discardOk())) return;
+    const design = await core.invoke('open_design').catch(failed('open the file'));
+    if (design) show(design);
   }
 
-  async function write(p, data) {
-    if (typeof data === 'string') return core.invoke('write_text', { path: p, contents: data });
-    const bytes = new Uint8Array(data instanceof Blob ? await data.arrayBuffer() : data);
-    return core.invoke('write_bytes', { path: p, contents: Array.from(bytes) });
+  // Files the system asks the app to open: a double click, or macOS's Open With
+  async function openPending() {
+    if (!(await discardOk())) return;
+    const design = await core.invoke('open_pending').catch(failed('open the file'));
+    if (design) show(design);
   }
 
   async function save(as) {
-    let p = file;
-    if (as || !p) {
-      const folder = file ? await path.dirname(file) : null;
-      const name = `${base() ?? 'design'}.kerf`;
-      p = await dialog.save({
-        filters: KERF,
-        defaultPath: folder ? await path.join(folder, name) : name,
-      });
-      if (!p) return false;
-      if (!/\.kerf$/i.test(p)) p += '.kerf';
-    }
     const text = pg.source();
-    try {
-      await write(p, text);
-    } catch (e) {
-      await dialog.message(String(e), { title: 'Could not save the file', kind: 'error' });
-      return false;
-    }
-    file = p;
+    const result = await core
+      .invoke('save_design', { text, saveAs: as || name === null, name: name ?? 'design' })
+      .catch(failed('save the file'));
+    if (!result) return false;
+    name = result;
     saved = text;
     title();
     return true;
   }
 
-  // Exports: a save dialog in the open file's folder
-  async function exportFile(name, data) {
-    const ext = name.split('.').pop();
-    const folder = file ? await path.dirname(file) : null;
-    const p = await dialog.save({
-      filters: TYPES[ext],
-      defaultPath: folder ? await path.join(folder, name) : name,
-    });
-    if (!p) return;
-    try {
-      await write(p, data);
-    } catch (e) {
-      await dialog.message(String(e), { title: 'Could not save the file', kind: 'error' });
-    }
+  async function exportFile(fileName, data) {
+    const args =
+      typeof data === 'string'
+        ? { name: fileName, text: data }
+        : {
+            name: fileName,
+            bytes: Array.from(
+              new Uint8Array(data instanceof Blob ? await data.arrayBuffer() : data),
+            ),
+          };
+    await core.invoke('export_file', args).catch(failed('save the file'));
   }
 
-  // Libraries the program uses, read relative to the open file's folder like
-  // the command line does. Standard library paths are not files and are
-  // skipped; the renderer looks them up first.
+  // The libraries a program uses (`use <path>` and `include <path>`, found by
+  // KerfScript's tokenizer so comments and strings don't count), read from the
+  // design's folder. Standard library paths are not files: the renderer looks
+  // them up first, so a failed read here is fine.
   async function libraries(source) {
-    if (!file) return undefined;
-    const dir = await path.dirname(file);
+    if (name === null) return undefined;
+    const { tokenize } = await import('/assets/kerfscript.js');
+    const imports = (text) => {
+      try {
+        const { tokens } = tokenize(text);
+        return tokens
+          .filter(
+            (t, i) =>
+              t.type === 'str' &&
+              tokens[i - 1]?.type === 'id' &&
+              (tokens[i - 1].value === 'use' || tokens[i - 1].value === 'include'),
+          )
+          .map((t) => t.value);
+      } catch {
+        return [];
+      }
+    };
     const files = {};
     const queue = [source];
+    let count = 0;
+    let size = 0;
     while (queue.length) {
-      for (const [, p] of queue.pop().matchAll(/\b(?:use|include)\s*<([^>]+)>/g)) {
-        if (p in files) continue;
+      for (const p of imports(queue.pop())) {
+        if (p in files || p.startsWith('kerf/')) continue;
         files[p] = null;
-        for (const candidate of [p, `${p}.kerf`]) {
-          try {
-            const text = await readFile(await path.join(dir, candidate));
-            files[p] = text;
-            queue.push(text);
-            break;
-          } catch {}
-        }
+        if (++count > MAX_LIBRARIES) break;
+        try {
+          const text = await core.invoke('read_library', { path: p });
+          size += text.length;
+          if (size > MAX_LIBRARY_TEXT) break;
+          files[p] = text;
+          queue.push(text);
+        } catch {}
       }
     }
     for (const p of Object.keys(files)) if (files[p] === null) delete files[p];
     return files;
-  }
-
-  async function nextOpened() {
-    const [p] = await core.invoke('opened_files');
-    return p ?? null;
   }
 
   // LightBurn 2.2 and later: open the cut file there through its REST API
@@ -156,9 +136,9 @@
       'LightBurn did not accept KerfScript. In LightBurn, open Settings → Extensions → Manage API Authorizations, remove KerfScript, then try again.',
   };
 
-  async function lightburn(name, svg, button) {
+  async function lightburn(fileName, svg, button) {
     const label = button.textContent;
-    const send = () => core.invoke('lightburn_open', { name, contents: svg });
+    const send = () => core.invoke('lightburn_open', { name: fileName, contents: svg });
     button.disabled = true;
     try {
       button.textContent = 'Sending…';
@@ -184,21 +164,71 @@
     }
   }
 
+  // About: version, source code and the licences shipped with the app
+  const LEGAL = [
+    ['LICENSE', 'GNU AGPL 3.0'],
+    ['COMMERCIAL-LICENSE.md', 'Your designs and commercial use'],
+    ['THIRD-PARTY-NOTICES.md', 'Third-party notices'],
+    ['THIRD-PARTY-LICENSES.md', 'Rust crates in the app'],
+    ['OFL.txt', 'Atkinson Hyperlegible font'],
+  ];
+
+  async function about() {
+    let box = document.querySelector('dialog.about');
+    if (!box) {
+      box = document.createElement('dialog');
+      box.className = 'about';
+      box.innerHTML = `<h2>KerfScript <span data-version></span></h2>
+<p>KerfScript is free software under the GNU Affero General Public License 3.0,
+with the additional permission in COMMERCIAL-LICENSE.md. Its source code is at
+<a href="${SOURCE}">${SOURCE.replace('https://', '')}</a>.</p>
+<p class="about-files"></p>
+<pre class="about-text" hidden></pre>
+<form method="dialog"><button class="button">Close</button></form>`;
+      const files = box.querySelector('.about-files');
+      for (const [file, label] of LEGAL) {
+        const b = Object.assign(document.createElement('button'), {
+          className: 'link',
+          textContent: label,
+          type: 'button',
+        });
+        b.addEventListener('click', async () => {
+          const pre = box.querySelector('.about-text');
+          pre.textContent = await core.invoke('legal_file', { name: file }).catch((e) => String(e));
+          pre.hidden = false;
+          pre.scrollTop = 0;
+        });
+        files.append(b, ' ');
+      }
+      document.body.append(box);
+      box.querySelector('[data-version]').textContent = await window.__TAURI__.app
+        .getVersion()
+        .catch(() => '');
+    }
+    box.showModal();
+  }
+
   window.kerfHost = {
     shareBase: `${SITE}/playground/`,
-    name: base,
+    name: () => name,
     libraries,
     lightburn,
     changed: title,
-    save(name, data) {
-      return name.endsWith('.kerf') ? save(true) : exportFile(name, data);
+    // The playground loaded new code: what counts as unsaved from here on.
+    // A file or an example is saved as it is; other code (a draft from last
+    // time, a shared link) is not saved anywhere yet.
+    loaded(text, example) {
+      saved = name !== null || example ? text : null;
+      title();
+    },
+    save(fileName, data) {
+      return fileName.endsWith('.kerf') ? save(true) : exportFile(fileName, data);
     },
     // Before the playground loads an example: the open file stops being open
     async release() {
       if (!(await discardOk())) return false;
-      file = null;
-      saved = null;
-      title();
+      name = null;
+      await core.invoke('forget_design');
       return true;
     },
     attach(playground) {
@@ -216,25 +246,18 @@
         button('Open…', open),
         button('Save', () => save(false)),
       );
+      actions.append(button('About', about));
       document.querySelector('[data-download="kerf"]').textContent = 'Save as…';
       document.querySelector('[data-share]').textContent = 'Copy web link';
     },
-    // A file the app was started with, from the command line or a double click
+    // A file the app was started with, from the command line or a double
+    // click: its text, or null when there is none (an empty file is "")
     async initial() {
-      const p = await nextOpened();
-      if (!p) {
-        title();
-        return null;
-      }
-      try {
-        const text = await readFile(p);
-        file = p;
-        saved = text;
-        title();
-        return text;
-      } catch {
-        return null;
-      }
+      const design = await core.invoke('open_pending').catch(failed('open the file'));
+      if (!design) return null;
+      name = design.name;
+      saved = design.text;
+      return design.text;
     },
   };
 
@@ -256,10 +279,7 @@
   });
 
   // macOS opens files in the running app
-  event.listen('open-files', async () => {
-    const p = await nextOpened();
-    if (p) openPath(p);
-  });
+  event.listen('open-files', openPending);
 
   win.onCloseRequested(async (e) => {
     if (!(await discardOk())) e.preventDefault();

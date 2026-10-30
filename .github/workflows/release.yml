@@ -11,6 +11,9 @@
 # rolling "nightly" prerelease, named by date like OpenSCAD's snapshots, with
 # the Docker image tagged dev and the snap on the edge channel.
 #
+# Docker and the snap publish only after the release files have been built,
+# tested and checked, and the GitHub release or nightly has been made.
+#
 # Optional secrets: GPG_PRIVATE_KEY and GPG_PASSPHRASE (signatures),
 # DOCKERHUB_USERNAME and DOCKERHUB_TOKEN (Docker Hub, next to ghcr.io),
 # SNAPCRAFT_STORE_CREDENTIALS (Snap Store). Steps without them are skipped.
@@ -79,7 +82,7 @@ jobs:
           cache: npm
       - uses: denoland/setup-deno@v2
         with:
-          deno-version: v2.x
+          deno-version: 2.8.3
       - name: Install Javy and nfpm
         run: |
           mkdir -p "$HOME/.local/bin"
@@ -96,6 +99,8 @@ jobs:
           npm run build
           npm run wasm
           npm test
+      - name: Check the JavaScript engine's licence list
+        run: node scripts/wasm-licenses.mjs --check
       - name: Make release files
         env:
           KERF_LABEL: ${{ needs.plan.outputs.label }}
@@ -167,6 +172,17 @@ jobs:
           npm ci
           npm run web
           npx tauri build ${{ matrix.args }}
+      - name: Check the licences are in the app
+        shell: bash
+        run: |
+          case "$RUNNER_OS" in
+            Windows) dir=desktop/src-tauri/target/release ;;
+            macOS) dir=desktop/src-tauri/target/universal-apple-darwin/release/bundle/macos/KerfScript.app/Contents/Resources ;;
+            *) dir=desktop/src-tauri/target/release ;;
+          esac
+          for f in LICENSE COMMERCIAL-LICENSE.md THIRD-PARTY-NOTICES.md THIRD-PARTY-LICENSES.md OFL.txt; do
+            test -s "$dir/$f" || { echo "::error::$f is not in the app ($dir)"; exit 1; }
+          done
       - name: Collect installers
         working-directory: desktop
         env:
@@ -203,6 +219,7 @@ jobs:
       - name: Checksums and manifests
         run: |
           rm -f release/*.sha256 release/*.sha512 release/SHA256SUMS
+          node scripts/verify-release.mjs
           node scripts/checksums.mjs
           if [[ "$KIND" == release ]]; then node scripts/manifests.mjs; fi
       - name: Sign with GPG
@@ -232,7 +249,7 @@ jobs:
             --notes "Built from $GITHUB_SHA on $KERF_LABEL. Nightlies are untested on real machines; use a release to cut."
 
   docker:
-    needs: plan
+    needs: [plan, github]
     if: needs.plan.outputs.skip != 'true'
     runs-on: ubuntu-latest
     permissions:
@@ -279,7 +296,7 @@ jobs:
           tags: ${{ steps.tags.outputs.tags }}
 
   snap:
-    needs: plan
+    needs: [plan, github]
     if: needs.plan.outputs.skip != 'true'
     strategy:
       matrix:

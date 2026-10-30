@@ -36,6 +36,16 @@ test('reports the version', { skip }, async () => {
   assert.match(r.version, /^\d+\.\d+\.\d+$/);
 });
 
+test('carries its licences and those of its JavaScript engine', { skip }, async () => {
+  const r = await run({ command: 'licenses' });
+  assert.equal(r.ok, true, r.error);
+  assert.match(r.files.LICENSE, /GNU AFFERO GENERAL PUBLIC LICENSE/);
+  assert.match(r.files['COMMERCIAL-LICENSE.md'], /designs are yours/);
+  assert.match(r.files['THIRD-PARTY-LICENSES.md'], /Fabrice Bellard/);
+  assert.match(r.files['THIRD-PARTY-NOTICES.md'], /Clipper2/);
+  assert.match(r.files['OFL.txt'], /SIL OPEN FONT LICENSE/);
+});
+
 test('renders the same SVG and DXF as the JavaScript build', { skip }, async () => {
   const source =
     'w = 40;\npart("plate") { difference() { rect([w, 30]); translate([20, 15]) circle(4); } }\n';

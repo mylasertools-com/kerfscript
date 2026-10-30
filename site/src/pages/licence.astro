@@ -4,6 +4,7 @@ import { markdown } from '../lib/site.mjs';
 
 const licence = markdown('COMMERCIAL-LICENSE.md').html;
 const trademarks = markdown('TRADEMARKS.md').html;
+const notices = markdown('THIRD-PARTY-NOTICES.md').html;
 ---
 
 <Base
@@ -14,5 +15,7 @@ const trademarks = markdown('TRADEMARKS.md').html;
     <Fragment set:html={licence} />
     <hr />
     <Fragment set:html={trademarks} />
+    <hr />
+    <Fragment set:html={notices} />
   </article>
 </Base>

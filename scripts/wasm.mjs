@@ -9,6 +9,7 @@
 
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, statSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
 import { build } from 'esbuild';
 
 const JAVY = process.env.JAVY ?? 'javy';
@@ -24,6 +25,15 @@ await build({
   target: 'es2020',
   loader: { '.ttf': 'binary' },
   plugins: [
+    {
+      name: 'licence-texts',
+      setup(b) {
+        b.onLoad({ filter: /(LICENSE|.md|.txt)$/ }, async (a) => ({
+          contents: await readFile(a.path, 'utf8'),
+          loader: 'text',
+        }));
+      },
+    },
     {
       name: 'no-node-builtins',
       setup(b) {

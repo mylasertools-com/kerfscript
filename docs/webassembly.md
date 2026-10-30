@@ -35,7 +35,7 @@ echo '{"source": "rect([80, 50]);"}' | wasmtime run kerfscript.wasm
 
 | Field | Value |
 | --- | --- |
-| `command` | `"render"` (default), `"params"` or `"version"` |
+| `command` | `"render"` (default), `"params"`, `"version"` or `"licenses"` |
 | `source` | The program, as a string |
 | `params` | Parameter values keyed by name |
 | `files` | Libraries for `include` and `use`, keyed by path: `{"lib/tab.kerf": "..."}` |
@@ -62,6 +62,10 @@ exits with an error code for a bad program.
   `material`, `thickness`, `svg` and `dxf`; write one file per sheet to cut.
 - `params`: `parameters`, as from [`parameters()`](javascript.md).
 - `version`: `version` (package) and `language`.
+- `licenses`: `files`, the licence texts of the module and of everything
+  built into it, keyed by file name: `LICENSE`, `COMMERCIAL-LICENSE.md`,
+  `THIRD-PARTY-NOTICES.md`, `THIRD-PARTY-LICENSES.md` (the JavaScript engine
+  and its Rust crates) and `OFL.txt`. The release ZIP has the same files.
 
 ## Python
 
@@ -120,6 +124,6 @@ console.log(JSON.parse(readFileSync('out.json', 'utf8')).svg);
 
 ## Performance
 
-The module carries its own JavaScript engine (QuickJS), so it is about 1.8 MB
+The module carries its own JavaScript engine (QuickJS), so it is about 2 MB
 and renders roughly three to five times slower than Node.js. The example
 designs take well under a second.

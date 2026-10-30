@@ -15,6 +15,20 @@ import {
   type Value,
 } from './index.js';
 import { withBuiltinFont } from './font.js';
+import agpl from '../LICENSE';
+import commercial from '../COMMERCIAL-LICENSE.md';
+import notices from '../THIRD-PARTY-NOTICES.md';
+import engine from '../packaging/wasm/THIRD-PARTY-LICENSES.md';
+import ofl from '../fonts/OFL.txt';
+
+// The licences of this module and of everything built into it
+const LICENSES = {
+  LICENSE: agpl,
+  'COMMERCIAL-LICENSE.md': commercial,
+  'THIRD-PARTY-NOTICES.md': notices,
+  'THIRD-PARTY-LICENSES.md': engine,
+  'OFL.txt': ofl,
+};
 
 interface JavyIO {
   readSync(fd: number, buf: Uint8Array): number;
@@ -23,7 +37,7 @@ interface JavyIO {
 declare const Javy: JavyIO & { IO?: JavyIO };
 
 interface Request {
-  command?: 'render' | 'params' | 'version';
+  command?: 'render' | 'params' | 'version' | 'licenses';
   source?: string;
   params?: Record<string, Value>;
   files?: Record<string, string>;
@@ -87,10 +101,11 @@ function base64(text: string): Uint8Array {
 function handle(req: Request): object {
   const command = req.command ?? 'render';
   if (command === 'version') return { ok: true, version: VERSION, language: LANGUAGE_VERSION };
+  if (command === 'licenses') return { ok: true, files: LICENSES };
   if (typeof req.source !== 'string') throw new Error('The request needs "source", a string.');
   if (command === 'params') return { ok: true, ...parameters(req.source) };
   if (command !== 'render')
-    throw new Error(`Unknown command "${command}". Use render, params or version.`);
+    throw new Error(`Unknown command "${command}". Use render, params, version or licenses.`);
   const files = req.files ?? {};
   const fonts: Record<string, Uint8Array> = {};
   for (const [name, data] of Object.entries(req.fonts ?? {})) fonts[name] = base64(data);

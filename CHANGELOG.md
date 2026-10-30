@@ -4,11 +4,15 @@
 
 - `kerfscript.wasm`: a WASI module that runs KerfScript from Python, Rust,
   Go, C# and other languages. It takes a JSON request on standard input and
-  writes SVG, DXF, parts and warnings as JSON. Build it with `npm run wasm`;
-  see [docs/webassembly.md](docs/webassembly.md).
+  writes SVG, DXF, parts and warnings as JSON. `"command": "licenses"`
+  returns the licence texts of the module and of the JavaScript engine built
+  into it. Build it with `npm run wasm`; see
+  [docs/webassembly.md](docs/webassembly.md).
 - A desktop app for Windows, macOS and Linux: the playground with `.kerf`
   files on disk (Open, Save, Save as, double-click to open), exports through a
-  save dialog, and `use`/`include` libraries read from the design's folder.
+  save dialog, `use`/`include` libraries read from the design's folder and
+  the folders below it, and an About window with the source link and the
+  licences of everything in the app.
   Installers: Windows setup and MSI, a universal macOS dmg, and an AppImage,
   `.deb` and `.rpm` for Linux x64 and arm64; Flathub, winget, Chocolatey and
   AUR manifests. See [docs/desktop.md](docs/desktop.md).
@@ -16,6 +20,13 @@
   LightBurn 2.2 or later through its REST API. KerfScript asks LightBurn only
   for permission to send files.
 - Chocolatey and MacPorts manifests for the command line.
+- The playground does not load a shared link, draft or file longer than
+  1,000,000 characters, and stops unpacking a compressed link at that size.
+- Settings for a list, such as `size = [10, 20]`, keep numbers changed in the
+  code since the settings were drawn, instead of putting the old ones back.
+- The website's licence page, and `assets/THIRD-PARTY-NOTICES.md` next to
+  `kerfscript.js`, have the notices of the libraries bundled in its
+  JavaScript.
 - Standalone `kerf` binaries for Windows, macOS and Linux that need no
   Node.js, `.deb` and `.rpm` packages, a Docker image, a snap, and Homebrew,
   Scoop, winget and AUR manifests, all built by the release workflow with

@@ -136,9 +136,11 @@ Run browser renders in a web worker so they do not block the page. Set a
 timeout and terminate the worker if it takes too long. Evaluation limits
 bound program steps and recursion, but geometry work also takes time.
 
-Memory limits stop a program before it asks for more memory than a browser
-tab can give: part copies, circle segments, list sizes, text length, shape
-points, exported points and sheets. The defaults are in
+Size limits stop a program before it builds more than a browser tab can
+usually hold: part copies, circle segments, list sizes, text length, shape
+points, exported points and sheets. They bound what a program makes, not
+every byte the renderer uses, so keep the worker's timeout as well, and run
+programs you did not write where the page can end them. The defaults are in
 [Limits](../LANGUAGE.md#limits) and in `DEFAULT_LIMITS`. Lower them with the
 `limits` option if your worker has little memory:
 

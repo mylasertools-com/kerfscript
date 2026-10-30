@@ -15,5 +15,10 @@ if (!existsSync(bundle))
   throw new Error('dist/index.js is missing: run `npm run build` in the repository root');
 mkdirSync(join(site, 'public/assets/fonts'), { recursive: true });
 copyFileSync(bundle, join(site, 'public/assets/kerfscript.js'));
+// The bundle's notices, where its banner points
+copyFileSync(
+  join(repo, 'THIRD-PARTY-NOTICES.md'),
+  join(site, 'public/assets/THIRD-PARTY-NOTICES.md'),
+);
 for (const f of ['AtkinsonHyperlegible-Regular.ttf', 'OFL.txt'])
   copyFileSync(join(repo, 'fonts', f), join(site, 'public/assets/fonts', f));

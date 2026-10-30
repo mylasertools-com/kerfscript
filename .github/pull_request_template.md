@@ -8,4 +8,12 @@
 
 ## Contributor License Agreement
 
-- [ ] I have read the [CLA](https://github.com/mylasertools/kerfscript/blob/main/CLA.md) and agree to it for this and my future contributions.
+To have this pull request considered, sign the
+[CLA](https://github.com/mylasertools/kerfscript/blob/main/CLA.md) by filling in
+the statement below with your legal name, GitHub handle and today's date. Each
+pull request needs its own signature.
+
+```text
+I have read the KerfScript CLA 1.0 and agree to it for my contributions.
+Name: <your name>  GitHub: <your handle>  Date: <YYYY-MM-DD>
+```

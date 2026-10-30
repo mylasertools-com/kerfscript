@@ -7,8 +7,6 @@
     "core:default",
     "core:window:allow-set-title",
     "core:window:allow-destroy",
-    "dialog:allow-open",
-    "dialog:allow-save",
     "dialog:allow-ask",
     "dialog:allow-message",
     "opener:allow-open-url"

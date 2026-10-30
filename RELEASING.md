@@ -86,10 +86,31 @@ Repositories and accounts:
   `graphics/kerfscript/Portfile`; check it with `port lint --nitpick` on a Mac.
 - winget: nothing; releases go in as pull requests to microsoft/winget-pkgs.
 
-The Rust crates in the desktop app are listed with their licences in
-`desktop/THIRD-PARTY-LICENSES.md`, which the installers carry. After a change
-to `desktop/src-tauri/Cargo.lock`, run `node scripts/licenses.mjs` in
-`desktop/`; the release workflow fails while the file is out of date.
+## Licence lists
+
+Two files list the Rust code compiled into a release, with licences, source
+links and licence texts:
+
+- `desktop/THIRD-PARTY-LICENSES.md`: the desktop app. After a change to
+  `desktop/src-tauri/Cargo.lock`, run `node scripts/licenses.mjs` in
+  `desktop/`.
+- `packaging/wasm/THIRD-PARTY-LICENSES.md`: the JavaScript engine Javy builds
+  into kerfscript.wasm. After changing `JAVY_VERSION` (in both workflows and
+  `scripts/wasm-licenses.mjs`), run `node scripts/wasm-licenses.mjs`.
+
+Both stop when a crate ships no licence file. Run them with `--fetch` to
+download the licence files of its repository at the commit it was published
+from into `packaging/licenses/<crate>-<version>/`, read what came back, and
+commit it. When a repository has none either, add the licence text the
+crate's source files name there by hand, with a SOURCE.txt saying where it is
+from. CI fails while either list is out of date.
+
+The installers, the WASM module and every archive carry LICENSE,
+COMMERCIAL-LICENSE.md, THIRD-PARTY-NOTICES.md and OFL.txt as well;
+`scripts/verify-release.mjs` checks the archives and packages before a
+release is published.
+
+## Signing
 
 macOS binaries and the app are not signed or notarized (the app has an
 ad-hoc signature, so it runs on Apple silicon), so Gatekeeper blocks a

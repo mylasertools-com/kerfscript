@@ -9,7 +9,7 @@
 //! signed with a token made from the secret and the current minute. The API
 //! cannot start a job; the user reviews the file in LightBurn and runs it there.
 
-use hmac::{Hmac, Mac};
+use hmac::{Hmac, KeyInit, Mac};
 use sha2::Sha256;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -96,17 +96,64 @@ fn pair(base: &str, file: &Path) -> Result<(), String> {
             let secret = body["secret"]
                 .as_str()
                 .ok_or("LightBurn did not send a secret")?;
-            if let Some(dir) = file.parent() {
-                std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
-            }
-            std::fs::write(file, secret).map_err(|e| e.to_string())
+            write_private(file, secret).map_err(|e| e.to_string())
         }
         403 => Err(DECLINED.into()),
         code => Err(format!("LightBurn refused pairing ({code})")),
     }
 }
 
+/// Writes the secret so only this user can read it (Windows keeps each
+/// user's app data private already).
+fn write_private(file: &Path, secret: &str) -> std::io::Result<()> {
+    #[cfg(unix)]
+    {
+        use std::io::Write;
+        use std::os::unix::fs::{DirBuilderExt, OpenOptionsExt};
+        if let Some(dir) = file.parent() {
+            std::fs::DirBuilder::new()
+                .recursive(true)
+                .mode(0o700)
+                .create(dir)?;
+            make_private(dir, 0o700)?;
+        }
+        let mut f = std::fs::OpenOptions::new()
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .mode(0o600)
+            .open(file)?;
+        make_private(file, 0o600)?;
+        f.write_all(secret.as_bytes())
+    }
+    #[cfg(not(unix))]
+    {
+        if let Some(dir) = file.parent() {
+            std::fs::create_dir_all(dir)?;
+        }
+        std::fs::write(file, secret)
+    }
+}
+
+/// Takes away other users' access to a file or folder made earlier.
+#[cfg(unix)]
+fn make_private(path: &Path, mode: u32) -> std::io::Result<()> {
+    use std::os::unix::fs::PermissionsExt;
+    let current = std::fs::metadata(path)?.permissions().mode() & 0o777;
+    if current & 0o077 != 0 {
+        std::fs::set_permissions(path, std::fs::Permissions::from_mode(mode))?;
+    }
+    Ok(())
+}
+
 fn open(base: &str, file: &Path, name: &str, contents: &str) -> Result<(), String> {
+    #[cfg(unix)]
+    {
+        let _ = make_private(file, 0o600);
+        if let Some(dir) = file.parent() {
+            let _ = make_private(dir, 0o700);
+        }
+    }
     let secret = match std::fs::read_to_string(file) {
         Ok(s) if !s.trim().is_empty() => s.trim().to_string(),
         _ => return Err(NEEDS_PAIRING.into()),
@@ -289,6 +336,27 @@ mod tests {
         assert_eq!(upload.body, b"<svg/>");
         let bearer = upload.header("authorization").unwrap();
         assert_eq!(bearer, format!("Bearer {}", token("s3cret")));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn the_secret_is_private_to_the_user() {
+        use std::os::unix::fs::PermissionsExt;
+        let file = secret_path("private")
+            .parent()
+            .unwrap()
+            .join("private-dir/secret");
+        let dir = file.parent().unwrap().to_path_buf();
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o755)).unwrap();
+        std::fs::write(&file, "old").unwrap();
+        std::fs::set_permissions(&file, std::fs::Permissions::from_mode(0o644)).unwrap();
+        write_private(&file, "new").unwrap();
+        let mode = |p: &Path| std::fs::metadata(p).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode(&file), 0o600);
+        assert_eq!(mode(&dir), 0o700);
+        assert_eq!(std::fs::read_to_string(&file).unwrap(), "new");
     }
 
     #[test]

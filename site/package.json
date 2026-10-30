@@ -13,12 +13,12 @@
     "indexnow": "node scripts/indexnow.mjs"
   },
   "dependencies": {
-    "@astrojs/sitemap": "3.7.3",
-    "astro": "5.18.2",
+    "@astrojs/sitemap": "3.7.4",
+    "astro": "7.4.4",
     "marked": "15.0.12"
   },
   "devDependencies": {
     "@resvg/resvg-js": "2.6.2",
-    "wrangler": "4.110.0"
+    "wrangler": "4.156.0"
   }
 }

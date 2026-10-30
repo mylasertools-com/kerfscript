@@ -328,7 +328,7 @@ if (has(cli('linux-x64'), cli('linux-arm64')))
   install -Dm755 kerf "$pkgdir/usr/bin/kerf"
   install -Dm644 kerf.1 "$pkgdir/usr/share/man/man1/kerf.1"
   install -Dm644 kerfscript.xml "$pkgdir/usr/share/mime/packages/kerfscript.xml"
-  install -Dm644 LICENSE OFL.txt THIRD-PARTY-NOTICES.md -t "$pkgdir/usr/share/licenses/$pkgname/"`,
+  install -Dm644 LICENSE COMMERCIAL-LICENSE.md OFL.txt THIRD-PARTY-NOTICES.md -t "$pkgdir/usr/share/licenses/$pkgname/"`,
   });
 if (has(app('linux-x64.deb'), app('linux-arm64.deb')))
   aur('kerfscript-desktop-bin', {
@@ -337,7 +337,8 @@ if (has(app('linux-x64.deb'), app('linux-arm64.deb')))
     sources: { x86_64: app('linux-x64.deb'), aarch64: app('linux-arm64.deb') },
     body: `  # makepkg unpacks the .deb; its files are in data.tar.*
   tar -xf data.tar.* -C "$pkgdir"
-  install -Dm644 "$pkgdir/usr/share/doc/kerfscript/copyright" "$pkgdir/usr/share/licenses/$pkgname/copyright" 2>/dev/null || true`,
+  # The app's licences are in /usr/lib/KerfScript; Arch looks in /usr/share/licenses
+  install -Dm644 "$pkgdir"/usr/lib/KerfScript/* -t "$pkgdir/usr/share/licenses/$pkgname/"`,
   });
 
 // Flathub, as github.com/flathub/com.mylasertools.KerfScript. It repackages
@@ -364,6 +365,8 @@ finish-args:
   - --share=ipc
   # Open and save .kerf files anywhere, and read the libraries next to them
   - --filesystem=home
+  # Open in LightBurn talks to LightBurn's API on this computer (127.0.0.1)
+  - --share=network
 modules:
   - name: kerfscript
     buildsystem: simple
@@ -385,6 +388,10 @@ ${deb('aarch64', 'linux-arm64.deb')}
         done
       - install -Dm644 usr/share/mime/packages/${APP_ID}.xml /app/share/mime/packages/\${FLATPAK_ID}.xml
       - install -Dm644 ${APP_ID}.metainfo.xml /app/share/metainfo/\${FLATPAK_ID}.metainfo.xml
+      # Licences: where the app finds them (next to /app/bin, as /usr/lib in
+      # the .deb), and where Flatpak tools look
+      - mkdir -p /app/lib/KerfScript && cp -r usr/lib/KerfScript/. /app/lib/KerfScript/
+      - install -Dm644 usr/lib/KerfScript/* -t /app/share/licenses/\${FLATPAK_ID}/
 `,
   );
   write(
