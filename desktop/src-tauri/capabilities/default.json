@@ -9,6 +9,15 @@
     "core:window:allow-destroy",
     "dialog:allow-ask",
     "dialog:allow-message",
-    "opener:allow-open-url"
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [
+        { "url": "https://kerfscript.mylasertools.com/*" },
+        { "url": "https://mylasertools.com/*" },
+        { "url": "https://github.com/mylasertools/kerfscript" },
+        { "url": "https://github.com/mylasertools/kerfscript/*" },
+        { "url": "https://www.npmjs.com/package/@mylasertools/kerfscript" }
+      ]
+    }
   ]
 }

@@ -9,3 +9,8 @@ release/
 desktop/web/
 desktop/src-tauri/target/
 desktop/THIRD-PARTY-LICENSES.md
+packaging/wasm/THIRD-PARTY-LICENSES.md
+packaging/licenses/
+desktop/src-tauri/gen/
+site/3d/.build/
+.claude/

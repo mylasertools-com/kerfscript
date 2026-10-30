@@ -99,8 +99,11 @@ export function argumentWork(name: string, args: Value[], max: number): number {
   for (const v of args) {
     if (typeof v === 'string') n += v.length;
     else if (Array.isArray(v)) n += name === 'len' ? 0 : v.length;
-    else if (isRange(v) && v.step !== 0)
-      n += Math.min(Math.max(Math.floor((v.end - v.start) / v.step) + 1, 0), max + 1);
+    else if (isRange(v)) {
+      // NaN when a bound or the step is not a number: such a range is empty
+      const items = Math.floor((v.end - v.start) / v.step) + 1;
+      if (items > 0) n += Math.min(items, max + 1);
+    }
   }
   return n;
 }

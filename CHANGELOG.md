@@ -9,10 +9,11 @@
   into it. Build it with `npm run wasm`; see
   [docs/webassembly.md](docs/webassembly.md).
 - A desktop app for Windows, macOS and Linux: the playground with `.kerf`
-  files on disk (Open, Save, Save as, double-click to open), exports through a
-  save dialog, `use`/`include` libraries read from the design's folder and
-  the folders below it, and an About window with the source link and the
-  licences of everything in the app.
+  files on disk (Open, Save, Save as, double-click to open; Save as adds
+  `.kerf` to a name without it and asks before replacing a file of that
+  name), exports through a save dialog, `use`/`include` libraries read from
+  the design's folder and the folders below it, and an About window with the
+  source link and the licences of everything in the app.
   Installers: Windows setup and MSI, a universal macOS dmg, and an AppImage,
   `.deb` and `.rpm` for Linux x64 and arm64; Flathub, winget, Chocolatey and
   AUR manifests. See [docs/desktop.md](docs/desktop.md).

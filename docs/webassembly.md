@@ -33,20 +33,20 @@ echo '{"source": "rect([80, 50]);"}' | wasmtime run kerfscript.wasm
 
 ### Request
 
-| Field | Value |
-| --- | --- |
-| `command` | `"render"` (default), `"params"`, `"version"` or `"licenses"` |
-| `source` | The program, as a string |
-| `params` | Parameter values keyed by name |
-| `files` | Libraries for `include` and `use`, keyed by path: `{"lib/tab.kerf": "..."}` |
-| `fonts` | Font files keyed by name, base64 encoded. `Atkinson` is built in |
-| `defaultFont` | Name to use when `text()` does not specify a font |
-| `kerf` | Kerf override for every part, in millimetres |
-| `layout` | `"pack"` (default) or `"none"` |
-| `sheet` | Sheet size `[width, height]` in millimetres |
-| `gap` | Space between packed parts |
-| `margin` | Space between the parts and the sheet edge |
-| `guides` | `true` to include guide layer geometry |
+| Field         | Value                                                                       |
+| ------------- | --------------------------------------------------------------------------- |
+| `command`     | `"render"` (default), `"params"`, `"version"` or `"licenses"`               |
+| `source`      | The program, as a string                                                    |
+| `params`      | Parameter values keyed by name                                              |
+| `files`       | Libraries for `include` and `use`, keyed by path: `{"lib/tab.kerf": "..."}` |
+| `fonts`       | Font files keyed by name, base64 encoded. `Atkinson` is built in            |
+| `defaultFont` | Name to use when `text()` does not specify a font                           |
+| `kerf`        | Kerf override for every part, in millimetres                                |
+| `layout`      | `"pack"` (default) or `"none"`                                              |
+| `sheet`       | Sheet size `[width, height]` in millimetres                                 |
+| `gap`         | Space between packed parts                                                  |
+| `margin`      | Space between the parts and the sheet edge                                  |
+| `guides`      | `true` to include guide layer geometry                                      |
 
 These match the [render() options](javascript.md#options). A path in `files`
 can leave out `.kerf`, as in the program.

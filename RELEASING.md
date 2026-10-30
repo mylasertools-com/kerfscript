@@ -8,29 +8,29 @@ accounts it needs and the steps it cannot do alone.
 
 Desktop app (`desktop/`, Tauri):
 
-| Channel | Name | Made by | Releases | Nightlies |
-| --- | --- | --- | --- | --- |
-| GitHub releases | `kerfscript-desktop-<v>-windows-x64-setup.exe` and `.msi`, `-macos-universal.dmg`, `-linux-<x64/arm64>.AppImage/.deb/.rpm` | workflow | draft, published by hand | rolling `nightly` prerelease |
-| winget | `MyLaserTools.KerfScript` | manifest from the workflow | yes | no |
-| Chocolatey | `kerfscript-desktop` | manifest from the workflow | yes | no |
-| Flathub | `com.mylasertools.KerfScript` | manifest from the workflow | yes | no |
-| AUR | `kerfscript-desktop-bin` | manifest from the workflow | yes | no |
+| Channel         | Name                                                                                                                       | Made by                    | Releases                 | Nightlies                    |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------- | -------------------------- | ------------------------ | ---------------------------- |
+| GitHub releases | `kerfscript-desktop-<v>-windows-x64-setup.exe` and `.msi`, `-macos-universal.dmg`, `-linux-<x64/arm64>.AppImage/.deb/.rpm` | workflow                   | draft, published by hand | rolling `nightly` prerelease |
+| winget          | `MyLaserTools.KerfScript`                                                                                                  | manifest from the workflow | yes                      | no                           |
+| Chocolatey      | `kerfscript-desktop`                                                                                                       | manifest from the workflow | yes                      | no                           |
+| Flathub         | `com.mylasertools.KerfScript`                                                                                              | manifest from the workflow | yes                      | no                           |
+| AUR             | `kerfscript-desktop-bin`                                                                                                   | manifest from the workflow | yes                      | no                           |
 
 Command line, WebAssembly and library:
 
-| Channel | Name | Made by | Releases | Nightlies |
-| --- | --- | --- | --- | --- |
-| npm | `@mylasertools/kerfscript` | `npm publish` by hand | yes | no |
-| GitHub releases | `kerf-<v>-<os>-<arch>.zip/.tar.gz`, `kerfscript-<v>.wasm`, `kerfscript-<v>-linux-<arch>.deb/.rpm` | workflow | draft, published by hand | rolling `nightly` prerelease |
-| Docker | `ghcr.io/mylasertools/kerfscript`, `mylasertools/kerfscript` | workflow | `<v>`, `latest` | `dev`, `dev.YYYY-MM-DD` |
-| Snap Store | `kerfscript` | workflow | `stable` | `edge` |
-| Homebrew | `mylasertools/tap/kerfscript` | manifest from the workflow | yes | no |
-| Scoop | `kerfscript` | manifest from the workflow | yes | no |
-| winget | `MyLaserTools.KerfScript.CLI` | manifest from the workflow | yes | no |
-| Chocolatey | `kerfscript` | manifest from the workflow | yes | no |
-| MacPorts | `kerfscript` | manifest from the workflow | yes | no |
-| AUR | `kerfscript-bin` | manifest from the workflow | yes | no |
-| Website playground | kerfscript.mylasertools.com | `npm --prefix site run deploy` | yes | no |
+| Channel            | Name                                                                                              | Made by                        | Releases                 | Nightlies                    |
+| ------------------ | ------------------------------------------------------------------------------------------------- | ------------------------------ | ------------------------ | ---------------------------- |
+| npm                | `@mylasertools/kerfscript`                                                                        | `npm publish` by hand          | yes                      | no                           |
+| GitHub releases    | `kerf-<v>-<os>-<arch>.zip/.tar.gz`, `kerfscript-<v>.wasm`, `kerfscript-<v>-linux-<arch>.deb/.rpm` | workflow                       | draft, published by hand | rolling `nightly` prerelease |
+| Docker             | `ghcr.io/mylasertools/kerfscript`, `mylasertools/kerfscript`                                      | workflow                       | `<v>`, `latest`          | `dev`, `dev.YYYY-MM-DD`      |
+| Snap Store         | `kerfscript`                                                                                      | workflow                       | `stable`                 | `edge`                       |
+| Homebrew           | `mylasertools/tap/kerfscript`                                                                     | manifest from the workflow     | yes                      | no                           |
+| Scoop              | `kerfscript`                                                                                      | manifest from the workflow     | yes                      | no                           |
+| winget             | `MyLaserTools.KerfScript.CLI`                                                                     | manifest from the workflow     | yes                      | no                           |
+| Chocolatey         | `kerfscript`                                                                                      | manifest from the workflow     | yes                      | no                           |
+| MacPorts           | `kerfscript`                                                                                      | manifest from the workflow     | yes                      | no                           |
+| AUR                | `kerfscript-bin`                                                                                  | manifest from the workflow     | yes                      | no                           |
+| Website playground | kerfscript.mylasertools.com                                                                       | `npm --prefix site run deploy` | yes                      | no                           |
 
 Every file in a GitHub release has a `.sha256` and `.sha512` file, and an
 `.asc` GPG signature once `GPG_PRIVATE_KEY` is set. `SHA256SUMS` lists them
@@ -79,8 +79,7 @@ Repositories and accounts:
   screenshot of the app as `site/public/screenshots/desktop.png` and deploy
   the site before submitting.
   The Flathub build uses the GNOME 51 runtime, the last with the
-  webkit2gtk-4.1 that Tauri 2 needs; it is supported until about September
-  2027. Before then the app needs a Tauri release on webkitgtk-6.0, or the
+  webkit2gtk-4.1 that Tauri 2 needs; it is supported until about September 2027. Before then the app needs a Tauri release on webkitgtk-6.0, or the
   Flathub build has to bundle WebKitGTK itself.
 - MacPorts: a pull request to github.com/macports/macports-ports adding
   `graphics/kerfscript/Portfile`; check it with `port lint --nitpick` on a Mac.

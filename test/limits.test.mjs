@@ -120,6 +120,13 @@ test('comparing and searching long lists counts a step per item', () => {
   render(`${long} for (j = [0:99]) let (x = len(a), y = a[j] == b[j]) rect(1);`);
 });
 
+test('a range with a bound that is not a number still counts steps', () => {
+  for (const range of ['[0/0:1]', '[0:0/0]', '[0:0/0:5]', '[1/0:1]', '[0:-1/0]'])
+    fails(`x = len(${range}); for (i = [0:200]) rect(1);`, /Stopped after 100 steps/, {
+      maxSteps: 100,
+    });
+});
+
 test('shapes, output and sheets are limited', () => {
   fails('for (i = [0:200000]) translate([i * 2, 0]) rect(1);', /more than 2000000 points/);
   fails('finger_rect([5000, 5000], finger = 0.0001);', /points, the limit/);

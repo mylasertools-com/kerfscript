@@ -22,9 +22,9 @@ and operation order.
 
 ## Checked
 
-| Program | Version | SVG | DXF | Checks |
-| --- | --- | --- | --- | --- |
-| Inkscape | 1.4.2 | Passed | Passed | Dimensions, layers and SVG fills |
+| Program  | Version | SVG    | DXF    | Checks                           |
+| -------- | ------- | ------ | ------ | -------------------------------- |
+| Inkscape | 1.4.2   | Passed | Passed | Dimensions, layers and SVG fills |
 
 Six reference models passed these import checks on 28 October 2026.
 Drawing dimensions matched within 0.02 mm, including kerf compensation.

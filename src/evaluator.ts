@@ -244,7 +244,8 @@ export class Evaluator {
   }
 
   private tick(pos?: Pos, n = 1) {
-    if ((this.steps += n) > this.maxSteps)
+    // Written so that a count that is not a number stops the program too
+    if (!((this.steps += n) <= this.maxSteps))
       throw new KerfError(`Stopped after ${this.maxSteps} steps. Is there an endless loop?`, pos);
   }
 

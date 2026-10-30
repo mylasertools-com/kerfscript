@@ -236,14 +236,14 @@ playground, the command line and `kerfscript.wasm` have `Atkinson`
 
 ### Transforms
 
-| Module | Effect |
-| --- | --- |
-| `translate([x, y])` | Move geometry by x and y |
+| Module                       | Effect                                                                 |
+| ---------------------------- | ---------------------------------------------------------------------- |
+| `translate([x, y])`          | Move geometry by x and y                                               |
 | `rotate(a, center = [x, y])` | Rotate by `a` degrees around a point; the default centre is the origin |
-| `scale(s)` | Scale both axes by the same factor |
-| `scale([sx, sy])` | Scale each axis separately |
-| `mirror([nx, ny])` | Reflect across a line through the origin, perpendicular to this vector |
-| `multmatrix(m)` | Apply a 2 × 3 transformation matrix |
+| `scale(s)`                   | Scale both axes by the same factor                                     |
+| `scale([sx, sy])`            | Scale each axis separately                                             |
+| `mirror([nx, ny])`           | Reflect across a line through the origin, perpendicular to this vector |
+| `multmatrix(m)`              | Apply a 2 × 3 transformation matrix                                    |
 
 ### Combining
 
@@ -268,11 +268,11 @@ playground, the command line and `kerfscript.wasm` have `Atkinson`
 
 ### Other
 
-| Module | Effect |
-| --- | --- |
-| `echo(...)` | Report values without creating geometry |
-| `assert(cond, message)` | Stop with `message` when `cond` is false |
-| `children(i)` | Render a child passed to the current module; omit `i` to render all children |
+| Module                  | Effect                                                                       |
+| ----------------------- | ---------------------------------------------------------------------------- |
+| `echo(...)`             | Report values without creating geometry                                      |
+| `assert(cond, message)` | Stop with `message` when `cond` is false                                     |
+| `children(i)`           | Render a child passed to the current module; omit `i` to render all children |
 
 ## Built-in functions
 
@@ -283,38 +283,38 @@ arguments.
 
 ### Numbers and vectors
 
-| Function | Result |
-| --- | --- |
-| `abs(x)`, `sign(x)` | Absolute value, or sign as -1, 0 or 1 |
-| `floor(x)`, `ceil(x)`, `round(x)` | Round down, up or to the nearest integer |
-| `sqrt(x)`, `pow(x, y)` | Square root, or x raised to y |
-| `exp(x)`, `ln(x)` | Exponential with base e, or natural logarithm |
-| `log(x)`, `log(base, x)` | Base-10 logarithm, or logarithm with a chosen base |
-| `sin(x)`, `cos(x)`, `tan(x)` | Trigonometric functions with angles in degrees |
-| `asin(x)`, `acos(x)`, `atan(x)`, `atan2(y, x)` | Inverse trigonometric functions, returning degrees |
-| `min(values)`, `max(values)` | Minimum or maximum of a list; also accept separate values |
-| `clamp(x, low, high)` | Limit x to the given interval |
-| `lerp(a, b, t)` | Interpolate between numbers or vectors; t = 0 gives a, t = 1 gives b |
-| `norm(v)` | Length of a vector |
-| `cross(a, b)` | Cross product; a scalar for 2D vectors or a vector for 3D vectors |
+| Function                                       | Result                                                               |
+| ---------------------------------------------- | -------------------------------------------------------------------- |
+| `abs(x)`, `sign(x)`                            | Absolute value, or sign as -1, 0 or 1                                |
+| `floor(x)`, `ceil(x)`, `round(x)`              | Round down, up or to the nearest integer                             |
+| `sqrt(x)`, `pow(x, y)`                         | Square root, or x raised to y                                        |
+| `exp(x)`, `ln(x)`                              | Exponential with base e, or natural logarithm                        |
+| `log(x)`, `log(base, x)`                       | Base-10 logarithm, or logarithm with a chosen base                   |
+| `sin(x)`, `cos(x)`, `tan(x)`                   | Trigonometric functions with angles in degrees                       |
+| `asin(x)`, `acos(x)`, `atan(x)`, `atan2(y, x)` | Inverse trigonometric functions, returning degrees                   |
+| `min(values)`, `max(values)`                   | Minimum or maximum of a list; also accept separate values            |
+| `clamp(x, low, high)`                          | Limit x to the given interval                                        |
+| `lerp(a, b, t)`                                | Interpolate between numbers or vectors; t = 0 gives a, t = 1 gives b |
+| `norm(v)`                                      | Length of a vector                                                   |
+| `cross(a, b)`                                  | Cross product; a scalar for 2D vectors or a vector for 3D vectors    |
 
 ### Lists and strings
 
-| Function | Result |
-| --- | --- |
-| `len(value)` | Number of items in a list or characters in a string |
-| `concat(...)` | Join lists and individual values into one list |
-| `reverse(value)` | Reverse a list or string |
-| `sum(values)` | Sum a list of numbers |
-| `slice(value, start = 0, end)` | Extract part of a list or string; `end` is exclusive and defaults to its length |
-| `str(...)` | Convert values to text and join them |
-| `chr(...)`, `ord(text)` | Convert Unicode code points to text, or read the first character's code point |
-| `upper(text)`, `lower(text)` | Change letter case |
-| `split(text, separator = " ")` | Split text into a list of strings |
-| `join(values, separator = "")` | Join values into a string |
-| `search(value, list)` | Index of the first equal item, or `undef` if absent; also searches characters in strings |
-| `contains(value, item)` | Whether a list contains an item or a string contains a substring |
-| `lookup(x, table)` | Interpolate in a table of `[x, y]` pairs; use the nearest endpoint outside the table's range |
+| Function                       | Result                                                                                       |
+| ------------------------------ | -------------------------------------------------------------------------------------------- |
+| `len(value)`                   | Number of items in a list or characters in a string                                          |
+| `concat(...)`                  | Join lists and individual values into one list                                               |
+| `reverse(value)`               | Reverse a list or string                                                                     |
+| `sum(values)`                  | Sum a list of numbers                                                                        |
+| `slice(value, start = 0, end)` | Extract part of a list or string; `end` is exclusive and defaults to its length              |
+| `str(...)`                     | Convert values to text and join them                                                         |
+| `chr(...)`, `ord(text)`        | Convert Unicode code points to text, or read the first character's code point                |
+| `upper(text)`, `lower(text)`   | Change letter case                                                                           |
+| `split(text, separator = " ")` | Split text into a list of strings                                                            |
+| `join(values, separator = "")` | Join values into a string                                                                    |
+| `search(value, list)`          | Index of the first equal item, or `undef` if absent; also searches characters in strings     |
+| `contains(value, item)`        | Whether a list contains an item or a string contains a substring                             |
+| `lookup(x, table)`             | Interpolate in a table of `[x, y]` pairs; use the nearest endpoint outside the table's range |
 
 ### Types
 
@@ -390,16 +390,16 @@ Exceeding a limit stops evaluation with an error.
 
 Programs are also limited in how much memory they can ask for:
 
-| Limit | Default | What it counts |
-| --- | --- | --- |
-| `maxParts` | 10,000 | copies of all parts, adding up every `qty` |
-| `maxSegments` | 10,000 | segments in one circle, ellipse or arc, and corners in one polygon |
-| `maxListLength` | 1,000,000 | items in one list, or characters in one string, including the text `echo()` writes in one call |
-| `maxListItems` | 3,000,000 | items in all lists the program builds, plus 4 for each list, one for every 8 characters of the strings it builds or echoes |
-| `maxTextLength` | 2,000 | characters in one `text()` |
-| `maxPoints` | 2,000,000 | points in all shapes the modules make, plus 100 for each shape |
-| `maxOutputPoints` | 1,000,000 | points in the exported files, counting every copy |
-| `maxSheets` | 200 | sheets in the layout |
+| Limit             | Default   | What it counts                                                                                                             |
+| ----------------- | --------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `maxParts`        | 10,000    | copies of all parts, adding up every `qty`                                                                                 |
+| `maxSegments`     | 10,000    | segments in one circle, ellipse or arc, and corners in one polygon                                                         |
+| `maxListLength`   | 1,000,000 | items in one list, or characters in one string, including the text `echo()` writes in one call                             |
+| `maxListItems`    | 3,000,000 | items in all lists the program builds, plus 4 for each list, one for every 8 characters of the strings it builds or echoes |
+| `maxTextLength`   | 2,000     | characters in one `text()`                                                                                                 |
+| `maxPoints`       | 2,000,000 | points in all shapes the modules make, plus 100 for each shape                                                             |
+| `maxOutputPoints` | 1,000,000 | points in the exported files, counting every copy                                                                          |
+| `maxSheets`       | 200       | sheets in the layout                                                                                                       |
 
 Applications can change them with the `limits` render option.
 

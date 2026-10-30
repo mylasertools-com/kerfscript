@@ -9,11 +9,11 @@ saved as `.kerf` files. It works offline.
 Download the app for your system from the
 [releases](https://github.com/mylasertools/kerfscript/releases):
 
-| System | File |
-| --- | --- |
-| Windows | `kerfscript-desktop-<version>-windows-x64-setup.exe`, or the `.msi` |
-| macOS | `kerfscript-desktop-<version>-macos-universal.dmg` (Apple silicon and Intel) |
-| Linux | `.AppImage`, `.deb` or `.rpm`, for x64 or arm64 |
+| System  | File                                                                         |
+| ------- | ---------------------------------------------------------------------------- |
+| Windows | `kerfscript-desktop-<version>-windows-x64-setup.exe`, or the `.msi`          |
+| macOS   | `kerfscript-desktop-<version>-macos-universal.dmg` (Apple silicon and Intel) |
+| Linux   | `.AppImage`, `.deb` or `.rpm`, for x64 or arm64                              |
 
 Package manager listings (winget, Chocolatey, Flathub and the AUR) follow as
 each one is approved.
@@ -28,11 +28,11 @@ The app is not signed with an Apple or Microsoft certificate yet:
 
 ## Files
 
-| Action | Keys |
-| --- | --- |
-| Open a `.kerf` file | Ctrl+O (⌘O on a Mac), or the **Open…** button |
-| Save | Ctrl+S |
-| Save under a new name | Ctrl+Shift+S, or **Save as…** |
+| Action                | Keys                                          |
+| --------------------- | --------------------------------------------- |
+| Open a `.kerf` file   | Ctrl+O (⌘O on a Mac), or the **Open…** button |
+| Save                  | Ctrl+S                                        |
+| Save under a new name | Ctrl+Shift+S, or **Save as…**                 |
 
 Double-click a `.kerf` file to open it in the app. The title bar shows the
 file name, or Untitled, and a dot when there are unsaved changes. The app asks

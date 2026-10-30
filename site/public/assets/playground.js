@@ -51,6 +51,8 @@ let shown = -1;
 let paramKey = '';
 let errorLine = 0;
 let timer = 0;
+// Counts updates, so one that waited on libraries knows a newer one started
+let updates = 0;
 // Why a shared link did not open, shown until the code is edited
 let notice = null;
 
@@ -226,6 +228,7 @@ function showConsole(shown) {
 }
 
 async function update() {
+  const id = ++updates;
   const source = input.value;
   if (tooLong()) {
     setReady(null);
@@ -237,7 +240,10 @@ async function update() {
   }
   updateSettings();
   status.textContent = 'Rendering…';
-  const reply = await run(source, {}, await host?.libraries(source));
+  const files = await host?.libraries(source);
+  // A newer update is running: starting this one would cancel it
+  if (id !== updates) return;
+  const reply = await run(source, {}, files);
   if (reply.stale || source !== input.value) return;
   const echoes = (reply.ok ? reply.result.echoes : (reply.echoes ?? [])).map((e) => [
     'echo',

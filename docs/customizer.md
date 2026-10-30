@@ -38,15 +38,15 @@ do not get their own controls.
 
 Put a range or choice list after the assignment:
 
-| Comment after the value | Control |
-| --- | --- |
-| `// [40:5:400]` | Slider from 40 to 400, in steps of 5 |
-| `// [40:400]` | Slider from 40 to 400 |
-| `// [200]` | Number with an upper limit of 200 |
-| `// [2, 3, 4]` | Choice of 2, 3 or 4 |
-| `// [round:Round, square:Square]` | Menu with a label for each value |
-| No comment on a boolean | Checkbox |
-| No comment on a string | Text field |
+| Comment after the value           | Control                              |
+| --------------------------------- | ------------------------------------ |
+| `// [40:5:400]`                   | Slider from 40 to 400, in steps of 5 |
+| `// [40:400]`                     | Slider from 40 to 400                |
+| `// [200]`                        | Number with an upper limit of 200    |
+| `// [2, 3, 4]`                    | Choice of 2, 3 or 4                  |
+| `// [round:Round, square:Square]` | Menu with a label for each value     |
+| No comment on a boolean           | Checkbox                             |
+| No comment on a string            | Text field                           |
 
 `/* [Size] */` starts a group named Size. `/* [Hidden] */` hides the
 settings that follow it, until another group begins.

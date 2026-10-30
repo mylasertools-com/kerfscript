@@ -6,12 +6,12 @@ software. Unassigned shapes go on the `cut` layer.
 
 ## The built-in layers
 
-| Layer | Wrap shapes in | Colour in the file | Intended operation |
-| --- | --- | --- | --- |
-| `engrave` | `engrave()` | black `#000000` | Fill an area |
-| `score` | `score()` | blue `#0000ff` | Mark a line or outline |
-| `cut` | `cut()` | red `#ff0000` | Cut through the material |
-| `guide` | `guide()` | light blue | Show construction geometry |
+| Layer     | Wrap shapes in | Colour in the file | Intended operation         |
+| --------- | -------------- | ------------------ | -------------------------- |
+| `engrave` | `engrave()`    | black `#000000`    | Fill an area               |
+| `score`   | `score()`      | blue `#0000ff`     | Mark a line or outline     |
+| `cut`     | `cut()`        | red `#ff0000`      | Cut through the material   |
+| `guide`   | `guide()`      | light blue         | Show construction geometry |
 
 This coaster has a cut outline and hole, an engraved ring and a scored border:
 

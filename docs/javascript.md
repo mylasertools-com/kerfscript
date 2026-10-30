@@ -31,20 +31,20 @@ changing the source string.
 
 ### Options
 
-| Option | Value |
-| --- | --- |
-| `params` | Parameter values keyed by name |
-| `fonts` | Font files keyed by name, as `ArrayBuffer` or `Uint8Array` |
-| `defaultFont` | Name to use when `text()` does not specify a font |
-| `resolve` | `(path) => source` callback for libraries outside the standard library |
-| `kerf` | Kerf override for every part, in millimetres |
-| `layout` | `"pack"` or `"none"` |
-| `sheet` | `[width, height]` in millimetres |
-| `gap` | Space between parts, in millimetres |
-| `margin` | Space at sheet edges, in millimetres; defaults to `gap` |
-| `guides` | Whether to include guide geometry |
-| `maxSteps` | Evaluation step limit |
-| `limits` | Memory limits, see below; any you leave out keep their default |
+| Option        | Value                                                                  |
+| ------------- | ---------------------------------------------------------------------- |
+| `params`      | Parameter values keyed by name                                         |
+| `fonts`       | Font files keyed by name, as `ArrayBuffer` or `Uint8Array`             |
+| `defaultFont` | Name to use when `text()` does not specify a font                      |
+| `resolve`     | `(path) => source` callback for libraries outside the standard library |
+| `kerf`        | Kerf override for every part, in millimetres                           |
+| `layout`      | `"pack"` or `"none"`                                                   |
+| `sheet`       | `[width, height]` in millimetres                                       |
+| `gap`         | Space between parts, in millimetres                                    |
+| `margin`      | Space at sheet edges, in millimetres; defaults to `gap`                |
+| `guides`      | Whether to include guide geometry                                      |
+| `maxSteps`    | Evaluation step limit                                                  |
+| `limits`      | Memory limits, see below; any you leave out keep their default         |
 
 Supply a font for programs that use text:
 
@@ -61,16 +61,16 @@ The URL should point to a font file provided by your application.
 
 ### Result
 
-| Field | Contents |
-| --- | --- |
-| `svg` | Combined SVG containing all sheets |
-| `width`, `height` | Combined SVG dimensions in millimetres |
-| `sheets` | Each sheet's dimensions, material, thickness, SVG, DXF, paths and placed items |
-| `parts` | Part names, quantities, dimensions, piece counts, cut lengths and material properties |
-| `paths` | Layer paths with `name`, `mode`, `color`, `d`, `regions` and `lines` |
-| `layers` | Layer definitions in output order |
-| `warnings` | Problems that did not stop the render |
-| `echoes` | Output from the program's `echo()` calls |
+| Field             | Contents                                                                              |
+| ----------------- | ------------------------------------------------------------------------------------- |
+| `svg`             | Combined SVG containing all sheets                                                    |
+| `width`, `height` | Combined SVG dimensions in millimetres                                                |
+| `sheets`          | Each sheet's dimensions, material, thickness, SVG, DXF, paths and placed items        |
+| `parts`           | Part names, quantities, dimensions, piece counts, cut lengths and material properties |
+| `paths`           | Layer paths with `name`, `mode`, `color`, `d`, `regions` and `lines`                  |
+| `layers`          | Layer definitions in output order                                                     |
+| `warnings`        | Problems that did not stop the render                                                 |
+| `echoes`          | Output from the program's `echo()` calls                                              |
 
 Use `result.svg` for a combined preview. Use `result.sheets[i].svg` or
 `.dxf` to export individual sheets, particularly when they use different

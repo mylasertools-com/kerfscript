@@ -31,21 +31,21 @@ reports parts, dimensions, cut lengths, sheets and warnings.
 
 ## Options
 
-| Option | Use |
-| --- | --- |
-| `-o, --out <file>` | Output path ending in `.svg`, `.dxf` or `.json`; defaults to `<file>.svg` |
-| `-D name=value` | Override a parameter; repeat for multiple values |
-| `-p, --params <file>` | Load parameter values from a JSON file |
-| `--font <file.ttf>` | Supply a font file; repeat for multiple fonts. `Atkinson` is built in |
-| `--kerf <mm>` | Override kerf for every part |
-| `--sheet <W>x<H>` | Set the sheet width and height in millimetres |
-| `--gap <mm>` | Set spacing between parts |
-| `--margin <mm>` | Set spacing at sheet edges; defaults to the gap |
-| `--no-pack` | Keep the positions defined in the program |
-| `--guides` | Include the guide layer |
-| `--split` | Export one file per sheet |
-| `-h, --help` | Show command help |
-| `-v, --version` | Show version numbers |
+| Option                | Use                                                                       |
+| --------------------- | ------------------------------------------------------------------------- |
+| `-o, --out <file>`    | Output path ending in `.svg`, `.dxf` or `.json`; defaults to `<file>.svg` |
+| `-D name=value`       | Override a parameter; repeat for multiple values                          |
+| `-p, --params <file>` | Load parameter values from a JSON file                                    |
+| `--font <file.ttf>`   | Supply a font file; repeat for multiple fonts. `Atkinson` is built in     |
+| `--kerf <mm>`         | Override kerf for every part                                              |
+| `--sheet <W>x<H>`     | Set the sheet width and height in millimetres                             |
+| `--gap <mm>`          | Set spacing between parts                                                 |
+| `--margin <mm>`       | Set spacing at sheet edges; defaults to the gap                           |
+| `--no-pack`           | Keep the positions defined in the program                                 |
+| `--guides`            | Include the guide layer                                                   |
+| `--split`             | Export one file per sheet                                                 |
+| `-h, --help`          | Show command help                                                         |
+| `-v, --version`       | Show version numbers                                                      |
 
 `-D` accepts KerfScript values, including numbers, quoted strings, booleans
 and lists. For example: `-D width=200` or `-D 'name="Ada"'`.

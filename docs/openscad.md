@@ -23,15 +23,15 @@ See the [language reference](../LANGUAGE.md) for supported arguments.
 
 ## Different
 
-| Feature | OpenSCAD | KerfScript |
-| --- | --- | --- |
-| Geometry | 3D and 2D | 2D parts for laser cutting |
-| Output | 3D formats and 2D exports | SVG and DXF with operation layers |
-| Assignments | The last assignment in a scope applies throughout that scope | Assignments take effect in order |
-| Type errors | Many produce `undef` and a warning | Stop evaluation with an error |
-| `color()` | Sets a shape's colour | Use `cut()`, `score()`, `engrave()` or `layer()` |
-| Fonts | Looks up system fonts | Uses fonts supplied by the application or CLI |
-| Libraries | Can load local files | Loads the standard library and sources allowed by the host |
+| Feature     | OpenSCAD                                                     | KerfScript                                                 |
+| ----------- | ------------------------------------------------------------ | ---------------------------------------------------------- |
+| Geometry    | 3D and 2D                                                    | 2D parts for laser cutting                                 |
+| Output      | 3D formats and 2D exports                                    | SVG and DXF with operation layers                          |
+| Assignments | The last assignment in a scope applies throughout that scope | Assignments take effect in order                           |
+| Type errors | Many produce `undef` and a warning                           | Stop evaluation with an error                              |
+| `color()`   | Sets a shape's colour                                        | Use `cut()`, `score()`, `engrave()` or `layer()`           |
+| Fonts       | Looks up system fonts                                        | Uses fonts supplied by the application or CLI              |
+| Libraries   | Can load local files                                         | Loads the standard library and sources allowed by the host |
 
 Assignment order is especially important when adapting a design. A value
 assigned later in a KerfScript program does not change earlier geometry.

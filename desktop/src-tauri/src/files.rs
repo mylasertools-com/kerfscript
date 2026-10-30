@@ -11,7 +11,7 @@ use std::io::Read;
 use std::path::{Component, Path, PathBuf};
 use std::sync::Mutex;
 use tauri::{AppHandle, Manager};
-use tauri_plugin_dialog::{DialogExt, FilePath};
+use tauri_plugin_dialog::{DialogExt, FilePath, MessageDialogButtons, MessageDialogKind};
 
 /// Largest design or library file, in bytes: the playground's 1,000,000
 /// characters at up to 3 bytes each in UTF-8
@@ -117,6 +117,21 @@ pub fn library_path(design: &Path, path: &str) -> Result<PathBuf, String> {
     Err(format!("<{path}> was not found next to the design"))
 }
 
+/// A design's file name ends in .kerf. Some save dialogs (GTK on Linux) return
+/// the name as typed, so .kerf is added after it: "box" becomes "box.kerf" and
+/// "box.v2" becomes "box.v2.kerf".
+fn with_kerf(path: PathBuf) -> PathBuf {
+    if path
+        .extension()
+        .is_some_and(|e| e.eq_ignore_ascii_case("kerf"))
+    {
+        return path;
+    }
+    let mut name = path.into_os_string();
+    name.push(".kerf");
+    PathBuf::from(name)
+}
+
 fn picked(path: Option<FilePath>) -> Option<PathBuf> {
     path.and_then(|p| p.into_path().ok())
 }
@@ -192,16 +207,16 @@ pub async fn save_design(
                 if let Some(dir) = design_dir(&app) {
                     dialog = dialog.set_directory(dir);
                 }
-                match picked(dialog.blocking_save_file()) {
-                    Some(p)
-                        if p.extension()
-                            .is_some_and(|e| e.eq_ignore_ascii_case("kerf")) =>
-                    {
-                        p
-                    }
-                    Some(p) => p.with_extension("kerf"),
-                    None => return Ok(None),
+                let Some(chosen) = picked(dialog.blocking_save_file()) else {
+                    return Ok(None);
+                };
+                let path = with_kerf(chosen.clone());
+                // The dialog asked before replacing the file it was given, not
+                // one whose name gained .kerf after it closed
+                if path != chosen && path.exists() && !replace(&app, &path) {
+                    return Ok(None);
                 }
+                path
             }
         };
         std::fs::write(&path, text).map_err(|e| format!("{}: {e}", path.display()))?;
@@ -210,6 +225,22 @@ pub async fn save_design(
         Ok(Some(saved))
     })
     .await
+}
+
+fn replace(app: &AppHandle, path: &Path) -> bool {
+    let name = path
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    app.dialog()
+        .message(format!("{name} already exists. Replace it?"))
+        .title("Save as")
+        .kind(MessageDialogKind::Warning)
+        .buttons(MessageDialogButtons::OkCancelCustom(
+            "Replace".into(),
+            "Cancel".into(),
+        ))
+        .blocking_show()
 }
 
 /// Saves an export (SVG, DXF or ZIP) where the user picks, starting in the
@@ -304,6 +335,18 @@ mod tests {
             "C:/Windows/win.ini",
         ] {
             assert!(library_path(&design, path).is_err(), "{path}");
+        }
+    }
+
+    #[test]
+    fn saved_designs_end_in_kerf() {
+        for (typed, saved) in [
+            ("box", "box.kerf"),
+            ("box.kerf", "box.kerf"),
+            ("box.KERF", "box.KERF"),
+            ("box.v2", "box.v2.kerf"),
+        ] {
+            assert_eq!(with_kerf(PathBuf::from(typed)), PathBuf::from(saved));
         }
     }
 
