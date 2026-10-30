@@ -55,7 +55,10 @@ part("leg", qty = 4, at = [[0, 0, 0], [80, 0, 0], [0, 40, 0], [80, 40, 0]],
 Parts without `at` or `rotate` stay out of the assembled view. When placed
 parts run into each other, the render warns which two collide. That is what
 a finger edge set to `"out"` where it should be `"in"` looks like, or a part
-placed one thickness off. Joints that interlock exactly do not count.
+placed one thickness off. Joints that interlock exactly do not count, and
+neither does an overlap smaller than about a cubic millimetre, the kind of
+nick a laser kerf or a press fit takes up. A tab half a millimetre out of its
+slot is well over that and gets a warning.
 
 ## Materials
 

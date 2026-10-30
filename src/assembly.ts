@@ -58,38 +58,26 @@ function invertRigid(m: number[]): number[] {
   const [tx, ty, tz] = [m[3], m[7], m[11]];
   const r = [m[0], m[4], m[8], m[1], m[5], m[9], m[2], m[6], m[10]];
   return [
-    r[0], r[1], r[2], -(r[0] * tx + r[1] * ty + r[2] * tz),
-    r[3], r[4], r[5], -(r[3] * tx + r[4] * ty + r[5] * tz),
-    r[6], r[7], r[8], -(r[6] * tx + r[7] * ty + r[8] * tz),
-    0, 0, 0, 1,
+    r[0],
+    r[1],
+    r[2],
+    -(r[0] * tx + r[1] * ty + r[2] * tz),
+    r[3],
+    r[4],
+    r[5],
+    -(r[3] * tx + r[4] * ty + r[5] * tz),
+    r[6],
+    r[7],
+    r[8],
+    -(r[6] * tx + r[7] * ty + r[8] * tz),
+    0,
+    0,
+    0,
+    1,
   ];
 }
 
-function inside(regions: Poly[], x: number, y: number): boolean {
-  let hit = false;
-  for (const ring of regions)
-    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
-      const [xi, yi] = ring[i];
-      const [xj, yj] = ring[j];
-      if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) hit = !hit;
-    }
-  return hit;
-}
-
-function edgeDistance(regions: Poly[], x: number, y: number): number {
-  let best = Infinity;
-  for (const ring of regions)
-    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
-      const [ax, ay] = ring[j];
-      const [bx, by] = ring[i];
-      const dx = bx - ax;
-      const dy = by - ay;
-      const len = dx * dx + dy * dy;
-      const t = len ? Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / len)) : 0;
-      best = Math.min(best, Math.hypot(x - (ax + t * dx), y - (ay + t * dy)));
-    }
-  return best;
-}
+type Vec2 = [number, number];
 
 function bounds2(regions: Poly[]): [number, number, number, number] {
   let [x0, y0, x1, y1] = [Infinity, Infinity, -Infinity, -Infinity];
@@ -122,33 +110,177 @@ function worldBox(p: AssemblyPart): [Vec3, Vec3] {
 const overlaps = (a: [Vec3, Vec3], b: [Vec3, Vec3], eps: number) =>
   [0, 1, 2].every((k) => a[0][k] < b[1][k] - eps && b[0][k] < a[1][k] - eps);
 
-export function collisions(parts: AssemblyPart[], eps = 0.05, samples = 600): [AssemblyPart, AssemblyPart][] {
+const dot = (a: Vec3, b: Vec3) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+const cross = (a: Vec3, b: Vec3): Vec3 => [
+  a[1] * b[2] - a[2] * b[1],
+  a[2] * b[0] - a[0] * b[2],
+  a[0] * b[1] - a[1] * b[0],
+];
+const add = (a: Vec3, b: Vec3, k = 1): Vec3 => [a[0] + b[0] * k, a[1] + b[1] * k, a[2] + b[2] * k];
+const normal = (m: number[]): Vec3 => [m[2], m[6], m[10]];
+const origin = (m: number[]): Vec3 => [m[3], m[7], m[11]];
+const turn = (m: number[], v: Vec3): Vec3 => [
+  m[0] * v[0] + m[1] * v[1] + m[2] * v[2],
+  m[4] * v[0] + m[5] * v[1] + m[6] * v[2],
+  m[8] * v[0] + m[9] * v[1] + m[10] * v[2],
+];
+
+function spans(regions: Poly[], from: Vec2, dir: Vec2): number[] {
+  const len = dir[0] * dir[0] + dir[1] * dir[1];
+  const hits: number[] = [];
+  for (const ring of regions)
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const a = ring[j];
+      const b = ring[i];
+      const da = dir[0] * (a[1] - from[1]) - dir[1] * (a[0] - from[0]);
+      const db = dir[0] * (b[1] - from[1]) - dir[1] * (b[0] - from[0]);
+      if (da > 0 === db > 0) continue;
+      const f = da / (da - db);
+      const x = a[0] + (b[0] - a[0]) * f - from[0];
+      const y = a[1] + (b[1] - a[1]) * f - from[1];
+      hits.push((x * dir[0] + y * dir[1]) / len);
+    }
+  return hits.sort((p, q) => p - q);
+}
+
+function shared(a: number[], b: number[], eps: number): number {
+  let total = 0;
+  let i = 0;
+  let j = 0;
+  while (i + 1 < a.length && j + 1 < b.length) {
+    const length = Math.min(a[i + 1], b[j + 1]) - Math.max(a[i], b[j]);
+    if (length > eps) total += length;
+    if (a[i + 1] < b[j + 1]) i += 2;
+    else j += 2;
+  }
+  return total;
+}
+
+function steps(lo: number, hi: number, eps: number, pitch: number): { at: number[]; size: number } {
+  const from = lo + eps;
+  const to = hi - eps;
+  if (to <= from) return { at: [], size: 0 };
+  const n = Math.max(4, Math.ceil((to - from) / pitch));
+  return {
+    at: Array.from({ length: n }, (_, i) => from + ((to - from) * (i + 0.5)) / n),
+    size: (to - from) / n,
+  };
+}
+
+function localLine(inverse: number[], at: Vec3, dir: Vec3): [Vec2, Vec2] {
+  const p = apply(inverse, at[0], at[1], at[2]);
+  const d = turn(inverse, dir);
+  return [
+    [p[0], p[1]],
+    [d[0], d[1]],
+  ];
+}
+
+function crossing(
+  A: AssemblyPart,
+  B: AssemblyPart,
+  invA: number[],
+  invB: number[],
+  eps: number,
+  pitch: number,
+  volume: number,
+): boolean {
+  const nA = normal(A.matrix);
+  const nB = normal(B.matrix);
+  const raw = cross(nA, nB);
+  const size = Math.hypot(...raw);
+  const line: Vec3 = [raw[0] / size, raw[1] / size, raw[2] / size];
+  const side = cross(line, nA);
+  const tilt = dot(nB, side);
+  const oA = origin(A.matrix);
+  const bLevel = dot(nB, origin(B.matrix));
+  const depths = steps(0, A.thickness, eps, pitch);
+  let total = 0;
+  for (const depth of depths.at) {
+    const base = add(oA, nA, depth);
+    const b0 = (bLevel - dot(nB, base)) / tilt;
+    const b1 = (bLevel + B.thickness - dot(nB, base)) / tilt;
+    const alongs = steps(Math.min(b0, b1), Math.max(b0, b1), eps, pitch);
+    for (const along of alongs.at) {
+      const at = add(base, side, along);
+      const [fromA, dirA] = localLine(invA, at, line);
+      const [fromB, dirB] = localLine(invB, at, line);
+      total +=
+        shared(spans(A.outline, fromA, dirA), spans(B.outline, fromB, dirB), eps) *
+        depths.size *
+        alongs.size;
+      if (total > volume) return true;
+    }
+  }
+  return false;
+}
+
+function stacked(
+  A: AssemblyPart,
+  B: AssemblyPart,
+  invA: number[],
+  eps: number,
+  pitch: number,
+  volume: number,
+): boolean {
+  const rel = [0, 1, 2, 3].flatMap((r) =>
+    [0, 1, 2, 3].map((c) => {
+      let v = 0;
+      for (let k = 0; k < 4; k++) v += invA[r * 4 + k] * B.matrix[k * 4 + c];
+      return v;
+    }),
+  );
+  const z0 = rel[11];
+  const z1 = rel[11] + rel[10] * B.thickness;
+  const depth = Math.min(A.thickness, Math.max(z0, z1)) - Math.max(0, Math.min(z0, z1));
+  if (depth <= eps) return false;
+  const moved: Poly[] = B.outline.map((ring) =>
+    ring.map(
+      ([x, y]) => [rel[0] * x + rel[1] * y + rel[3], rel[4] * x + rel[5] * y + rel[7]] as Vec2,
+    ),
+  );
+  const [ax0, ay0, ax1, ay1] = bounds2(A.outline);
+  const [bx0, by0, bx1, by1] = bounds2(moved);
+  const rows = steps(Math.max(ay0, by0), Math.min(ay1, by1), eps, pitch);
+  let across = 0;
+  for (const y of rows.at) {
+    across +=
+      shared(spans(A.outline, [0, y], [1, 0]), spans(moved, [0, y], [1, 0]), eps) *
+      rows.size *
+      depth;
+    if (across > volume) return true;
+  }
+  const columns = steps(Math.max(ax0, bx0), Math.min(ax1, bx1), eps, pitch);
+  let down = 0;
+  for (const x of columns.at) {
+    down +=
+      shared(spans(A.outline, [x, 0], [0, 1]), spans(moved, [x, 0], [0, 1]), eps) *
+      columns.size *
+      depth;
+    if (down > volume) return true;
+  }
+  return false;
+}
+
+export function collisions(
+  parts: AssemblyPart[],
+  eps = 0.05,
+  pitch = 0.25,
+  volume = 1,
+): [AssemblyPart, AssemblyPart][] {
   const boxes = parts.map(worldBox);
   const inverses = parts.map((p) => invertRigid(p.matrix));
   const found: [AssemblyPart, AssemblyPart][] = [];
-  for (let a = 0; a < parts.length; a++) {
-    const others = parts.map((_, b) => b).filter((b) => b > a && overlaps(boxes[a], boxes[b], eps));
-    if (!others.length) continue;
-    const A = parts[a];
-    const [x0, y0, x1, y1] = bounds2(A.outline);
-    const step = Math.max(0.5, Math.sqrt(((x1 - x0) * (y1 - y0)) / samples));
-    const levels = [0.25, 0.5, 0.75].map((f) => A.thickness * f);
-    const hits = new Set<number>();
-    for (let x = x0 + step / 2; x < x1 && hits.size < others.length; x += step)
-      for (let y = y0 + step / 2; y < y1 && hits.size < others.length; y += step) {
-        if (!inside(A.outline, x, y) || edgeDistance(A.outline, x, y) <= eps) continue;
-        for (const z of levels) {
-          const w = apply(A.matrix, x, y, z);
-          for (const b of others) {
-            if (hits.has(b)) continue;
-            const B = parts[b];
-            const l = apply(inverses[b], w[0], w[1], w[2]);
-            if (l[2] <= eps || l[2] >= B.thickness - eps) continue;
-            if (inside(B.outline, l[0], l[1]) && edgeDistance(B.outline, l[0], l[1]) > eps) hits.add(b);
-          }
-        }
-      }
-    for (const b of hits) found.push([A, parts[b]]);
-  }
+  for (let a = 0; a < parts.length; a++)
+    for (let b = a + 1; b < parts.length; b++) {
+      if (!overlaps(boxes[a], boxes[b], eps)) continue;
+      const A = parts[a];
+      const B = parts[b];
+      const parallel = Math.hypot(...cross(normal(A.matrix), normal(B.matrix))) < 1e-9;
+      const hit = parallel
+        ? stacked(A, B, inverses[a], eps, pitch, volume)
+        : crossing(A, B, inverses[a], inverses[b], eps, pitch, volume);
+      if (hit) found.push([A, B]);
+    }
   return found;
 }
