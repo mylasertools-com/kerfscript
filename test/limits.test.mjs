@@ -127,6 +127,14 @@ test('a range with a bound that is not a number still counts steps', () => {
     });
 });
 
+test('a range with a step of 0 is empty and takes no steps', () => {
+  for (const range of ['[0:0:1]', '[0:0:0]', '[1:0:0]'])
+    assert.deepEqual(
+      render(`for (i = [0:5]) echo(sum(${range})); rect(1);`, { maxSteps: 100 }).echoes,
+      Array(6).fill('0'),
+    );
+});
+
 test('shapes, output and sheets are limited', () => {
   fails('for (i = [0:200000]) translate([i * 2, 0]) rect(1);', /more than 2000000 points/);
   fails('finger_rect([5000, 5000], finger = 0.0001);', /points, the limit/);

@@ -244,7 +244,9 @@ async function update() {
   // A newer update is running: starting this one would cancel it
   if (id !== updates) return;
   const reply = await run(source, {}, files);
-  if (reply.stale || source !== input.value) return;
+  // Code that matches the editor's can still be from an older update: the
+  // same text in another file reads other libraries
+  if (reply.stale || id !== updates || source !== input.value) return;
   const echoes = (reply.ok ? reply.result.echoes : (reply.echoes ?? [])).map((e) => [
     'echo',
     `ECHO: ${e}`,

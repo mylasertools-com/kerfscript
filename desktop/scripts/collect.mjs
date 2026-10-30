@@ -29,6 +29,11 @@ const KINDS = [
 ];
 const OS = { nsis: 'windows', msi: 'windows', dmg: 'macos' };
 
+// Tauri puts the version in each installer's name (KerfScript_0.3.0_x64.msi,
+// KerfScript-0.3.0-1.x86_64.rpm). Installers of other versions, left from
+// earlier builds, are not copied.
+const built = new RegExp(`[_-]${version.replace(/\./g, '\\.')}[_-]`);
+
 const arch = (name) =>
   /universal/.test(name) ? 'universal' : /aarch64|arm64/.test(name) ? 'arm64' : 'x64';
 
@@ -42,7 +47,7 @@ for (const bundle of bundles) {
   for (const [dir, ext, end] of KINDS) {
     const from = join(bundle, dir);
     if (!existsSync(from)) continue;
-    for (const name of readdirSync(from).filter((n) => ext.test(n))) {
+    for (const name of readdirSync(from).filter((n) => ext.test(n) && built.test(n))) {
       const os = OS[dir] ?? 'linux';
       const file = `kerfscript-desktop-${label}-${os}-${arch(name)}${end === 'setup.exe' ? '-' : '.'}${end}`;
       copyFileSync(join(from, name), join(out, file));
