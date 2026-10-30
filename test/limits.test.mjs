@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
-import { DEFAULT_LIMITS, render } from '../dist/index.js';
+import { DEFAULT_LIMITS, KerfError, render } from '../dist/index.js';
 
 const fails = (source, pattern, options) => assert.throws(() => render(source, options), pattern);
 
@@ -25,7 +25,7 @@ test('lists and strings are limited', () => {
   );
   fails(
     'function d(s, n) = n <= 0 ? s : d(str(s, s), n - 1); x = d("x", 40);',
-    /a string of \d+ characters/,
+    /str\(\): the text would be longer than the limit of 1000000 characters/,
   );
   fails('p = [for (i = [0:999998]) [i, i]];', /items in all/);
 });
@@ -53,6 +53,57 @@ test('strings joined with + are limited', () => {
 
 test('echo output is limited', () => {
   fails('s = [for (i = [0:99999]) i]; for (i = [0:999]) echo(s);', /items in all/);
+});
+
+// t(n) is a list that holds the list before it twice: n + 1 lists, but 2^n
+// copies of [0] when written out in full
+const SHARED = 'function t(n, a = [0]) = n == 0 ? a : t(n - 1, [a, a]);\n';
+
+test('text from lists that share sublists stops at the limit', () => {
+  const small = { limits: { maxListLength: 1000 } };
+  for (const src of [
+    'echo(t(20));',
+    'echo(x = t(20));',
+    'x = str("a", t(20));',
+    'x = join([1, t(20)], ",");',
+    'x = contains("abc", t(20));',
+  ])
+    fails(SHARED + src, /the text would be longer than the limit of 1000 characters/, small);
+  const r = render(SHARED + 'echo(t(3)); rect(1);', small);
+  assert.equal(r.echoes[0], '[[[[0], [0]], [[0], [0]]], [[[0], [0]], [[0], [0]]]]');
+});
+
+test('echo of a list that shares sublists ends in an error under the default limits', () => {
+  const start = Date.now();
+  fails(
+    'function t(n, a=[0]) = n == 0 ? a : t(n-1, [a,a]);\necho(t(25));',
+    (e) => e instanceof KerfError && /echo\(\): the text would be longer/.test(e.message),
+  );
+  assert.ok(Date.now() - start < 5000);
+});
+
+test('messages and names show only the start of a long list', () => {
+  for (const src of ['rect(t(30));', 'assert(false, t(30));'])
+    assert.throws(
+      () => render(SHARED + src),
+      (e) => e instanceof KerfError && e.message.length < 400 && /\.\.\./.test(e.message),
+    );
+  const r = render(SHARED + 'part(t(30), qty = t(30)) rect(1); $material = t(30);');
+  assert.ok(r.parts[0].name.length < 400 && r.parts[0].material.length < 400);
+});
+
+test('comparing lists that share sublists is quick and counts steps', () => {
+  const start = Date.now();
+  const r = render(
+    SHARED +
+      'function u(n, a = [1]) = n == 0 ? a : u(n - 1, [a, a]); a = t(32);' +
+      'echo(a == a, t(32) == t(32), t(32) != u(32), search([t(30)], [1, [t(30)]])); rect(1);',
+  );
+  assert.deepEqual(r.echoes, ['true, true, true, 1']);
+  assert.ok(Date.now() - start < 5000);
+  const many = 'a = [for (i = [0:99]) [i]]; for (j = [0:99]) let (x = a == [each a]) rect(1);';
+  fails(many, /Stopped after 5000 steps/, { maxSteps: 5000 });
+  render(many, { maxSteps: 50000 });
 });
 
 test('shapes, output and sheets are limited', () => {

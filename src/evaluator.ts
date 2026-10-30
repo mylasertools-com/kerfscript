@@ -1,7 +1,7 @@
 // Copyright (c) 2026 MyLaserTools. SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-MyLaserTools-Commercial
 
 import type { Arg, Assign, Expr, ListItem, Param, Program, Stmt } from './ast.js';
-import { FUNCTIONS } from './functions.js';
+import { bindArgs, FUNCTIONS } from './functions.js';
 import {
   clipLines,
   difference,
@@ -38,8 +38,11 @@ import {
   isRange,
   rangeValues,
   show,
+  toNumber,
+  toText,
   truthy,
   typeName,
+  write,
   type Closure,
   type Value,
 } from './values.js';
@@ -401,12 +404,14 @@ export class Evaluator {
     });
     for (const k of args.named.keys()) {
       if (k.startsWith('$')) env.vars.set(k, args.named.get(k));
-      else if (!names.has(k)) {
-        const warning = `${what}: unknown argument "${k}" (line ${args.at.line})`;
-        if (!this.warnings.includes(warning)) this.warnings.push(warning);
-      }
+      else if (!names.has(k)) this.unknownArg(what, k, args.at);
     }
     void defEnv;
+  }
+
+  private unknownArg(what: string, name: string, at: Pos) {
+    const warning = `${what}: unknown argument "${name}" (line ${at.line})`;
+    if (!this.warnings.includes(warning)) this.warnings.push(warning);
   }
 
   private callModule(s: Extract<Stmt, { kind: 'call' }>, env: Env): Shape {
@@ -532,8 +537,8 @@ export class Evaluator {
         if (x.op === '||') return truthy(this.expr(x.left, env)) || truthy(this.expr(x.right, env));
         const a = this.expr(x.left, env);
         const b = this.expr(x.right, env);
-        if (x.op === '==') return equals(a, b);
-        if (x.op === '!=') return !equals(a, b);
+        if (x.op === '==' || x.op === '!=')
+          return equals(a, b, () => this.tick(x.pos)) === (x.op === '==');
         if (x.op === '<' || x.op === '<=' || x.op === '>' || x.op === '>=') {
           if (
             !(
@@ -637,10 +642,14 @@ export class Evaluator {
         const b = FUNCTIONS[name];
         if (b) {
           const args = this.evalArgs(x.args, env, x.pos);
+          for (const k of args.named.keys())
+            if (!k.startsWith('$') && !b.params.includes(k)) this.unknownArg(`${name}()`, k, x.pos);
+          const ctx = { maxLength: this.limits.maxListLength, step: () => this.tick(x.pos) };
           let out: Value;
           try {
-            out = b(args.pos, args.named);
+            out = b.run(bindArgs(b, args.pos, args.named), ctx);
           } catch (e) {
+            if (e instanceof KerfError) throw e;
             throw new KerfError(
               e instanceof RangeError ? `${name}(): the result is too large` : (e as Error).message,
               x.pos,
@@ -671,12 +680,7 @@ export class Evaluator {
       return { handled: true, value: undefined };
     }
     if (name === 'assert') {
-      const a = this.evalArgs(x.args, env, x.pos);
-      if (!truthy(a.pos[0]))
-        throw new KerfError(
-          `Assertion failed${a.pos[1] !== undefined ? ': ' + (typeof a.pos[1] === 'string' ? a.pos[1] : show(a.pos[1])) : ''}`,
-          x.pos,
-        );
+      this.assert(this.evalArgs(x.args, env, x.pos));
       return { handled: true, value: true };
     }
     if (name === 'text_width' || name === 'text_metrics') {
@@ -696,14 +700,35 @@ export class Evaluator {
     return { handled: false };
   }
 
+  private assert(a: Args) {
+    if (truthy(this.arg(a, 'condition', 0))) return;
+    const m = this.arg(a, 'message', 1);
+    throw new KerfError(`Assertion failed${m === undefined ? '' : ': ' + toText(m)}`, a.at);
+  }
+
   private echo(text: string, at: Pos) {
     this.charge(Math.ceil(text.length / CHARS_PER_ITEM), at);
     this.echoes.push(text);
   }
 
+  // Echo text stops at maxListLength characters, before it is all written out
   private echoText(a: Args): string {
-    const parts = a.pos.map((v) => (typeof v === 'string' ? v : show(v)));
-    for (const [k, v] of a.named) parts.push(`${k} = ${show(v)}`);
+    const max = this.limits.maxListLength;
+    const parts: string[] = [];
+    let n = 0;
+    const add = (label: string, v: Value, quote: boolean) => {
+      if (parts.length) n += 2;
+      const r = write(v, max - n - label.length, quote);
+      n += label.length + r.text.length;
+      if (!r.whole)
+        throw new KerfError(
+          `echo(): the text would be longer than the limit of ${max} characters`,
+          a.at,
+        );
+      parts.push(label + r.text);
+    };
+    for (const v of a.pos) add('', v, false);
+    for (const [k, v] of a.named) add(`${k} = `, v, true);
     return parts.join(', ');
   }
 
@@ -739,20 +764,30 @@ export class Evaluator {
         return a.map((x, i) => this.arith(op, x, b[i], at));
       }
       if (op === '*') {
-        if (Array.isArray(a[0])) return a.map((row) => this.arith('*', row, b, at));
+        if (Array.isArray(a[0])) {
+          this.charge(a.length + LIST_COST, at);
+          return a.map((row) => this.arith('*', row, b, at));
+        }
+        // Each product in a sum must be a number
+        const term = (x: Value, y: Value) => {
+          const t = this.arith('*', x, y, at);
+          if (typeof t !== 'number')
+            throw new KerfError(
+              "Can't multiply these lists: an item times an item is not a number",
+              at,
+            );
+          return t;
+        };
         if (Array.isArray(b[0])) {
           const cols = (b[0] as Value[]).length;
           this.checkSize(cols, false, at);
           return Array.from({ length: cols }, (_, j) =>
-            a.reduce(
-              (s: number, x, i) => s + (this.arith('*', x, (b[i] as Value[])[j], at) as number),
-              0,
-            ),
+            a.reduce((s: number, x, i) => s + term(x, (b[i] as Value[])[j]), 0),
           );
         }
         if (a.length !== b.length)
           throw new KerfError(`Can't multiply lists of length ${a.length} and ${b.length}`, at);
-        return a.reduce((s: number, x, i) => s + (this.arith('*', x, b[i], at) as number), 0);
+        return a.reduce((s: number, x, i) => s + term(x, b[i]), 0);
       }
     }
     if (Array.isArray(a) && typeof b === 'number' && (op === '*' || op === '/')) {
@@ -830,9 +865,9 @@ export class Evaluator {
   }
 
   private segs(env: Env) {
-    const fn = Number(this.dyn(env, '$fn')) || 0;
-    const fa = Number(this.dyn(env, '$fa')) || 2;
-    const fs = Number(this.dyn(env, '$fs')) || 0.2;
+    const fn = toNumber(this.dyn(env, '$fn')) || 0;
+    const fa = toNumber(this.dyn(env, '$fa')) || 2;
+    const fs = toNumber(this.dyn(env, '$fs')) || 0.2;
     const max = this.limits.maxSegments;
     return (r: number) => {
       const n = fragments(r, fn, fa, fs);
@@ -862,7 +897,7 @@ export class Evaluator {
         'text needs a font. Pass fonts to render(), or --font on the command line.',
         a.at,
       );
-    const text = String(this.arg(a, 'text', 0, ''));
+    const text = toText(this.arg(a, 'text', 0, ''));
     try {
       return textMetrics(this.opts.fonts, text, this.textOpts(a, env));
     } catch (e) {
@@ -874,10 +909,10 @@ export class Evaluator {
   private textOpts(a: Args, env: Env) {
     return {
       size: this.num(this.arg(a, 'size', 1, 10), 'text', 'size'),
-      font: String(this.arg(a, 'font', 2, this.dyn(env, '$font') ?? '')),
-      halign: String(this.arg(a, 'halign', -1, 'left')),
-      valign: String(this.arg(a, 'valign', -1, 'baseline')),
-      spacing: Number(this.arg(a, 'spacing', -1, 1)),
+      font: toText(this.arg(a, 'font', 2, this.dyn(env, '$font') ?? '')),
+      halign: toText(this.arg(a, 'halign', -1, 'left')),
+      valign: toText(this.arg(a, 'valign', -1, 'baseline')),
+      spacing: toNumber(this.arg(a, 'spacing', -1, 1)),
     };
   }
 
@@ -897,7 +932,7 @@ export class Evaluator {
     return {
       rect: (c) => {
         const [w, h] = this.vec2(this.arg(c.args, 'size', 0, 1), 'size');
-        const r = Number(this.arg(c.args, 'r', -1, 0)) || 0;
+        const r = toNumber(this.arg(c.args, 'r', -1, 0)) || 0;
         const center = truthy(this.arg(c.args, 'center', 1, false));
         const p = roundedRect(w, h, r, this.segs(c.env));
         return regionShape(union([center ? p.map(([x, y]): Pt => [x - w / 2, y - h / 2]) : p]));
@@ -944,7 +979,7 @@ export class Evaluator {
         const paths = this.arg(c.args, 'paths', 1);
         const polys: Poly[] = Array.isArray(paths)
           ? paths.map((ix) =>
-              (Array.isArray(ix) ? ix : []).map((i) => pts[Number(i)]).filter(Boolean),
+              (Array.isArray(ix) ? ix : []).map((i) => pts[toNumber(i)]).filter(Boolean),
             )
           : [pts];
         return regionShape(union(polys, 'evenodd'));
@@ -954,8 +989,7 @@ export class Evaluator {
         if (typeof d !== 'string')
           throw new Error('path() needs SVG path data, like path("M0 0 L10 0 L5 8 Z")');
         const flat = flatten(parseSvgPath(d), 0.01);
-        const fill =
-          String(this.arg(c.args, 'fill', -1, 'evenodd')) === 'nonzero' ? 'nonzero' : 'evenodd';
+        const fill = this.arg(c.args, 'fill', -1, 'evenodd') === 'nonzero' ? 'nonzero' : 'evenodd';
         return merge([regionShape(union(flat.closed, fill)), lineShape(flat.open)]);
       },
       line: (c) => {
@@ -990,12 +1024,12 @@ export class Evaluator {
             'text() needs a font. Pass fonts to render(), or --font on the command line.',
           );
         const text = this.arg(c.args, 'text', 0, '');
-        const shown = typeof text === 'string' ? text : show(text);
-        if (shown.length > this.limits.maxTextLength)
+        const shown = write(text, this.limits.maxTextLength);
+        if (!shown.whole)
           throw new Error(
-            `${shown.length} characters is more than the limit of ${this.limits.maxTextLength} for one text()`,
+            `the text is more than ${this.limits.maxTextLength} characters, the limit for one text()`,
           );
-        return regionShape(textRegions(this.opts.fonts, shown, this.textOpts(c.args, c.env)));
+        return regionShape(textRegions(this.opts.fonts, shown.text, this.textOpts(c.args, c.env)));
       },
       translate: (c) => {
         const [x, y] = this.vec2(this.arg(c.args, 'v', 0, [0, 0]), 'v', false);
@@ -1003,7 +1037,7 @@ export class Evaluator {
       },
       rotate: (c) => {
         const a = this.arg(c.args, 'a', 0, 0);
-        const deg = Array.isArray(a) ? Number(a[2] ?? 0) : this.num(a, 'rotate', 'a');
+        const deg = Array.isArray(a) ? toNumber(a[2] ?? 0) : this.num(a, 'rotate', 'a');
         const r = (deg * Math.PI) / 180;
         const cs = Math.cos(r),
           sn = Math.sin(r);
@@ -1057,22 +1091,26 @@ export class Evaluator {
         }
         return out;
       },
+      // One hull for the shapes outside parts, and one inside each part
       hull: (c) => {
         const s = c.children();
-        const pts: Pt[] = [];
-        let key = 'cut';
-        let first = true;
-        for (const [k, l] of s.layers) {
-          if (first && (l.regions.length || l.lines.length)) {
-            key = k;
-            first = false;
+        const each = (layers: Map<string, Layer>) => {
+          const pts: Pt[] = [];
+          let key = 'cut';
+          let first = true;
+          for (const [k, l] of layers) {
+            if (first && (l.regions.length || l.lines.length)) {
+              key = k;
+              first = false;
+            }
+            for (const p of [...l.regions, ...l.lines]) for (const q of p) pts.push(q);
           }
-          for (const p of [...l.regions, ...l.lines]) for (const q of p) pts.push(q);
-        }
-        const h = hull(pts);
+          const h = hull(pts);
+          return new Map([[key, { regions: h.length >= 3 ? [h] : [], lines: [] }]]);
+        };
         return {
-          layers: new Map([[key, { regions: h.length >= 3 ? [h] : [], lines: [] }]]),
-          parts: s.parts,
+          layers: each(s.layers),
+          parts: s.parts.map((p) => ({ ...p, layers: each(p.layers) })),
         };
       },
       offset: (c) => {
@@ -1113,15 +1151,15 @@ export class Evaluator {
           const m = (mode ?? known?.mode ?? 'line') as LayerDef['mode'];
           if (!['cut', 'line', 'fill', 'guide'].includes(m))
             throw new Error('mode must be "cut", "line", "fill" or "guide"');
-          const col = String(color ?? known?.color ?? '#00aa00');
+          const col = toText(color ?? known?.color ?? '#00aa00');
           if (!/^#[0-9a-fA-F]{6}$/.test(col)) throw new Error('color must look like "#00aa00"');
           this.layers.set(name, { name, mode: m, color: col });
         }
         return retag(c.children(), name);
       },
       part: (c) => {
-        const name = String(this.arg(c.args, 'name', 0, 'part'));
-        const qty = Math.max(1, Math.floor(Number(this.arg(c.args, 'qty', 1, 1)) || 1));
+        const name = toText(this.arg(c.args, 'name', 0, 'part'));
+        const qty = Math.max(1, Math.floor(toNumber(this.arg(c.args, 'qty', 1, 1)) || 1));
         this.copies += qty;
         if (!(this.copies <= this.limits.maxParts))
           throw new Error(`more than ${this.limits.maxParts} part copies in total, the limit`);
@@ -1135,8 +1173,8 @@ export class Evaluator {
               qty,
               layers: s.layers,
               thickness: this.thickness(c.env),
-              kerf: Number(this.dyn(c.env, '$kerf')) || 0,
-              material: String(this.dyn(c.env, '$material') ?? 'material'),
+              kerf: toNumber(this.dyn(c.env, '$kerf')) || 0,
+              material: toText(this.dyn(c.env, '$material') ?? 'material'),
             },
           ],
         };
@@ -1147,7 +1185,7 @@ export class Evaluator {
         const n = this.arg(c.args, 'name', 2);
         if (t !== undefined) c.env.vars.set('$thickness', this.num(t, 'material', 'thickness'));
         if (k !== undefined) c.env.vars.set('$kerf', this.num(k, 'material', 'kerf'));
-        if (n !== undefined) c.env.vars.set('$material', String(n));
+        if (n !== undefined) c.env.vars.set('$material', toText(n));
         return c.children();
       },
       children: (c) => {
@@ -1161,7 +1199,7 @@ export class Evaluator {
         if (idx === undefined) kids.forEach((k) => want.add(k));
         else
           for (const i of this.iterable(idx, c.args.at))
-            if (kids[Number(i)]) want.add(kids[Number(i)]);
+            if (kids[toNumber(i)]) want.add(kids[toNumber(i)]);
         const out: Shape[] = [];
         for (const st of ctx.stmts) {
           if (st.kind === 'assign') this.stmt(st, e);
@@ -1177,12 +1215,7 @@ export class Evaluator {
         return c.children();
       },
       assert: (c) => {
-        const a = c.args;
-        if (!truthy(a.pos[0] ?? a.named.get('condition')))
-          throw new KerfError(
-            `Assertion failed${a.pos[1] !== undefined ? ': ' + (typeof a.pos[1] === 'string' ? a.pos[1] : show(a.pos[1])) : ''}`,
-            a.at,
-          );
+        this.assert(c.args);
         return c.children();
       },
       finger_rect: (c) => {

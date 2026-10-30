@@ -42,11 +42,37 @@ export function truthy(v: Value): boolean {
   return true;
 }
 
-export function equals(a: Value, b: Value): boolean {
-  if (Array.isArray(a) && Array.isArray(b))
-    return a.length === b.length && a.every((x, i) => equals(x, b[i]));
-  if (isRange(a) && isRange(b)) return a.start === b.start && a.step === b.step && a.end === b.end;
-  return a === b;
+const same = (a: Value, b: Value) =>
+  isRange(a) && isRange(b) ? a.start === b.start && a.step === b.step && a.end === b.end : a === b;
+
+// a == b. A list can hold the same list many times, so pairs of lists found
+// equal are not compared again, and step() runs for every new pair.
+export function equals(a: Value, b: Value, step?: () => void): boolean {
+  if (!Array.isArray(a) || !Array.isArray(b)) return same(a, b);
+  const seen = new Map<Value[], Set<Value[]>>();
+  const open: [Value[], Value[], number][] = [];
+  const enter = (x: Value[], y: Value[]) => {
+    let ys = seen.get(x);
+    if (ys?.has(y)) return true;
+    if (x.length !== y.length) return false;
+    step?.();
+    if (!ys) seen.set(x, (ys = new Set()));
+    ys.add(y);
+    open.push([x, y, 0]);
+    return true;
+  };
+  if (!enter(a, b)) return false;
+  while (open.length) {
+    const top = open[open.length - 1];
+    if (top[2] === top[0].length) {
+      open.pop();
+      continue;
+    }
+    const x = top[0][top[2]];
+    const y = top[1][top[2]++];
+    if (Array.isArray(x) && Array.isArray(y) ? !enter(x, y) : !same(x, y)) return false;
+  }
+  return true;
 }
 
 export function typeName(v: Value): string {
@@ -57,18 +83,83 @@ export function typeName(v: Value): string {
   return typeof v;
 }
 
-export function show(v: Value): string {
+function scalar(v: Value): string {
   if (v === undefined) return 'undef';
   if (typeof v === 'string') return JSON.stringify(v);
   if (typeof v === 'number') return fmt(v);
-  if (Array.isArray(v)) return `[${v.map(show).join(', ')}]`;
   if (isRange(v)) return `[${fmt(v.start)}:${fmt(v.step)}:${fmt(v.end)}]`;
   if (isFn(v)) return `function(${v.params.map((p) => p.name).join(', ')})`;
   return String(v);
 }
 
-export function str(v: Value): string {
-  return typeof v === 'string' ? v : show(v);
+// v as text, a string as it is unless quote is set. A list can hold the same
+// list many times, so its text can be far longer than the memory it takes:
+// writing stops once the text passes max characters, and whole is false.
+export function write(v: Value, max: number, quote = false): { text: string; whole: boolean } {
+  if (typeof v === 'string' && !quote)
+    return { text: v.length > max ? v.slice(0, Math.max(max, 0)) : v, whole: v.length <= max };
+  const out: string[] = [];
+  let n = 0;
+  const put = (s: string) => {
+    out.push(s);
+    n += s.length;
+  };
+  const open: [Value[], number][] = [];
+  let next: Value = v;
+  for (;;) {
+    if (Array.isArray(next)) {
+      put('[');
+      open.push([next, 0]);
+    } else put(scalar(next));
+    let more = false;
+    while (open.length && !more) {
+      const top = open[open.length - 1];
+      if (top[1] < top[0].length) {
+        if (top[1]) put(', ');
+        next = top[0][top[1]++];
+        more = true;
+      } else {
+        open.pop();
+        put(']');
+      }
+    }
+    if (!more || n > max) break;
+  }
+  const text = out.join('');
+  return n > max ? { text: text.slice(0, Math.max(max, 0)), whole: false } : { text, whole: true };
+}
+
+// Values as text joined by sep, or undefined once that passes max characters
+export function joinText(vs: Value[], sep: string, max: number): string | undefined {
+  const out: string[] = [];
+  let n = 0;
+  for (const v of vs) {
+    if (out.length) n += sep.length;
+    const r = write(v, max - n);
+    if (!r.whole) return undefined;
+    n += r.text.length;
+    out.push(r.text);
+  }
+  return out.join(sep);
+}
+
+// v as text for messages, cut short after 200 characters
+export function show(v: Value): string {
+  const r = write(v, 200, true);
+  return r.whole ? r.text : r.text + '...';
+}
+
+// String(v) and Number(v) without writing out every list inside v
+export const toText = (v: Value): string => (typeof v === 'string' ? v : show(v));
+export function toNumber(v: Value): number {
+  let inList = false;
+  while (Array.isArray(v) && v.length === 1) {
+    v = v[0];
+    inList = true;
+  }
+  if (Array.isArray(v)) return v.length ? NaN : 0;
+  if (inList && (v === undefined || typeof v === 'boolean')) return v === undefined ? 0 : NaN;
+  return typeof v === 'object' ? NaN : Number(v);
 }
 
 export function fmt(n: number): string {

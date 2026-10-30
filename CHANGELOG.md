@@ -50,6 +50,20 @@
   memory. Strings joined with `+`, strings from functions and `echo()` text
   count toward `maxListItems` too, and a repeated unknown argument warning
   is shown once.
+- `echo()`, `str()`, `join()` and `==` on lists that hold the same list many
+  times stop at the limits instead of running out of memory: text stops at
+  `maxListLength` characters while it is written, and comparing lists takes
+  a step for each pair of lists. Error messages, part names and other
+  settings show only the start of a long list.
+- `hull()` around named parts makes the hull of each part, the same as
+  `hull()` inside the part. It left the parts unchanged before.
+- DXF layers whose names come out the same in DXF, such as `a b` and `a_b`,
+  stay separate layers: the later ones get `_2`, `_3` and so on.
+- Built-in functions take named arguments, such as `sin(x = 30)` and
+  `pow(x = 2, y = 10)`; an unknown name gives a warning. They were ignored
+  before.
+- A list times a list whose items multiply to lists is an error instead of
+  text.
 - The commercial licence for closed-source apps and services is free: email
   hi@mylasertools.com.
 

@@ -19,7 +19,7 @@ import {
 import { KerfError } from './lexer.js';
 import { parse } from './parser.js';
 import { FontBook, type FontSource } from './text.js';
-import type { Value } from './values.js';
+import { toNumber, toText, type Value } from './values.js';
 
 export interface RenderOptions {
   params?: Record<string, Value>;
@@ -129,9 +129,9 @@ export function render(source: string, options: RenderOptions = {}): RenderResul
       name: 'part',
       qty: 1,
       layers: res.shape.layers,
-      thickness: Number(g('$thickness')) || 3,
-      kerf: Number(g('$kerf')) || 0,
-      material: String(g('$material') ?? 'material'),
+      thickness: toNumber(g('$thickness')) || 3,
+      kerf: toNumber(g('$kerf')) || 0,
+      material: toText(g('$material') ?? 'material'),
     });
   if (!parts.length) warnings.push('Nothing to cut: the program made no shapes.');
 
@@ -218,7 +218,7 @@ export function render(source: string, options: RenderOptions = {}): RenderResul
     !(Number.isFinite(sheetSize[1]) && sheetSize[1] > 0)
   )
     throw new KerfError('$sheet must be [width, height], both more than 0');
-  const gap = options.gap ?? Number(g('$gap') ?? 3);
+  const gap = options.gap ?? toNumber(g('$gap') ?? 3);
   const margin = options.margin ?? gap;
   if (!(Number.isFinite(gap) && gap >= 0)) throw new KerfError('$gap must be a number, 0 or more');
   if (!(Number.isFinite(margin) && margin >= 0))

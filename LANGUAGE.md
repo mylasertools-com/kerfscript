@@ -252,7 +252,7 @@ playground, the command line and `kerfscript.wasm` have `Atkinson`
 | `union()` / `group()`                          | joins children                                                             |
 | `difference()`                                 | removes every later child's area from every layer of the first child       |
 | `intersection()`                               | keeps only the area common to all children, layers of the first child kept |
-| `hull()`                                       | convex hull                                                                |
+| `hull()`                                       | convex hull; each named part inside gets its own hull                      |
 | `offset(r)` / `offset(delta, chamfer = false)` | grow (positive) or shrink areas; `r` rounds corners                        |
 | `stroke(width)`                                | turns lines into areas of that width, for cutting single line art          |
 | `outline()`                                    | turns areas into their outline lines                                       |
@@ -276,7 +276,10 @@ playground, the command line and `kerfscript.wasm` have `Atkinson`
 
 ## Built-in functions
 
-Functions return values. The examples below use positional arguments.
+Functions return values. Arguments can be positional or named with the
+parameter names below, as in `pow(x = 2, y = 10)` or `log(8, base = 2)`. An
+unknown name gives a warning. `concat`, `str` and `chr` take only positional
+arguments.
 
 ### Numbers and vectors
 
@@ -287,7 +290,7 @@ Functions return values. The examples below use positional arguments.
 | `sqrt(x)`, `pow(x, y)` | Square root, or x raised to y |
 | `exp(x)`, `ln(x)` | Exponential with base e, or natural logarithm |
 | `log(x)`, `log(base, x)` | Base-10 logarithm, or logarithm with a chosen base |
-| `sin(a)`, `cos(a)`, `tan(a)` | Trigonometric functions with angles in degrees |
+| `sin(x)`, `cos(x)`, `tan(x)` | Trigonometric functions with angles in degrees |
 | `asin(x)`, `acos(x)`, `atan(x)`, `atan2(y, x)` | Inverse trigonometric functions, returning degrees |
 | `min(values)`, `max(values)` | Minimum or maximum of a list; also accept separate values |
 | `clamp(x, low, high)` | Limit x to the given interval |
@@ -371,14 +374,17 @@ Load the box modules with `use <kerf/box>`:
 - **SVG**: millimetre units, one Inkscape layer group per KerfScript layer,
   colours as above, 0.1 mm hairline strokes, `data-part` on every path.
 - **DXF**: R12 (AC1009) polylines on layers named after KerfScript layers,
-  with matching AutoCAD colours.
+  with matching AutoCAD colours. Names are upper case with characters other
+  than letters, digits, `_` and `-` as `_`; when two layers come out the
+  same, the later one gets `_2`, `_3` and so on.
 
 ## Limits
 
 The interpreter limits call depth to 1,000 for modules and 2,000 for
 functions. Expanded ranges are limited to 1,000,000 items. The default
 evaluation limit is 5,000,000 steps; applications can change it with
-`maxSteps`. Exceeding a limit stops evaluation with an error.
+`maxSteps`. Comparing lists with `==` takes a step for each pair of lists
+it compares. Exceeding a limit stops evaluation with an error.
 
 Programs are also limited in how much memory they can ask for:
 
@@ -386,7 +392,7 @@ Programs are also limited in how much memory they can ask for:
 | --- | --- | --- |
 | `maxParts` | 10,000 | copies of all parts, adding up every `qty` |
 | `maxSegments` | 10,000 | segments in one circle, ellipse or arc, and corners in one polygon |
-| `maxListLength` | 1,000,000 | items in one list, or characters in one string |
+| `maxListLength` | 1,000,000 | items in one list, or characters in one string, including the text `echo()` writes in one call |
 | `maxListItems` | 3,000,000 | items in all lists the program builds, plus 4 for each list, one for every 8 characters of the strings it builds or echoes |
 | `maxTextLength` | 2,000 | characters in one `text()` |
 | `maxPoints` | 2,000,000 | points in all shapes the modules make, plus 100 for each shape |
@@ -394,6 +400,10 @@ Programs are also limited in how much memory they can ask for:
 | `maxSheets` | 200 | sheets in the layout |
 
 Applications can change them with the `limits` render option.
+
+A list can hold the same list many times, as in `b = [a, a]`. `echo()`,
+`str()` and `join()` write every copy out, so their text can be far longer
+than the list; they stop with an error once it passes `maxListLength`.
 
 Geometry operations also take time. Applications that render user programs
 should run them in a worker with a timeout; see the

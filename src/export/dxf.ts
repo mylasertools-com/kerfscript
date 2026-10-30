@@ -25,10 +25,31 @@ const aci = (color: string) => {
   return 7;
 };
 
+// DXF layer names: upper case with other characters as _. Layers whose names
+// come out the same get _2, _3 and so on, in layer order, so each stays its own
+// layer; the first of them, and every name without a clash, is kept as it is.
+function dxfNames(layers: LayerDef[]): Map<string, string> {
+  const base = (s: string) => s.toUpperCase().replace(/[^A-Z0-9_-]/g, '_');
+  const taken = new Set(layers.map((l) => base(l.name)));
+  const used = new Set<string>();
+  const out = new Map<string, string>();
+  for (const l of layers) {
+    let n = base(l.name);
+    if (used.has(n)) {
+      let i = 2;
+      while (taken.has(`${n}_${i}`) || used.has(`${n}_${i}`)) i++;
+      n = `${n}_${i}`;
+    }
+    used.add(n);
+    out.set(l.name, n);
+  }
+  return out;
+}
+
 export function toDxf(items: Placed[], _width: number, height: number, layers: LayerDef[]): string {
   const out: string[] = [];
   const g = (code: number, value: string | number) => out.push(String(code), String(value));
-  const name = (s: string) => s.toUpperCase().replace(/[^A-Z0-9_-]/g, '_');
+  const names = dxfNames(layers);
   g(0, 'SECTION');
   g(2, 'HEADER');
   g(9, '$ACADVER');
@@ -43,7 +64,7 @@ export function toDxf(items: Placed[], _width: number, height: number, layers: L
   g(70, layers.length);
   for (const l of layers) {
     g(0, 'LAYER');
-    g(2, name(l.name));
+    g(2, names.get(l.name)!);
     g(70, 0);
     g(62, aci(l.color));
     g(6, 'CONTINUOUS');
@@ -74,7 +95,7 @@ export function toDxf(items: Placed[], _width: number, height: number, layers: L
     g(8, layer);
   };
   for (const def of layers) {
-    const ln = name(def.name);
+    const ln = names.get(def.name)!;
     const outer: Poly[] = [];
     for (const it of items) {
       const l = it.layers.get(def.name);

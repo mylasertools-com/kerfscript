@@ -73,3 +73,64 @@ test('gap, margin, sheet and kerf must be usable numbers', () => {
     assert.throws(() => render(src, opts), Error, JSON.stringify(opts));
   assert.throws(() => render('$sheet = [100, 1/0];' + src), /sheet/);
 });
+
+test('hull() works inside each named part, the same as inside the part', () => {
+  const pair = '{ rect(10); translate([20, 0]) rect(10); }';
+  for (const src of [`hull() part("p") ${pair}`, `part("p") hull() ${pair}`]) {
+    const p = render(src, { kerf: 0 }).parts;
+    assert.equal(p.length, 1, src);
+    assert.deepEqual([p[0].name, p[0].width, p[0].height, p[0].pieces], ['p', 30, 10, 1], src);
+  }
+  const both = render(`hull() { part("p") ${pair} translate([0, 50]) ${pair} }`, { kerf: 0 });
+  assert.deepEqual(
+    both.parts.map((p) => [p.name, p.width, p.height, p.pieces]),
+    [
+      ['part', 30, 10, 1],
+      ['p', 30, 10, 1],
+    ],
+  );
+});
+
+test('layers whose DXF names match stay separate layers', () => {
+  const r = render(
+    'rect(100); layer("a b", "line", "#00ff00") translate([10, 10]) rect(10);' +
+      'layer("a_b", "line", "#0000ff") translate([40, 10]) rect(5);' +
+      'layer("A_B_2", "line") translate([70, 10]) rect(5);',
+    { kerf: 0 },
+  );
+  const dxf = r.sheets[0].dxf;
+  const records = [...dxf.matchAll(/\nLAYER\n2\n(.*)\n70\n0\n62\n(\d+)\n/g)].map((m) => [
+    m[1],
+    +m[2],
+  ]);
+  assert.deepEqual(records.slice(1, 4), [
+    ['A_B', 3],
+    ['A_B_3', 5],
+    ['A_B_2', 3],
+  ]);
+  assert.equal(new Set(records.map((x) => x[0])).size, records.length);
+  for (const name of ['A_B', 'A_B_3', 'A_B_2', 'CUT'])
+    assert.equal(dxf.split(`\nPOLYLINE\n8\n${name}\n`).length - 1, 1, name);
+});
+
+test('built-in functions take named arguments', () => {
+  const r = render(
+    'echo(sin(30), sin(x = 30), pow(x = 2, y = 10), pow(2, y = 3), pow(y = 3, x = 2), atan2(y = 1, x = 1));' +
+      'echo(log(100), log(2, 8), log(x = 8, base = 2), log(8, base = 2), min(values = [3, 1]), max(4, 5));' +
+      'echo(slice("hello", start = 1, end = 3), join(values = [1, 2], separator = "-"), lookup(x = 1, table = [[0, 0], [2, 4]]));' +
+      'rect(1);',
+  );
+  assert.deepEqual(r.echoes, ['0.5, 0.5, 1024, 8, 8, 45', '2, 3, 3, 3, 1, 5', 'el, 1-2, 2']);
+  assert.deepEqual(r.warnings, []);
+});
+
+test('an unknown named argument to a built-in function is a warning', () => {
+  const r = render(
+    'echo(sin(y = 30)); echo(sin(y = 30)); echo(str(1, sep = ","), abs(-2, $fn = 3)); rect(1);',
+  );
+  assert.deepEqual(r.echoes, ['undef', 'undef', '1, 2']);
+  assert.deepEqual(r.warnings, [
+    'sin(): unknown argument "y" (line 1)',
+    'str(): unknown argument "sep" (line 1)',
+  ]);
+});
