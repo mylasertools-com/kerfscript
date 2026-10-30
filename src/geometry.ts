@@ -1,5 +1,6 @@
 // Copyright (c) 2026 MyLaserTools. SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-MyLaserTools-Commercial
 
+import type { Placement } from './assembly.js';
 import {
   Clipper64,
   ClipType,
@@ -29,6 +30,7 @@ export interface PartShape {
   thickness: number;
   kerf: number;
   material: string;
+  placements?: Placement[];
 }
 
 export interface Shape {

@@ -27,6 +27,7 @@ import {
   type Shape,
 } from './geometry.js';
 import { fingerCount, fingerHoles, fingerRect, livingHinge, tslot, type Edge } from './joinery.js';
+import type { Placement, Vec3 } from './assembly.js';
 import { KerfError, where, type Pos } from './lexer.js';
 import { parse } from './parser.js';
 import { LIBRARIES } from './stdlib.js';
@@ -853,6 +854,36 @@ export class Evaluator {
     throw new Error(`${name} must be a number or [x, y], got ${show(v)}`);
   }
 
+  private vec3(v: Value, name: string): Vec3 {
+    const ok = (x: Value) => typeof x === 'number' && Number.isFinite(x);
+    if (Array.isArray(v) && (v.length === 2 || v.length === 3) && v.every(ok))
+      return [v[0] as number, v[1] as number, (v[2] as number | undefined) ?? 0];
+    throw new Error(`${name} must be [x, y, z], got ${show(v)}`);
+  }
+
+  private placements(at: Value, turn: Value, qty: number): Placement[] {
+    const list = (v: Value, name: string): Vec3[] => {
+      if (v === undefined) return [[0, 0, 0]];
+      if (Array.isArray(v) && v.length > 0 && Array.isArray(v[0]))
+        return v.map((item, i) => this.vec3(item, `${name}[${i}]`));
+      return [this.vec3(v, name)];
+    };
+    const ats = list(at, 'at');
+    const turns = list(turn, 'rotate');
+    for (const [items, name] of [
+      [ats, 'at'],
+      [turns, 'rotate'],
+    ] as const)
+      if (items.length !== 1 && items.length !== qty)
+        throw new Error(
+          `${name} needs one placement per copy: qty is ${qty} but ${name} has ${items.length}`,
+        );
+    return Array.from({ length: qty }, (_, i) => ({
+      at: ats[ats.length === 1 ? 0 : i],
+      rotate: turns[turns.length === 1 ? 0 : i],
+    }));
+  }
+
   private points(v: Value, name: string): Pt[] {
     if (!Array.isArray(v)) throw new Error(`${name} must be a list of [x, y] points`);
     return v.map((p, i) => {
@@ -1195,6 +1226,9 @@ export class Evaluator {
         this.copies += qty;
         if (!(this.copies <= this.limits.maxParts))
           throw new Error(`more than ${this.limits.maxParts} part copies in total, the limit`);
+        const at = this.arg(c.args, 'at', -1);
+        const turn = this.arg(c.args, 'rotate', -1);
+        const placements = at === undefined && turn === undefined ? undefined : this.placements(at, turn, qty);
         const s = c.children();
         return {
           layers: new Map(),
@@ -1207,6 +1241,7 @@ export class Evaluator {
               thickness: this.thickness(c.env),
               kerf: toNumber(this.dyn(c.env, '$kerf')) || 0,
               material: toText(this.dyn(c.env, '$material') ?? 'material'),
+              ...(placements ? { placements } : {}),
             },
           ],
         };

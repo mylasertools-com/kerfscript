@@ -1,5 +1,6 @@
 // Copyright (c) 2026 MyLaserTools. SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-MyLaserTools-Commercial
 
+import { collisions, placementMatrix, type AssemblyPart } from './assembly.js';
 import { Evaluator, type LayerDef, type Limits } from './evaluator.js';
 import { toDxf } from './export/dxf.js';
 import { layerPaths, toSvg, type LayerPath } from './export/svg.js';
@@ -73,6 +74,7 @@ export interface RenderResult {
   paths: LayerPath[];
   svg: string;
   parts: PartInfo[];
+  assembly: AssemblyPart[];
   layers: LayerDef[];
   warnings: string[];
   echoes: string[];
@@ -143,6 +145,7 @@ export function render(source: string, options: RenderOptions = {}): RenderResul
   if (!parts.length) warnings.push('Nothing to cut: the program made no shapes.');
 
   const infos: PartInfo[] = [];
+  const assembly: AssemblyPart[] = [];
   const ready: { info: PartInfo; layers: Map<string, Layer> }[] = [];
   for (const p of parts) {
     const material = union(
@@ -163,6 +166,16 @@ export function render(source: string, options: RenderOptions = {}): RenderResul
       }
       if (regions.length || lines.length) layers.set(k, { regions, lines });
     }
+    if (p.placements && material.length)
+      p.placements.forEach((placement, i) =>
+        assembly.push({
+          name: p.name,
+          copy: i + 1,
+          thickness: p.thickness,
+          matrix: placementMatrix(placement),
+          outline: material,
+        }),
+      );
     const n = pieces(material).length;
     if (n > 1)
       warnings.push(
@@ -203,6 +216,13 @@ export function render(source: string, options: RenderOptions = {}): RenderResul
     infos.push(info);
     ready.push({ info, layers });
   }
+
+  const clashes = collisions(assembly);
+  for (const [a, b] of clashes.slice(0, 5))
+    warnings.push(
+      `Parts "${a.name}"${a.copy > 1 ? ` (copy ${a.copy})` : ''} and "${b.name}"${b.copy > 1 ? ` (copy ${b.copy})` : ''} collide in the assembly. Check their edges and where they are placed.`,
+    );
+  if (clashes.length > 5) warnings.push(`${clashes.length - 5} more pairs of parts collide in the assembly.`);
 
   let outputPoints = 0;
   for (const r of ready) {
@@ -397,6 +417,7 @@ export function render(source: string, options: RenderOptions = {}): RenderResul
     paths,
     svg,
     parts: infos,
+    assembly,
     layers: layerList,
     warnings,
     echoes: res.echoes,

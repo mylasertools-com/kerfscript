@@ -8,13 +8,18 @@ module box(size, lid = false, finger = undef) {
   w = size[0];
   d = size[1];
   h = size[2];
+  t = $thickness;
   top = lid ? "in" : "flat";
-  part("bottom") finger_rect([w, d], "out", finger = finger);
-  if (lid) part("lid") finger_rect([w, d], "out", finger = finger);
-  part("front") finger_rect([w, h], ["in", "out", top, "out"], finger = finger);
-  part("back") finger_rect([w, h], ["in", "out", top, "out"], finger = finger);
-  part("left") finger_rect([d, h], ["in", "in", top, "in"], finger = finger);
-  part("right") finger_rect([d, h], ["in", "in", top, "in"], finger = finger);
+  part("bottom", at = [0, 0, 0]) finger_rect([w, d], "out", finger = finger);
+  if (lid) part("lid", at = [0, 0, h - t]) finger_rect([w, d], "out", finger = finger);
+  part("front", at = [0, t, 0], rotate = [90, 0, 0])
+    finger_rect([w, h], ["in", "out", top, "out"], finger = finger);
+  part("back", at = [0, d, 0], rotate = [90, 0, 0])
+    finger_rect([w, h], ["in", "out", top, "out"], finger = finger);
+  part("left", rotate = [90, 0, 90])
+    finger_rect([d, h], ["in", "in", top, "in"], finger = finger);
+  part("right", at = [w - t, 0, 0], rotate = [90, 0, 90])
+    finger_rect([d, h], ["in", "in", top, "in"], finger = finger);
 }
 
 // Divider that slides between two walls: tabs on both sides drop into

@@ -1,0 +1,46 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { render } from '../dist/index.js';
+
+const box = (extra = '') => render(`use <kerf/box>\nmaterial(thickness = 3) box([120, 80, 50], lid = true${extra});`);
+
+test('a box from kerf/box assembles with every panel and no collisions', () => {
+  const r = box();
+  assert.deepEqual(
+    r.assembly.map((p) => p.name),
+    ['bottom', 'lid', 'front', 'back', 'left', 'right'],
+  );
+  assert.equal(r.warnings.filter((w) => /collide/.test(w)).length, 0);
+  const right = r.assembly.find((p) => p.name === 'right');
+  assert.deepEqual([right.matrix[3], right.matrix[7], right.matrix[11]], [117, 0, 0]);
+});
+
+test('placement follows rotate then translate, like OpenSCAD', () => {
+  const r = render('part("panel", at = [10, 20, 30], rotate = [90, 0, 0]) rect([40, 20]);');
+  const m = r.assembly[0].matrix;
+  const apply = (x, y, z) => [0, 1, 2].map((i) => m[i * 4] * x + m[i * 4 + 1] * y + m[i * 4 + 2] * z + m[i * 4 + 3]);
+  assert.deepEqual(apply(0, 0, 0), [10, 20, 30]);
+  assert.deepEqual(apply(0, 20, 0), [10, 20, 50]);
+});
+
+test('a wrong finger edge makes parts collide', () => {
+  const r = render(`material(thickness = 3) {
+  part("bottom", at = [0, 0, 0]) finger_rect([120, 80], "out");
+  part("front", at = [0, 3, 0], rotate = [90, 0, 0]) finger_rect([120, 50], "out");
+}`);
+  assert.match(r.warnings.join('\n'), /Parts "bottom" and "front" collide/);
+});
+
+test('copies take one placement each, or share one', () => {
+  const r = render('part("leg", qty = 4, at = [[0, 0, 0], [100, 0, 0], [0, 60, 0], [100, 60, 0]], rotate = [90, 0, 0]) rect([20, 60]);');
+  assert.equal(r.assembly.length, 4);
+  assert.deepEqual(r.assembly.map((p) => p.copy), [1, 2, 3, 4]);
+  assert.throws(() => render('part("leg", qty = 3, at = [[0, 0, 0], [1, 0, 0]]) rect(5);'), /one placement per copy/);
+  assert.throws(() => render('part("leg", at = "here") rect(5);'), /at must be \[x, y, z\]/);
+});
+
+test('parts without a placement stay out of the assembly', () => {
+  const r = render('part("a") rect(10); part("b", at = [0, 0, 5]) rect(10);');
+  assert.deepEqual(r.assembly.map((p) => p.name), ['b']);
+  assert.equal(render('rect(10);').assembly.length, 0);
+});

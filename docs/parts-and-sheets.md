@@ -29,6 +29,34 @@ part("tag") {
 }
 ```
 
+## Assembly
+
+Give a part a place in 3D and apps can show the design put together.
+`rotate` turns the part and `at` moves it. The turn happens first, the same
+as OpenSCAD's `translate(at) rotate(r)`. Each part is drawn flat with its
+thickness standing up along +Z.
+
+```kerf
+material(thickness = 3) {
+  part("base", at = [0, 0, 0]) rect([100, 60]);
+  part("wall", at = [0, 3, 3], rotate = [90, 0, 0]) rect([100, 40]);
+}
+```
+
+A part with copies takes one placement for all of them, or a list with one
+for each copy:
+
+```kerf
+part("leg", qty = 4, at = [[0, 0, 0], [80, 0, 0], [0, 40, 0], [80, 40, 0]],
+     rotate = [90, 0, 0]) rect([20, 60]);
+```
+
+`box()` from `kerf/box` places its panels itself, so every box assembles.
+Parts without `at` or `rotate` stay out of the assembled view. When placed
+parts run into each other, the render warns which two collide. That is what
+a finger edge set to `"out"` where it should be `"in"` looks like, or a part
+placed one thickness off. Joints that interlock exactly do not count.
+
 ## Materials
 
 `material()` sets the thickness, kerf and material name for its parts:

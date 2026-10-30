@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Assembly: `part()` takes `at` and `rotate` to place a part in 3D, rotated
+  first and then moved, like OpenSCAD. `render()` returns the placed parts as
+  `assembly` (outline, thickness and a 4 × 4 matrix per copy) so apps can show
+  the design put together, and warns when two placed parts collide, which is
+  how a wrong finger edge shows up. `box()` from `kerf/box` places its own
+  panels.
+
 ## 0.3.0 (2026-10-30)
 
 - `kerfscript.wasm`: a WASI module that runs KerfScript from Python, Rust,

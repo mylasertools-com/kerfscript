@@ -198,8 +198,12 @@ material(thickness = 4, kerf = 0.12, name = "birch") {
 }
 ```
 
-- `part(name, qty = 1) { ... }` makes a named part. It records `$thickness`,
-  `$kerf` and `$material` where it is called.
+- `part(name, qty = 1, at, rotate) { ... }` makes a named part. It records
+  `$thickness`, `$kerf` and `$material` where it is called. `at = [x, y, z]`
+  and `rotate = [x, y, z]` (degrees) place the part in the assembled view:
+  rotated first, then moved, with its thickness along +Z. A part with copies
+  takes one placement or a list with one per copy. `render()` returns the
+  placed parts as `assembly` and warns when two of them collide.
 - Shapes outside any part form one part named `part`.
 - `material(thickness, kerf, name) { ... }` sets those special variables for
   its children.
