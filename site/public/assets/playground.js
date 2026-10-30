@@ -51,12 +51,18 @@ let shown = -1;
 let paramKey = '';
 let errorLine = 0;
 let timer = 0;
+// Why a shared link did not open, shown until the code is edited
+let notice = null;
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const fmt = (v) => String(Math.round(v * 10) / 10);
 
+const tooLong = () => input.value.length > MAX_SOURCE;
+
+// Code past MAX_SOURCE is shown without colours: it will not run, and
+// colouring it would hold up the page
 function paint() {
-  const lines = highlight(input.value).split('\n');
+  const lines = (tooLong() ? esc(input.value) : highlight(input.value)).split('\n');
   view.innerHTML = lines
     .map((l, i) => `<span class="ln${i + 1 === errorLine ? ' error' : ''}">${l || ' '}</span>`)
     .join('\n');
@@ -81,6 +87,7 @@ function stale(on) {
 }
 
 function edited() {
+  notice = null;
   setReady(null);
   stale(true);
   paint();
@@ -211,17 +218,16 @@ function updateSettings() {
       '<p class="hint">Add a comment like <code>// [10:1:100]</code> after a top-level variable to get a slider here.</p>';
 }
 
-function showConsole(lines) {
+function showConsole(shown) {
+  const lines = notice ? [['error', notice], ...shown] : shown;
   consoleBox.innerHTML = lines.length
     ? lines.map(([cls, text]) => `<p class="${cls}">${esc(text)}</p>`).join('')
     : '<p class="quiet">echo() output, warnings and errors show up here.</p>';
 }
 
 async function update() {
-  updateSettings();
-  status.textContent = 'Rendering…';
   const source = input.value;
-  if (source.length > MAX_SOURCE) {
+  if (tooLong()) {
     setReady(null);
     showConsole([
       ['error', `The code is longer than ${MAX_SOURCE.toLocaleString('en')} characters.`],
@@ -229,6 +235,8 @@ async function update() {
     status.textContent = 'Error';
     return;
   }
+  updateSettings();
+  status.textContent = 'Rendering…';
   const reply = await run(source, {}, await host?.libraries(source));
   if (reply.stale || source !== input.value) return;
   const echoes = (reply.ok ? reply.result.echoes : (reply.echoes ?? [])).map((e) => [
@@ -367,6 +375,12 @@ sheetsBox.addEventListener('click', (e) => {
   else download(`${sheetFile(s, i)}.dxf`, s.dxf, 'application/dxf');
 });
 root.querySelector('[data-share]').addEventListener('click', async (e) => {
+  // A link to code past MAX_SOURCE would not open
+  if (tooLong()) {
+    e.target.textContent = 'Code too long to share';
+    setTimeout(() => (e.target.textContent = 'Copy link'), 2000);
+    return;
+  }
   const url = `${host?.shareBase ?? location.origin + location.pathname}#${await encode(input.value)}`;
   if (!host) history.replaceState(null, '', url);
   try {
@@ -390,7 +404,7 @@ let draft = null;
 try {
   draft = localStorage.getItem(DRAFT);
 } catch {}
-const start = await startCode({
+const { code: start, problem } = await startCode({
   file: host ? await host.initial() : null,
   hash: location.hash.slice(1),
   model,
@@ -398,4 +412,7 @@ const start = await startCode({
   draft,
 });
 picker.value = Object.keys(examples).find((slug) => examples[slug] === start) ?? '';
+notice = problem
+  ? `${problem}. Showing ${picker.value ? 'an example' : 'your last code'} instead.`
+  : null;
 load(start);

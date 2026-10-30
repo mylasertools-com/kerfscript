@@ -45,9 +45,11 @@ export function truthy(v: Value): boolean {
 const same = (a: Value, b: Value) =>
   isRange(a) && isRange(b) ? a.start === b.start && a.step === b.step && a.end === b.end : a === b;
 
-// a == b. A list can hold the same list many times, so pairs of lists found
-// equal are not compared again, and step() runs for every new pair.
+// a == b. step() runs once for each pair of values compared, so comparing
+// long lists counts towards the program's steps. A list can hold the same
+// list many times, so pairs of lists found equal are not compared again.
 export function equals(a: Value, b: Value, step?: () => void): boolean {
+  step?.();
   if (!Array.isArray(a) || !Array.isArray(b)) return same(a, b);
   const seen = new Map<Value[], Set<Value[]>>();
   const open: [Value[], Value[], number][] = [];
@@ -55,7 +57,6 @@ export function equals(a: Value, b: Value, step?: () => void): boolean {
     let ys = seen.get(x);
     if (ys?.has(y)) return true;
     if (x.length !== y.length) return false;
-    step?.();
     if (!ys) seen.set(x, (ys = new Set()));
     ys.add(y);
     open.push([x, y, 0]);
@@ -70,6 +71,7 @@ export function equals(a: Value, b: Value, step?: () => void): boolean {
     }
     const x = top[0][top[2]];
     const y = top[1][top[2]++];
+    step?.();
     if (Array.isArray(x) && Array.isArray(y) ? !enter(x, y) : !same(x, y)) return false;
   }
   return true;

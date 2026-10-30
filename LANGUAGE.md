@@ -383,8 +383,10 @@ Load the box modules with `use <kerf/box>`:
 The interpreter limits call depth to 1,000 for modules and 2,000 for
 functions. Expanded ranges are limited to 1,000,000 items. The default
 evaluation limit is 5,000,000 steps; applications can change it with
-`maxSteps`. Comparing lists with `==` takes a step for each pair of lists
-it compares. Exceeding a limit stops evaluation with an error.
+`maxSteps`. Comparing lists with `==`, multiplying two lists, and built-in
+functions that go through a list or string take a step for each item;
+`len()` of a list, `ord()`, `type_of()` and the `is_` functions take one.
+Exceeding a limit stops evaluation with an error.
 
 Programs are also limited in how much memory they can ask for:
 

@@ -1,7 +1,7 @@
 // Copyright (c) 2026 MyLaserTools. SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-MyLaserTools-Commercial
 
 import type { Arg, Assign, Expr, ListItem, Param, Program, Stmt } from './ast.js';
-import { bindArgs, FUNCTIONS } from './functions.js';
+import { argumentWork, bindArgs, FUNCTIONS } from './functions.js';
 import {
   clipLines,
   difference,
@@ -243,8 +243,8 @@ export class Evaluator {
     };
   }
 
-  private tick(pos?: Pos) {
-    if (++this.steps > this.maxSteps)
+  private tick(pos?: Pos, n = 1) {
+    if ((this.steps += n) > this.maxSteps)
       throw new KerfError(`Stopped after ${this.maxSteps} steps. Is there an endless loop?`, pos);
   }
 
@@ -644,10 +644,16 @@ export class Evaluator {
           const args = this.evalArgs(x.args, env, x.pos);
           for (const k of args.named.keys())
             if (!k.startsWith('$') && !b.params.includes(k)) this.unknownArg(`${name}()`, k, x.pos);
-          const ctx = { maxLength: this.limits.maxListLength, step: () => this.tick(x.pos) };
+          const ctx = {
+            maxLength: this.limits.maxListLength,
+            step: (n?: number) => this.tick(x.pos, n),
+          };
+          const bound = bindArgs(b, args.pos, args.named);
+          // Built-ins that go through their arguments take a step per item
+          this.tick(x.pos, argumentWork(name, bound, this.limits.maxListLength));
           let out: Value;
           try {
-            out = b.run(bindArgs(b, args.pos, args.named), ctx);
+            out = b.run(bound, ctx);
           } catch (e) {
             if (e instanceof KerfError) throw e;
             throw new KerfError(
@@ -781,12 +787,14 @@ export class Evaluator {
         if (Array.isArray(b[0])) {
           const cols = (b[0] as Value[]).length;
           this.checkSize(cols, false, at);
+          this.tick(at, cols * a.length);
           return Array.from({ length: cols }, (_, j) =>
             a.reduce((s: number, x, i) => s + term(x, (b[i] as Value[])[j]), 0),
           );
         }
         if (a.length !== b.length)
           throw new KerfError(`Can't multiply lists of length ${a.length} and ${b.length}`, at);
+        this.tick(at, a.length);
         return a.reduce((s: number, x, i) => s + term(x, b[i]), 0);
       }
     }

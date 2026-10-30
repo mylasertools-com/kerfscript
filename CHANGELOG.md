@@ -22,6 +22,9 @@
 - Chocolatey and MacPorts manifests for the command line.
 - The playground does not load a shared link, draft or file longer than
   1,000,000 characters, and stops unpacking a compressed link at that size.
+  Any code the editor runs fits in a link, whatever its script, and a link
+  that cannot be opened says why in the console. Code over the limit is not
+  coloured or read for settings, and Copy link refuses it.
 - Settings for a list, such as `size = [10, 20]`, keep numbers changed in the
   code since the settings were drawn, instead of putting the old ones back.
 - The website's licence page, and `assets/THIRD-PARTY-NOTICES.md` next to
@@ -52,9 +55,13 @@
   is shown once.
 - `echo()`, `str()`, `join()` and `==` on lists that hold the same list many
   times stop at the limits instead of running out of memory: text stops at
-  `maxListLength` characters while it is written, and comparing lists takes
-  a step for each pair of lists. Error messages, part names and other
-  settings show only the start of a long list.
+  `maxListLength` characters while it is written, and comparing lists does
+  not compare the same pair of lists twice. Error messages, part names and
+  other settings show only the start of a long list.
+- Comparing lists, dot products and built-in functions that go through a list
+  or string, such as `search()`, `contains()`, `max()` and `sum()`, take a
+  step for each item, so a loop over a long list stops at `maxSteps` instead
+  of running for minutes.
 - `hull()` around named parts makes the hull of each part, the same as
   `hull()` inside the part. It left the parts unchanged before.
 - DXF layers whose names come out the same in DXF, such as `a b` and `a_b`,

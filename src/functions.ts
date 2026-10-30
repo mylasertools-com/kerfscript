@@ -13,11 +13,11 @@ import {
 
 const RAD = Math.PI / 180;
 
-// maxLength is the most items in a list or characters in a string, and step()
-// counts a step of the program
+// maxLength is the most items in a list or characters in a string, and
+// step(n) counts n steps of the program (one without n)
 export interface FnCtx {
   maxLength: number;
-  step: () => void;
+  step: (n?: number) => void;
 }
 
 type Run = (args: Value[], c: FnCtx) => Value;
@@ -74,6 +74,35 @@ function list(v: Value, fn: string): Value[] {
   if (isRange(v)) return rangeValues(v, 1_000_000);
   if (typeof v === 'string') return [...v];
   throw new Error(`${fn}() needs a list, got ${typeName(v)}`);
+}
+
+// Built-ins whose time does not depend on how long their arguments are
+const CONSTANT_TIME = new Set([
+  'is_num',
+  'is_string',
+  'is_bool',
+  'is_list',
+  'is_undef',
+  'is_function',
+  'type_of',
+  'ord',
+]);
+
+/**
+ * Steps a built-in takes to go through its arguments: one for each item of a
+ * list or range and each character of a string. len() of a list is a single
+ * step. A range is counted up to just past max, the most items it may hold.
+ */
+export function argumentWork(name: string, args: Value[], max: number): number {
+  if (CONSTANT_TIME.has(name)) return 0;
+  let n = 0;
+  for (const v of args) {
+    if (typeof v === 'string') n += v.length;
+    else if (Array.isArray(v)) n += name === 'len' ? 0 : v.length;
+    else if (isRange(v) && v.step !== 0)
+      n += Math.min(Math.max(Math.floor((v.end - v.start) / v.step) + 1, 0), max + 1);
+  }
+  return n;
 }
 
 const math1 = (f: (x: number) => number) =>

@@ -106,6 +106,20 @@ test('comparing lists that share sublists is quick and counts steps', () => {
   render(many, { maxSteps: 50000 });
 });
 
+test('comparing and searching long lists counts a step per item', () => {
+  const long = 'a = [for (i = [0:99999]) i]; b = [each a];';
+  fails(`${long} for (j = [0:99]) let (x = a == b) rect(1);`, /Stopped after/);
+  fails(`${long} for (j = [0:99]) let (x = search(-1, a)) rect(1);`, /Stopped after/);
+  fails(`${long} for (j = [0:99]) let (x = contains(a, -1)) rect(1);`, /Stopped after/);
+  fails(`${long} for (j = [0:99]) let (x = max(a)) rect(1);`, /Stopped after/);
+  fails(`${long} for (j = [0:99]) let (x = a * b) rect(1);`, /Stopped after/);
+  fails(
+    's = str([for (i = [0:99999]) "x"]); for (j = [0:99]) let (x = len(s)) rect(1);',
+    /Stopped after/,
+  );
+  render(`${long} for (j = [0:99]) let (x = len(a), y = a[j] == b[j]) rect(1);`);
+});
+
 test('shapes, output and sheets are limited', () => {
   fails('for (i = [0:200000]) translate([i * 2, 0]) rect(1);', /more than 2000000 points/);
   fails('finger_rect([5000, 5000], finger = 0.0001);', /points, the limit/);

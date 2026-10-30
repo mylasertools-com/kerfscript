@@ -37,7 +37,7 @@ The app is not signed with an Apple or Microsoft certificate yet:
 Double-click a `.kerf` file to open it in the app. The title bar shows the
 file name, or Untitled, and a dot when there are unsaved changes. The app asks
 before it closes, or opens another design or an example over them, also for a
-design you have not saved yet. Files can be up to 1 MB.
+design you have not saved yet. Files can be up to 3 MB.
 
 SVG, DXF and sheet ZIP exports open a save dialog in the design's folder.
 

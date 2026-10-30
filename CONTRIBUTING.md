@@ -19,9 +19,9 @@ This is a summary, not a replacement for [CLA.md](CLA.md).
 
 - You keep the copyright in what you contribute.
 - You give MyLaserTools a permanent licence to use your contribution in any
-  way, **including under licences other than the AGPL**: commercial licences
-  we sell, and other open source licences. That is how KerfScript can be both
-  free software and a product companies pay for.
+  way, **including under licences other than the AGPL**: the commercial
+  licence, and other open source licences. The commercial licence is free
+  today; the CLA also allows MyLaserTools to charge for it later.
 - You confirm the work is yours to give, and give a patent licence for it.
 - We are not required to use your contribution.
 
@@ -64,7 +64,8 @@ npm run site:serve    # preview on http://localhost:4321
   it waits for the next language version and goes in the changelog.
 - Every new built-in gets a test and an entry in [LANGUAGE.md](LANGUAGE.md).
 - New source files start with the copyright and SPDX header used in `src/`.
-- No new runtime dependencies without discussion. Anything bundled must use a
-  permissive licence (MIT, BSD, Apache-2.0, BSL-1.0, ISC) so dual licensing
-  stays possible.
+- No new runtime dependencies without discussion. Anything bundled must allow
+  both the AGPL and the commercial licence: permissive licences such as MIT,
+  BSD, Apache-2.0, ISC and Zlib, MPL-2.0 (its files stay under the MPL), and
+  the OFL for fonts.
 - Format with `npm run format`.

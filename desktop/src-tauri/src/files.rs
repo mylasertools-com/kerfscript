@@ -13,8 +13,9 @@ use std::sync::Mutex;
 use tauri::{AppHandle, Manager};
 use tauri_plugin_dialog::{DialogExt, FilePath};
 
-/// Largest design or library file, in bytes
-pub const MAX_FILE: u64 = 1 << 20;
+/// Largest design or library file, in bytes: the playground's 1,000,000
+/// characters at up to 3 bytes each in UTF-8
+pub const MAX_FILE: u64 = 3_000_000;
 /// Licence files shipped with the app, readable from the About window
 const LEGAL: [&str; 5] = [
     "LICENSE",
@@ -60,6 +61,10 @@ fn name_of(path: &Path) -> String {
         .unwrap_or_default()
 }
 
+fn too_large(shown: &std::path::Display, max: u64) -> String {
+    format!("{shown} is larger than {} MB", max as f64 / 1e6)
+}
+
 /// Reads a regular file of at most `max` bytes as UTF-8 text.
 pub fn read_bounded(path: &Path, max: u64) -> Result<String, String> {
     let shown = path.display();
@@ -68,14 +73,14 @@ pub fn read_bounded(path: &Path, max: u64) -> Result<String, String> {
         return Err(format!("{shown} is not a file"));
     }
     if meta.len() > max {
-        return Err(format!("{shown} is larger than {} KB", max / 1024));
+        return Err(too_large(&shown, max));
     }
     let mut bytes = Vec::new();
     std::fs::File::open(path)
         .and_then(|f| f.take(max + 1).read_to_end(&mut bytes))
         .map_err(|e| format!("{shown}: {e}"))?;
     if bytes.len() as u64 > max {
-        return Err(format!("{shown} is larger than {} KB", max / 1024));
+        return Err(too_large(&shown, max));
     }
     String::from_utf8(bytes).map_err(|_| format!("{shown} is not UTF-8 text"))
 }
