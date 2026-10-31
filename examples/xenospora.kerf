@@ -170,14 +170,17 @@ module fit_test() {
 }
 
 if (output == "fit") fit_test();
-if (output == "all" || output == "fins_a") for (i = [1:4]) part(str("Fin ", i)) fin(i);
-if (output == "all" || output == "fins_b") for (i = [5:8]) part(str("Fin ", i)) fin(i);
-if (output == "all" || output == "fins_c") for (i = [9:12]) part(str("Fin ", i)) fin(i);
+// Fin i stands in socket i, turned (i - 1) * 30 degrees around the core
+module placed_fin(i) part(str("Fin ", i), at = concat(polar(R - t / 2, (i - 1) * 30), 0), rotate = [90, 0, 90 + (i - 1) * 30]) fin(i);
+
+if (output == "all" || output == "fins_a") for (i = [1:4]) placed_fin(i);
+if (output == "all" || output == "fins_b") for (i = [5:8]) placed_fin(i);
+if (output == "all" || output == "fins_c") for (i = [9:12]) placed_fin(i);
 if (output == "all" || output == "structure") {
-  part("Root") disc(false);
-  part("Crown") disc(true);
-  part("Core A") core(true);
-  part("Core B") core(false);
+  part("Root", at = [0, 0, -t]) disc(false);
+  part("Crown", at = [0, 0, height]) disc(true);
+  part("Core A", at = [0, t / 2, 0], rotate = [90, 0, 0]) core(true);
+  part("Core B", at = [-t / 2, 0, 0], rotate = [90, 0, 90]) core(false);
 }
 
 // Assembly:

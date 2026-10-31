@@ -36,6 +36,9 @@ w = cols * cell + 2 * border;
 h = rows * cell + 2 * border;
 // Enough maze layers to sink the ball below the cover
 layers = ceil((ball + 0.5) / $thickness);
+// The wood thickness, kept for stacking: inside the cover's material()
+// block $thickness is the acrylic's
+wood = $thickness;
 rnd = rands(0, 0.999, cols * rows * 2, seed);
 
 // The centre of cell [x, y]
@@ -69,7 +72,8 @@ module channels() for (p = passages) hull() {
   translate(at(p[1])) rect(channel, center = true);
 }
 
-part("Base") {
+// The layers stack flat on the base, the cover on top
+part("Base", at = [0, 0, 0]) {
   difference() {
     plate();
     screw_holes();
@@ -80,13 +84,13 @@ part("Base") {
   }
 }
 
-part("Maze layer", qty = layers) difference() {
+part("Maze layer", qty = layers, at = [for (i = [1:layers]) [0, 0, i * wood]]) difference() {
   plate();
   screw_holes();
   channels();
 }
 
-if (cover) material(thickness = cover_thickness, name = "clear acrylic") part("Cover") difference() {
+if (cover) material(thickness = cover_thickness, name = "clear acrylic") part("Cover", at = [0, 0, (layers + 1) * wood]) difference() {
   plate();
   screw_holes();
 }

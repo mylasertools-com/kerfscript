@@ -45,8 +45,12 @@ first time the app or `kerf` runs, and [docs/desktop.md](docs/desktop.md) and
       returns the assembly for apps to show
 - [x] Collision warnings for placed parts, checked along their edges, with a
       limit on how many pairs are checked
-- [ ] Examples placed with `at` and `rotate`, so the website can show each
-      model from its own program
+- [x] Box, drawer organizer, phone stand, gears, slot desk sign, tilt maze,
+      topo island, Morph, Solstice, Hadal, Xenospora, Wave Cathedral and
+      Umbra placed with `at` and `rotate`
+- [ ] The mechanisms (Orbit, Trace, Stride, Tidal, Ascent, Expanse,
+      Celestial, Flight, Bloom, Index, Vault, Fracture, Morphogen) placed
+      too, and the website's 3D views built from `render().assembly`
 
 ## Next
 

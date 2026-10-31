@@ -81,7 +81,8 @@ module motif() {
 module slot(w) rect([w + clearance, t + clearance], center = true);
 
 if (output == "sign") {
-  part("Panel") {
+  // The panel stands in the base's slot, its shoulders on the base
+  part("Panel", at = [0, t / 2, t], rotate = [90, 0, 0]) {
     union() {
       face();
       translate([-tab_width / 2, -tab_depth]) rect([tab_width, tab_depth + 0.5]);
@@ -92,7 +93,7 @@ if (output == "sign") {
       translate([0, height * 0.31]) text(word, size = text_size, halign = "center", valign = "center");
     }
   }
-  part("Base") difference() {
+  part("Base", at = [0, 0, 0]) difference() {
     rect([base_width, base_depth], center = true, r = 8);
     slot(tab_width);
   }

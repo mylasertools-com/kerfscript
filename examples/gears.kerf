@@ -61,5 +61,7 @@ module gear(z) {
   }
 }
 
-part("large gear") gear(teeth_large);
-part("small gear") gear(teeth_small);
+// The two gears mesh on the table: the small one sits one pitch radius from
+// each centre and turns half a tooth so its teeth fall into the gaps
+part("large gear", at = [0, 0, 0]) gear(teeth_large);
+part("small gear", at = [tooth * (teeth_large + teeth_small) / 2, 0, 0], rotate = [0, 0, 180 / teeth_small]) gear(teeth_small);

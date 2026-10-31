@@ -42,8 +42,10 @@ module brace() difference() {
 }
 
 material(thickness = thickness, kerf = 0.1, name = "plywood") {
-  part("side", qty = 2) side();
-  part("brace") {
+  // The sides stand up facing each other; the brace crosses them at its slots
+  part("side", qty = 2, rotate = [90, 0, 0],
+       at = [[0, 12 + thickness, 0], [0, 12 + span + 2 * thickness, 0]]) side();
+  part("brace", at = [brace_x - thickness / 2, 0, 0], rotate = [90, 0, 90]) {
     brace();
     engrave() translate([(span + 2 * thickness + 24) / 2, brace_h * 0.28]) text(label, 6, halign = "center", valign = "center");
   }

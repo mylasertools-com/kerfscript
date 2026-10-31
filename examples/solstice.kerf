@@ -104,12 +104,18 @@ module plate(top = false) {
   }
 }
 
-part("Sun wall", qty = 2) wall(false);
-part("Moon wall", qty = 2) wall(true);
-part("Base") plate(false);
-part("Crown") plate(true);
+// Each wall stands in the base sockets on the side it faces, turned by a
+sun = [0, 180];
+moon = [90, 270];
+function wall_at(a) = [-sin(a) * (t / 2 - span / 2), cos(a) * (t / 2 - span / 2), t];
 
-if (fit_coupon) part("Fit test") {
+part("Sun wall", qty = 2, at = [for (a = sun) wall_at(a)], rotate = [for (a = sun) [90, 0, a]]) wall(false);
+part("Moon wall", qty = 2, at = [for (a = moon) wall_at(a)], rotate = [for (a = moon) [90, 0, a]]) wall(true);
+part("Base", at = [0, 0, 0]) plate(false);
+part("Crown", at = [0, 0, t + height]) plate(true);
+
+// The coupon lies on the table next to the lamp
+if (fit_coupon) part("Fit test", at = [foot / 2 + 12, -13, 0]) {
   difference() {
     rect([68, 26], r = 3);
     for (i = [0:2]) translate([13 + i * 21, 13])
