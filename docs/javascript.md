@@ -61,16 +61,17 @@ The URL should point to a font file provided by your application.
 
 ### Result
 
-| Field             | Contents                                                                              |
-| ----------------- | ------------------------------------------------------------------------------------- |
-| `svg`             | Combined SVG containing all sheets                                                    |
-| `width`, `height` | Combined SVG dimensions in millimetres                                                |
-| `sheets`          | Each sheet's dimensions, material, thickness, SVG, DXF, paths and placed items        |
-| `parts`           | Part names, quantities, dimensions, piece counts, cut lengths and material properties |
-| `paths`           | Layer paths with `name`, `mode`, `color`, `d`, `regions` and `lines`                  |
-| `layers`          | Layer definitions in output order                                                     |
-| `warnings`        | Problems that did not stop the render                                                 |
-| `echoes`          | Output from the program's `echo()` calls                                              |
+| Field             | Contents                                                                                                                                                                                          |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `svg`             | Combined SVG containing all sheets                                                                                                                                                                |
+| `width`, `height` | Combined SVG dimensions in millimetres                                                                                                                                                            |
+| `sheets`          | Each sheet's dimensions, material, thickness, SVG, DXF, paths and placed items                                                                                                                    |
+| `parts`           | Part names, quantities, dimensions, piece counts, cut lengths and material properties                                                                                                             |
+| `assembly`        | One entry per copy of a part with `name`, `copy`, `thickness`, `outline`, a 4 × 4 `matrix` and `placed`, for showing the design put together. Parts without `at` or `rotate` have `placed: false` |
+| `paths`           | Layer paths with `name`, `mode`, `color`, `d`, `regions` and `lines`                                                                                                                              |
+| `layers`          | Layer definitions in output order                                                                                                                                                                 |
+| `warnings`        | Problems that did not stop the render                                                                                                                                                             |
+| `echoes`          | Output from the program's `echo()` calls                                                                                                                                                          |
 
 Use `result.svg` for a combined preview. Use `result.sheets[i].svg` or
 `.dxf` to export individual sheets, particularly when they use different

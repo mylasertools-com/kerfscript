@@ -60,7 +60,9 @@ Every response has `ok`. When it is `false`, `error` holds the message and
 exits with an error code for a bad program.
 
 - `render`: `svg` (all sheets, for preview), `width`, `height`, `parts`,
-  `warnings`, `echoes` and `sheets`. Each sheet has `width`, `height`,
+  `assembly`, `warnings`, `echoes` and `sheets`. `assembly` is the same as
+  from [`render()`](javascript.md): one entry per copy of a part, with its
+  outline, thickness and placement. Each sheet has `width`, `height`,
   `material`, `thickness`, `svg` and `dxf`; write one file per sheet to cut.
 - `params`: `parameters`, as from [`parameters()`](javascript.md).
 - `version`: `version` (package) and `language`.

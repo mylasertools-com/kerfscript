@@ -140,6 +140,7 @@ function handle(req: Request): object {
     width: r.width,
     height: r.height,
     parts: r.parts,
+    assembly: r.assembly,
     warnings: r.warnings,
     echoes: r.echoes,
     sheets: r.sheets.map((s) => ({
