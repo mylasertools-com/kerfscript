@@ -69,9 +69,10 @@ export async function encode(text) {
 export async function decode(hash) {
   const params = new URLSearchParams(hash);
   try {
-    if (params.get('z')) return await inflate(fromBase64(params.get('z')));
+    if (params.has('z')) return await inflate(fromBase64(params.get('z')));
+    // code= with nothing after it is an empty design, not a missing one
     const code = params.get('code');
-    if (!code) return null;
+    if (code === null) return null;
     // Base64 without padding: 4 characters for every 3 bytes, rounded up
     if (code.length > Math.ceil((MAX_BYTES * 4) / 3)) throw new Error(tooLong);
     return text(fromBase64(code));

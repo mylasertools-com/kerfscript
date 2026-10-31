@@ -94,3 +94,12 @@ test('without examples, a new design starts from the fallback', async () => {
   });
   assert.equal(start.code, 'rect(1);');
 });
+
+test('a link to an empty design opens it', async () => {
+  assert.equal(await decode('code='), '');
+  assert.equal(await decode(await encode('')), '');
+  assert.deepEqual(
+    await startCode({ file: null, hash: 'code=', model: null, examples, draft: 'rect(1);' }),
+    { code: '' },
+  );
+});

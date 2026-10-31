@@ -62,7 +62,7 @@ let shown = -1;
 let paramKey = '';
 let errorLine = 0;
 let timer = 0;
-// Counts updates, so one that waited on libraries knows a newer one started
+// Counts updates, scheduled or started, so one that waited knows it is out of date
 let updates = 0;
 // Why a shared link did not open, shown until the code is edited
 let notice = null;
@@ -298,7 +298,10 @@ async function update() {
   status.textContent = `Rendered in ${Math.max(1, Math.round(reply.ms))} ms`;
 }
 
+// A render still running is out of date from now on, even when the code it
+// had is the same: a new file can have the same text and other libraries
 function schedule(delay = 250) {
+  updates++;
   clearTimeout(timer);
   timer = setTimeout(update, delay);
 }
@@ -425,7 +428,11 @@ host?.attach({
   },
   source: () => input.value,
   // Render again, as when the libraries the code uses have changed
-  refresh: () => schedule(0),
+  refresh() {
+    setReady(null);
+    stale(true);
+    schedule(0);
+  },
 });
 let draft = null;
 try {

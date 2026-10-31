@@ -184,3 +184,12 @@ test('measuring text is limited and counts a step per character', () => {
   );
   assert.ok(Date.now() - start < 5000, `took ${Date.now() - start} ms`);
 });
+
+test('ranges in loops and built-ins stop at the list length limit', () => {
+  const limits = { maxListLength: 10 };
+  fails('echo(sum([0:100])); rect(1);', /a range of 101 items is more than the limit of 10/, {
+    limits,
+  });
+  fails('for (i = [0:100]) rect(1);', /a range of 101 items/, { limits });
+  render('echo(sum([0:9])); rect(1);', { limits });
+});

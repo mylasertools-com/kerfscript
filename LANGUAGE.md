@@ -397,7 +397,8 @@ Load the box modules with `use <kerf/box>`:
 ## Limits
 
 The interpreter limits call depth to 1,000 for modules and 2,000 for
-functions. Expanded ranges are limited to 1,000,000 items. The default
+functions. A range a loop or built-in function goes through is limited to
+`maxListLength` items (below). The default
 evaluation limit is 5,000,000 steps; applications can change it with
 `maxSteps`. Comparing lists with `==`, multiplying two lists, and built-in
 functions that go through a list or string take a step for each item;
@@ -410,7 +411,7 @@ Programs are also limited in how much memory they can ask for:
 | ----------------- | --------- | -------------------------------------------------------------------------------------------------------------------------- |
 | `maxParts`        | 10,000    | copies of all parts, adding up every `qty`                                                                                 |
 | `maxSegments`     | 10,000    | segments in one circle, ellipse or arc, and corners in one polygon                                                         |
-| `maxListLength`   | 1,000,000 | items in one list, or characters in one string, including the text `echo()` writes in one call                             |
+| `maxListLength`   | 1,000,000 | items in one list or range, or characters in one string, including the text `echo()` writes in one call                    |
 | `maxListItems`    | 3,000,000 | items in all lists the program builds, plus 4 for each list, one for every 8 characters of the strings it builds or echoes |
 | `maxTextLength`   | 2,000     | characters in one `text()`                                                                                                 |
 | `maxPoints`       | 2,000,000 | points in all shapes the modules make, plus 100 for each shape                                                             |

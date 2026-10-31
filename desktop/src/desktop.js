@@ -248,13 +248,16 @@ with the additional permission in COMMERCIAL-LICENSE.md. Its source code is at
     save(fileName, data) {
       return fileName.endsWith('.kerf') ? save(true) : exportFile(fileName, data);
     },
-    // Before the playground loads an example: the open file stops being open
-    async release() {
-      if (!(await discardOk())) return false;
-      name = null;
-      await core.invoke('forget_design');
-      return true;
-    },
+    // Before the playground loads an example: the open file stops being open.
+    // Not while a dialog is open: a save finishing later would make the
+    // example's save target the file it saved.
+    release: () =>
+      single(async () => {
+        if (!(await discardOk())) return false;
+        name = null;
+        await core.invoke('forget_design');
+        return true;
+      }).then(Boolean),
     attach(playground) {
       pg = playground;
       const actions = document.querySelector('.pg-actions');

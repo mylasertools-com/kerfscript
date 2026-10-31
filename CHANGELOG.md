@@ -21,13 +21,15 @@
   AUR manifests. See [docs/desktop.md](docs/desktop.md).
 - Open in LightBurn in the desktop app: sends the cut file (or one sheet) to
   LightBurn 2.2 or later through its REST API. KerfScript asks LightBurn only
-  for permission to send files.
+  for permission to send files, and talks to it directly, past any proxy
+  set on the computer.
 - Chocolatey and MacPorts manifests for the command line.
 - The playground does not load a shared link, draft or file longer than
   1,000,000 characters, and stops unpacking a compressed link at that size.
   Any code the editor runs fits in a link, whatever its script, and a link
   that cannot be opened says why in the console. Code over the limit is not
-  coloured or read for settings, and Copy link refuses it.
+  coloured or read for settings, and Copy link refuses it. A link to an
+  empty design opens it, instead of the draft.
 - Settings for a list, such as `size = [10, 20]`, keep numbers changed in the
   code since the settings were drawn, instead of putting the old ones back.
   An empty or half-typed number box leaves the code as it is.
@@ -55,7 +57,8 @@
   all list items together, `text()` length, shape points, exported points
   and sheets. Each stops the program with an error that says what to change.
   Defaults are in `DEFAULT_LIMITS` and the `limits` render option changes
-  them. Every example stays well under them.
+  them. Every example stays well under them. Ranges in loops and built-in
+  functions stop at `maxListLength` items, not at a fixed million.
 - A list or string that grows past what JavaScript can hold now gives a
   KerfScript error instead of a `RangeError`.
 - Lists are checked while they are built, so `each` in a long loop, list

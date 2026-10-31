@@ -356,7 +356,7 @@ export class Evaluator {
   private iterable(v: Value, at: Pos): Value[] {
     if (isRange(v)) {
       try {
-        return rangeValues(v, 1_000_000);
+        return rangeValues(v, this.limits.maxListLength);
       } catch (e) {
         throw new KerfError((e as Error).message, at);
       }

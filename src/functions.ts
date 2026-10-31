@@ -85,9 +85,9 @@ function num(v: Value, fn: string): number {
   return v;
 }
 
-function list(v: Value, fn: string): Value[] {
+function list(v: Value, fn: string, c: FnCtx): Value[] {
   if (Array.isArray(v)) return v;
-  if (isRange(v)) return rangeValues(v, 1_000_000);
+  if (isRange(v)) return rangeValues(v, c.maxLength);
   if (typeof v === 'string') return [...v];
   throw new Error(`${fn}() needs a list, got ${typeName(v)}`);
 }
@@ -192,12 +192,12 @@ export const FUNCTIONS: Record<string, Builtin> = {
     }
     return num(a[0], 'lerp') + (num(a[1], 'lerp') - num(a[0], 'lerp')) * t;
   }),
-  norm: def('v', (a) =>
-    Math.sqrt(list(a[0], 'norm').reduce((s: number, x) => s + num(x, 'norm') ** 2, 0)),
+  norm: def('v', (a, c) =>
+    Math.sqrt(list(a[0], 'norm', c).reduce((s: number, x) => s + num(x, 'norm') ** 2, 0)),
   ),
-  cross: def('a, b', (a) => {
-    const u = list(a[0], 'cross').map((x) => num(x, 'cross'));
-    const v = list(a[1], 'cross').map((x) => num(x, 'cross'));
+  cross: def('a, b', (a, c) => {
+    const u = list(a[0], 'cross', c).map((x) => num(x, 'cross'));
+    const v = list(a[1], 'cross', c).map((x) => num(x, 'cross'));
     if (u.length === 2) return u[0] * v[1] - u[1] * v[0];
     return [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]];
   }),
@@ -210,12 +210,14 @@ export const FUNCTIONS: Record<string, Builtin> = {
       throw new Error(`concat(): a list of ${n} items is more than the limit of ${c.maxLength}`);
     return a.flatMap((x) => (Array.isArray(x) ? x : [x]));
   }),
-  reverse: def('value', (a) =>
-    typeof a[0] === 'string' ? [...a[0]].reverse().join('') : [...list(a[0], 'reverse')].reverse(),
+  reverse: def('value', (a, c) =>
+    typeof a[0] === 'string'
+      ? [...a[0]].reverse().join('')
+      : [...list(a[0], 'reverse', c)].reverse(),
   ),
-  sum: def('values', (a) => list(a[0], 'sum').reduce((s: number, x) => s + num(x, 'sum'), 0)),
-  slice: def('value, start, end', (a) => {
-    const xs = typeof a[0] === 'string' ? [...a[0]] : list(a[0], 'slice');
+  sum: def('values', (a, c) => list(a[0], 'sum', c).reduce((s: number, x) => s + num(x, 'sum'), 0)),
+  slice: def('value, start, end', (a, c) => {
+    const xs = typeof a[0] === 'string' ? [...a[0]] : list(a[0], 'slice', c);
     const out = xs.slice(
       num(a[1] ?? 0, 'slice'),
       a[2] === undefined ? undefined : num(a[2], 'slice'),
@@ -238,21 +240,21 @@ export const FUNCTIONS: Record<string, Builtin> = {
     typeof a[0] === 'string' ? a[0].split(typeof a[1] === 'string' ? a[1] : ' ') : undefined,
   ),
   join: def('values, separator', (a, c) =>
-    text(list(a[0], 'join'), typeof a[1] === 'string' ? a[1] : '', c, 'join'),
+    text(list(a[0], 'join', c), typeof a[1] === 'string' ? a[1] : '', c, 'join'),
   ),
   search: def('value, list', (a, c) => {
-    const xs = typeof a[1] === 'string' ? [...a[1]] : list(a[1], 'search');
+    const xs = typeof a[1] === 'string' ? [...a[1]] : list(a[1], 'search', c);
     const i = xs.findIndex((x) => equals(x, a[0], c.step));
     return i < 0 ? undefined : i;
   }),
   contains: def('value, item', (a, c) =>
     typeof a[0] === 'string'
       ? a[0].includes(text([a[1]], '', c, 'contains'))
-      : list(a[0], 'contains').some((x) => equals(x, a[1], c.step)),
+      : list(a[0], 'contains', c).some((x) => equals(x, a[1], c.step)),
   ),
-  lookup: def('x, table', (a) => {
+  lookup: def('x, table', (a, c) => {
     const key = num(a[0], 'lookup');
-    const table = list(a[1], 'lookup') as Value[][];
+    const table = list(a[1], 'lookup', c) as Value[][];
     if (!table.length) return undefined;
     const rows = table
       .map((r) => [num(r[0], 'lookup'), num(r[1], 'lookup')])

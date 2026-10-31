@@ -46,8 +46,11 @@ fn token(secret: &str) -> String {
 
 fn agent() -> ureq::Agent {
     // Pairing waits for the user to answer LightBurn's dialog, which gives up
-    // after 30 seconds.
+    // after 30 seconds. LightBurn is on this computer: the system's proxy
+    // would not reach it, and a redirect would send the file elsewhere.
     ureq::Agent::config_builder()
+        .proxy(None)
+        .max_redirects(0)
         .http_status_as_error(false)
         .timeout_connect(Some(Duration::from_secs(3)))
         .timeout_global(Some(Duration::from_secs(45)))

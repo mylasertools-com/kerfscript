@@ -220,3 +220,20 @@ test('one file dialog at a time', async () => {
   finish('box');
   assert.equal(await saving, true);
 });
+
+test('an example waits for a save in progress', async () => {
+  let finish;
+  const d = desktop({
+    invoke: { save_design: () => new Promise((r) => (finish = r)), forget_design: null },
+  });
+  await d.start('rect(1);');
+  d.pg.text = 'rect(2);';
+  const saving = d.host.save('design.kerf', d.pg.text);
+  assert.equal(await d.host.release(), false, 'the example is not loaded');
+  assert.equal(d.calls.filter(([cmd]) => cmd === 'forget_design').length, 0);
+  finish('box');
+  assert.equal(await saving, true);
+  assert.equal(d.host.name(), 'box');
+  assert.equal(await d.host.release(), true, 'after the save it is');
+  assert.equal(d.host.name(), null);
+});

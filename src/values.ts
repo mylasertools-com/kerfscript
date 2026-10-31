@@ -46,7 +46,7 @@ export function rangeValues(r: Range, limit: number): number[] {
   if (r.step === 0) return out;
   if (r.step > 0 ? r.start > r.end : r.start < r.end) return out;
   const n = Math.floor((r.end - r.start) / r.step + 1e-9) + 1;
-  if (n > limit) throw new Error(`Range has ${n} steps, more than the limit of ${limit}`);
+  if (n > limit) throw new Error(`a range of ${n} items is more than the limit of ${limit}`);
   for (let k = 0; k < n; k++) out.push(r.start + k * r.step);
   return out;
 }

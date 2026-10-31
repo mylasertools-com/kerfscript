@@ -7,3 +7,24 @@ main.wide {
 .editor {
   height: calc(100vh - 210px);
 }
+
+/* About: the licence texts are long, so they scroll inside the dialog and
+   Close stays in view */
+dialog.about {
+  max-width: min(760px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  box-sizing: border-box;
+}
+
+dialog.about[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+.about-text {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  white-space: pre-wrap;
+  margin: 0 0 12px;
+}

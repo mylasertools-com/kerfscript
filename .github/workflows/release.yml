@@ -185,6 +185,9 @@ jobs:
           npm ci
           npm run web
           npx tauri build ${{ matrix.args }}
+      - name: Test the app
+        working-directory: desktop/src-tauri
+        run: cargo test --locked
       - name: Check the licences are in the app
         shell: bash
         run: |
