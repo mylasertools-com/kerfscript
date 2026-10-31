@@ -57,7 +57,11 @@ function desktop({ invoke = {}, discard = false } = {}) {
           return 'Ok';
         },
       },
-      event: { listen() {} },
+      event: {
+        listen(type, f) {
+          handlers[type] = f;
+        },
+      },
       opener: { openUrl() {} },
       window: {
         getCurrentWindow: () => ({
@@ -89,7 +93,9 @@ function desktop({ invoke = {}, discard = false } = {}) {
   // Ctrl+<key> in the page
   const keys = (key, shiftKey = false) =>
     handlers.keydown({ ctrlKey: true, key, shiftKey, preventDefault() {} });
-  return { host, pg, calls, prompts, start, close, keys };
+  // The system asks the app to open a file (macOS's Open With)
+  const openFiles = () => handlers['open-files']();
+  return { host, pg, calls, prompts, start, close, keys, openFiles };
 }
 
 test('unsaved changes to an untitled design are not lost without asking', async () => {
@@ -197,14 +203,16 @@ test('a save that fails keeps the changes unsaved', async () => {
   assert.equal(await d.close(), true, 'closing still asks');
 });
 
-test('saving under a new name renders again, for libraries next to it', async () => {
+test('saving with a dialog renders again, for libraries in the new folder', async () => {
   const d = desktop({ invoke: { save_design: 'box' } });
   await d.start('use <lib/tab>;', true);
   d.pg.text = 'use <lib/tab>; rect(1);';
   await d.host.save('design.kerf', d.pg.text);
   assert.equal(d.pg.refreshes, 1);
   await d.host.save('box.kerf', d.pg.text);
-  assert.equal(d.pg.refreshes, 1, 'not when the name stays');
+  assert.equal(d.pg.refreshes, 2, 'Save as, even under the same name in another folder');
+  await d.keys('s');
+  assert.equal(d.pg.refreshes, 2, 'not Save to the same file');
 });
 
 test('one file dialog at a time', async () => {
@@ -236,4 +244,24 @@ test('an example waits for a save in progress', async () => {
   assert.equal(d.host.name(), 'box');
   assert.equal(await d.host.release(), true, 'after the save it is');
   assert.equal(d.host.name(), null);
+});
+
+test('a file the system opens during a save opens after it', async () => {
+  let finish;
+  const d = desktop({
+    invoke: {
+      save_design: () => new Promise((r) => (finish = r)),
+      open_pending: { name: 'other', text: 'circle(5);' },
+    },
+  });
+  await d.start('rect(1);');
+  d.pg.text = 'rect(2);';
+  const saving = d.host.save('design.kerf', d.pg.text);
+  await d.openFiles();
+  assert.equal(d.calls.filter(([cmd]) => cmd === 'open_pending').length, 0);
+  finish('box');
+  assert.equal(await saving, true);
+  await new Promise((r) => setTimeout(r));
+  assert.equal(d.host.name(), 'other');
+  assert.equal(d.pg.text, 'circle(5);');
 });

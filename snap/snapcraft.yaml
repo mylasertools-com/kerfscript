@@ -28,17 +28,22 @@ parts:
     plugin: nil
     source: .
     build-snaps: [node/22/stable]
+    build-packages: [curl]
     override-build: |
       craftctl set version="$(node -p "require('./package.json').version")"
       npm ci --ignore-scripts
       npm run build
-      install -Dm755 "$(command -v node)" "$CRAFT_PART_INSTALL/bin/node"
+      # The node snap's own program, not the /snap/bin/node launcher
+      node=/snap/node/current/bin/node
+      install -Dm755 "$node" "$CRAFT_PART_INSTALL/bin/node"
       install -Dm644 dist/cli.js "$CRAFT_PART_INSTALL/lib/kerfscript/cli.js"
       install -Dm644 LICENSE COMMERCIAL-LICENSE.md fonts/OFL.txt THIRD-PARTY-NOTICES.md -t "$CRAFT_PART_INSTALL/share/doc/kerfscript/"
-      # The snap carries Node.js, so it carries Node's licence too (with those
-      # of V8, ICU, OpenSSL and the rest of what Node is built from)
-      node_license="$(dirname "$(readlink -f "$(command -v node)")")/../LICENSE"
-      test -f "$node_license" || { echo "Node.js LICENSE not found at $node_license"; exit 1; }
-      install -Dm644 "$node_license" "$CRAFT_PART_INSTALL/share/doc/kerfscript/node-LICENSE"
+      # The snap carries Node.js, so it carries Node's licence too, with those
+      # of V8, ICU, OpenSSL and the rest of what Node is built from. The node
+      # snap has no copy (the LICENSE at its root is Yarn's), so it comes from
+      # Node's source at the same version.
+      curl -fsSL -o node-LICENSE "https://raw.githubusercontent.com/nodejs/node/$("$node" --version)/LICENSE"
+      grep -q '^Node.js is licensed for use as follows' node-LICENSE || { echo "node-LICENSE is not Node's licence"; exit 1; }
+      install -Dm644 node-LICENSE "$CRAFT_PART_INSTALL/share/doc/kerfscript/node-LICENSE"
       printf '#!/bin/sh\nexec "$SNAP/bin/node" "$SNAP/lib/kerfscript/cli.js" "$@"\n' > "$CRAFT_PART_INSTALL/bin/kerf"
       chmod +x "$CRAFT_PART_INSTALL/bin/kerf"

@@ -20,6 +20,7 @@
   let saved = null; // its text when it was opened, saved or loaded from an example
   let pg = null; // the playground: load(text), source(), refresh()
   let busy = false; // a file dialog is open
+  let waiting = false; // the system asked to open a file while one was
 
   const dirty = () => pg !== null && pg.source() !== (saved ?? '');
   const title = () =>
@@ -40,7 +41,8 @@
   };
 
   // Runs one file dialog at a time: another Open or Save while one is open
-  // would act on the design the first one is changing.
+  // would act on the design the first one is changing. A file the system
+  // asked to open meanwhile opens after it.
   async function single(task) {
     if (busy) return null;
     busy = true;
@@ -48,6 +50,10 @@
       return await task();
     } finally {
       busy = false;
+      if (waiting) {
+        waiting = false;
+        openPending();
+      }
     }
   }
 
@@ -67,27 +73,34 @@
 
   // A file the system asks the app to open: macOS's Open With, or a double
   // click while the app is running
-  const openPending = () =>
-    single(async () => {
+  const openPending = () => {
+    if (busy) {
+      waiting = true;
+      return Promise.resolve(null);
+    }
+    return single(async () => {
       if (!pg) return; // the page takes it with initial() once it is ready
       if (!(await discardOk())) return core.invoke('clear_pending');
       const design = await core.invoke('open_pending').catch(failed('open the file'));
       if (design) show(design);
     });
+  };
 
   const save = (as) =>
     single(async () => {
       const text = pg.source();
+      // A save dialog can put the file in another folder, even under the
+      // same name
+      const dialogShown = as || name == null;
       const result = await core
-        .invoke('save_design', { text, saveAs: as || name == null, name: name ?? 'design' })
+        .invoke('save_design', { text, saveAs: dialogShown, name: name ?? 'design' })
         .catch(failed('save the file'));
       if (!result) return false;
-      const moved = result !== name;
       name = result;
       saved = text;
       title();
       // In a new folder, the design's libraries may now be found
-      if (moved) pg.refresh();
+      if (dialogShown) pg.refresh();
       return true;
     });
 
