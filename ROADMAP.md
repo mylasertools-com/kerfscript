@@ -39,6 +39,15 @@ first time the app or `kerf` runs, and [docs/desktop.md](docs/desktop.md) and
 - [ ] Flathub screenshot, then the package manager submissions in
       [RELEASING.md](RELEASING.md)
 
+## 0.4.0: assembly
+
+- [x] `part()` places parts in 3D with `at` and `rotate`, and `render()`
+      returns the assembly for apps to show
+- [x] Collision warnings for placed parts, checked along their edges, with a
+      limit on how many pairs are checked
+- [ ] Examples placed with `at` and `rotate`, so the website can show each
+      model from its own program
+
 ## Next
 
 - Standard library: tabs and slots, hinges, dividers, hanging holes,

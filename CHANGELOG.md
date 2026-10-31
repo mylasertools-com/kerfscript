@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.0 (2026-10-30)
 
 - Assembly: `part()` takes `at` and `rotate` to place a part in 3D, rotated
   first and then moved, like OpenSCAD. `render()` returns the placed parts as
@@ -10,6 +10,13 @@
   Parts without a placement lie flat beside the assembly, marked
   `placed: false`, so a divider added to a `box()` still shows.
   `box()` from `kerf/box` places its own panels.
+- Copies of a part that share one placement are drawn in the same place and
+  get one warning that says so, instead of a collision warning for every pair.
+- The collision check stops after `maxCollisionPairs` pairs of touching parts
+  (20,000 by default) with a warning, so a program that places thousands of
+  parts cannot hold up the render. It also skips parts far apart on x before
+  comparing them, so large assemblies check faster.
+- `kerfscript.wasm` returns `assembly` in its render response.
 
 ## 0.3.0 (2026-10-30)
 
