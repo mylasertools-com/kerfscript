@@ -18,6 +18,27 @@ physically cut a useful design without help.
 - [x] Public repository, tagged release and npm package
 - [x] Website live at kerfscript.mylasertools.com
 
+## 0.3.0: desktop app and installers
+
+A preview without Apple or Microsoft signatures: Windows and macOS warn the
+first time the app or `kerf` runs, and [docs/desktop.md](docs/desktop.md) and
+[docs/cli.md](docs/cli.md) say how to allow it.
+
+- [x] Desktop app for Windows, macOS and Linux, with Open in LightBurn
+- [x] `kerfscript.wasm`, to run KerfScript from other languages
+- [x] `kerf` binaries that need no Node.js, Linux packages, a Docker image
+      and a snap, with the licences of everything built into them
+- [x] Windows installers built and checked
+- [ ] CI and the release workflow run on GitHub
+- [ ] Linux: AppImage, `.deb` and `.rpm` installed and run on x64 and arm64,
+      and a double-clicked `.kerf` file opens in the app
+- [ ] macOS: the dmg installed and run on Apple silicon and Intel, and ⌘Q
+      asks about unsaved changes
+- [ ] Docker image and snap run
+- [ ] Open in LightBurn tried on macOS and Linux
+- [ ] Flathub screenshot, then the package manager submissions in
+      [RELEASING.md](RELEASING.md)
+
 ## Next
 
 - Standard library: tabs and slots, hinges, dividers, hanging holes,
@@ -30,6 +51,8 @@ physically cut a useful design without help.
 
 ## Later
 
+- Signed Windows and macOS apps and binaries, notarized on macOS, and a
+  Homebrew cask for the app
 - SVG import for existing artwork, once the units, transforms and safety
   rules are settled
 - Formatter and language server, after the language settles
