@@ -217,6 +217,21 @@
     "tags": ["first project", "joinery", "text"]
   },
   {
+    "file": "pocket-owl",
+    "title": "Pocket Wildlife owl card",
+    "tags": ["sculpture", "joinery", "score"]
+  },
+  {
+    "file": "pocket-dinosaur",
+    "title": "Pocket Wildlife dinosaur card",
+    "tags": ["sculpture", "joinery", "score"]
+  },
+  {
+    "file": "pocket-dragonfly",
+    "title": "Pocket Wildlife dragonfly card",
+    "tags": ["sculpture", "joinery", "score"]
+  },
+  {
     "file": "drawer-organizer",
     "title": "Drawer organizer",
     "tags": ["joinery", "library", "parts"]

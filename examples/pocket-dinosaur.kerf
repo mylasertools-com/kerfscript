@@ -1,0 +1,111 @@
+// Pocket Wildlife dinosaur: a long-necked dinosaur with a ribbed body in six
+// slot-together pieces, on a 150 x 100 mm card. The pieces stay in the card
+// on small tabs until an adult releases them and sands the nubs. Shapes are
+// drawn at their finished size and KerfScript moves the cut paths out by
+// half the beam, so leave kerf offsets off in your laser software.
+
+/* [Card] */
+// The card, the pieces cut free, or a slot fit test
+output = "card"; // [card, loose, coupon]
+
+/* [Material] */
+// Measured thickness of the plywood
+stock = 3; // [2.8:0.1:3.2]
+// Width of the laser cut
+beam = 0.15; // [0.08:0.01:0.25]
+// Slots are this much wider than the stock
+fit = 0.08; // [0:0.02:0.18]
+// Width of the tabs that hold pieces in the card
+bridge = 0.9; // [0.6:0.1:1.4]
+
+/* [Hidden] */
+$thickness = stock;
+$kerf = beam;
+$fn = 48;
+$sheet = output == "loose" ? [300, 200] : [160, 110];
+card = [150, 100];
+s = stock + fit;
+
+names = ["Body", "Back rib", "Middle rib", "Front rib", "Back legs", "Front legs"];
+// Piece 0 is the body. Each joint is [piece, place along the body, height,
+// true when the crosspiece slot opens upward]. The body is notched to match.
+joints = [[1, -11, 43, true], [2, 0, 43, true], [3, 11, 43, true], [4, -22, 40, true], [5, 22, 40, true]];
+
+module both() { children(); mirror([1, 0]) children(); }
+// Rounds the corners of a shape, inside and out
+module soft(r = 0.8) offset(r = -r) offset(r = 2 * r) offset(r = -r) children();
+module slot_up(x, y) translate([x - s / 2, y]) square([s, 200]);
+module slot_down(x, y) translate([x - s / 2, y - 200]) square([s, 200]);
+function joint(i) = [for (j = joints) if (j[0] == i) j][0];
+
+module shape(i) {
+  if (i == 0) difference() {
+    body();
+    for (j = joints) if (j[3]) slot_down(j[1], j[2]); else slot_up(j[1], j[2]);
+  }
+  else if (joint(i) == undef) flat(i);
+  else difference() {
+    cross(i);
+    if (joint(i)[3]) slot_up(0, joint(i)[2]); else slot_down(0, joint(i)[2]);
+  }
+}
+
+// x runs from the tail to the head, y is height above the table
+module body() path("M-28 30 L28 30 C34 34 40 48 42 62 C43 70 46 74 51 75 C57 75 62 76 64 79 C66 83 64 87 58 88 C52 89 49 88 46 85 C41 80 36 70 31 62 C26 57 13 61 0 61 C-12 61 -24 57 -31 50 C-42 41 -54 37 -66 37 C-69.5 37 -69.5 33 -66 33 C-54 33 -40 32 -28 30 Z");
+// Crosspieces: x runs across the dinosaur, y is height
+module cross(i) {
+  if (i <= 3) translate([0, 43]) ellipse(i == 2 ? [18, 14] : [16, 13]);
+  else soft() both() path("M0 18 L6 18 C7 12 7 6 7 3 L6 0 L17 0 L16 3 C16 12 17 20 17 30 C17 40 10 47 0 47 Z");
+}
+module flat(i) {}
+
+// The engraved eye and a scored mouth
+module eyes(i) if (i == 0) {
+  engrave() translate([57, 83]) circle(r = 1.6);
+  score() polyline([[64, 80], [55, 79.5]]);
+}
+
+// Where each piece goes when the model is built: the body stands on edge
+// along x and the crosspieces stand across it
+function placement(i) = i == 0 ? [[0, stock / 2, 0], [90, 0, 0]] : [[joint(i)[1] - stock / 2, 0, 0], [90, 0, 90]];
+
+// Where each piece sits on the card [x, y, turn], the tabs that hold it
+// [x, y, edge direction] in its own coordinates, and the title's box
+layout = [[56.50, 30.86, 340], [56.28, 3.08, 0], [82.71, -8.74, 350], [52.68, -25.32, 0], [129.28, 26.28, 0], [20.88, 26.28, 0]];
+tabs = [[[54.2, 88.37, -0.6], [-14.03, 30.0, 180.0], [18.52, 30.0, 180.0], [-37.53, 45.31, 32.0]], [[-3.17, 55.71, 9.2], [13.98, 36.7, -123.4]], [[-3.19, 56.75, 8.8], [15.38, 35.76, -129.1]], [[-3.17, 55.71, 9.2], [13.98, 36.7, -123.4]], [[3.17, 46.75, -9.1], [-6.57, 13.65, -95.6], [16.02, 5.27, -91.0]], [[3.17, 46.75, -9.1], [-6.57, 13.65, -95.6], [16.02, 5.27, -91.0]]];
+title = [107.88, 10.68, 34, 13];
+
+// Cut each outline with gaps at the tabs
+module piece(i, tabs) {
+  difference() {
+    outline() offset(delta = beam / 2) shape(i);
+    for (t = tabs) translate([t[0], t[1]]) rotate(t[2]) square([bridge + beam, 4], center = true);
+  }
+  eyes(i);
+}
+
+if (output == "card") part("Dinosaur card") {
+  rect(card, r = 5);
+  for (i = [0:len(names) - 1]) translate([layout[i][0], layout[i][1]]) rotate(layout[i][2]) piece(i, tabs[i]);
+  engrave() {
+    translate([title[0] + title[2] / 2, title[1] + title[3] * 0.62]) text("DINOSAUR", size = title[3] * 0.42, halign = "center", valign = "center");
+    translate([title[0] + title[2] / 2, title[1] + title[3] * 0.16]) text("POCKET WILDLIFE", size = title[3] * 0.15, halign = "center", valign = "center");
+  }
+}
+if (output == "loose") for (i = [0:len(names) - 1]) part(names[i], at = placement(i)[0], rotate = placement(i)[1]) {
+  shape(i);
+  eyes(i);
+}
+// Slots from 0.08 mm narrower to 0.12 mm wider than the stock, and three tabs
+if (output == "coupon") part("Fit coupon") {
+  deltas = [-0.08, -0.04, 0, 0.04, 0.08, 0.12];
+  difference() {
+    rect([130, 44], r = 3);
+    for (k = [0:5]) translate([12 + k * 21, 26]) square([stock + deltas[k], 20]);
+  }
+  engrave() for (k = [0:5]) translate([12 + k * 21 + stock / 2, 21]) text(str(deltas[k] > 0 ? "+" : "", deltas[k]), size = 2.6, halign = "center", valign = "center");
+  for (k = [0:2]) translate([22 + k * 43, 9]) difference() {
+    outline() offset(delta = beam / 2) square([24, 8], center = true);
+    for (x = [-12, 12]) translate([x, 0]) square([4, bridge + beam], center = true);
+  }
+}

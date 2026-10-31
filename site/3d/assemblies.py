@@ -82,6 +82,13 @@ def box_parts(w, d, h, t, lid_lift=0):
 SIDEWAYS = R("Z", 90) @ R("X", 90)
 
 
+def placed(p, parts):
+    """Where the program's own at and rotate put the part."""
+    m = Matrix([p["matrix"][r * 4:r * 4 + 4] for r in range(4)])
+    m.translation = m.translation * MM
+    return m
+
+
 def phone_stand(p, parts):
     t, span, brace_x = 4, 64, 57.2
     if p["name"] == "side":
@@ -3331,6 +3338,9 @@ ASSEMBLIES = {
               "motion": {"recipe": helix_loop, "pose": lambda u: {"theta": 90 + 360 * u}, "frames": 96}},
     "box": {"place": box_parts(120, 80, 50, 3)},
     "phone-stand": {"place": phone_stand},
+    "pocket-owl": {"place": placed, "view": {"azimuth": 50, "elevation": 16}},
+    "pocket-dinosaur": {"place": placed, "view": {"azimuth": 40, "elevation": 20}},
+    "pocket-dragonfly": {"place": placed, "view": {"azimuth": 45, "elevation": 30}},
     "solstice": {"place": solstice},
     "hadal": {"place": hadal, "view": {"azimuth": -50, "elevation": 24}},
     "xenospora": {"place": xenospora, "view": {"azimuth": -20, "elevation": 18}},

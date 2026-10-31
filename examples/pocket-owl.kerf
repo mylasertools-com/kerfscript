@@ -1,0 +1,120 @@
+// Pocket Wildlife owl: a perched owl with raised wings in six slot-together
+// pieces, on a 150 x 100 mm card. The pieces stay in the card on small tabs
+// until an adult releases them and sands the nubs. Shapes are drawn at their
+// finished size and KerfScript moves the cut paths out by half the beam, so
+// leave kerf offsets off in your laser software.
+
+/* [Card] */
+// The card, the pieces cut free, or a slot fit test
+output = "card"; // [card, loose, coupon]
+
+/* [Material] */
+// Measured thickness of the plywood
+stock = 3; // [2.8:0.1:3.2]
+// Width of the laser cut
+beam = 0.15; // [0.08:0.01:0.25]
+// Slots are this much wider than the stock
+fit = 0.08; // [0:0.02:0.18]
+// Width of the tabs that hold pieces in the card
+bridge = 0.9; // [0.6:0.1:1.4]
+
+/* [Hidden] */
+$thickness = stock;
+$kerf = beam;
+$fn = 48;
+$sheet = output == "loose" ? [300, 200] : [160, 110];
+card = [150, 100];
+s = stock + fit;
+// Drawn larger and scaled to fit the card
+ko = 0.8;
+
+names = ["Body", "Wings", "Face", "Chest", "Feet", "Tail"];
+// Piece 0 is the body. Each joint is [piece, place along the body, height,
+// true when the crosspiece slot opens upward]. The body is notched to match.
+joints = [for (j = [[1, -9, 44, true], [2, 10, 78, false], [3, 8, 36, true], [4, 0, 27, true], [5, -22, 27, true]]) [j[0], j[1] * ko, j[2] * ko, j[3]]];
+
+module both() { children(); mirror([1, 0]) children(); }
+// Rounds the corners of a shape, inside and out
+module soft(r = 0.8) offset(r = -r) offset(r = 2 * r) offset(r = -r) children();
+module slot_up(x, y) translate([x - s / 2, y]) square([s, 200]);
+module slot_down(x, y) translate([x - s / 2, y - 200]) square([s, 200]);
+function joint(i) = [for (j = joints) if (j[0] == i) j][0];
+
+module shape(i) {
+  if (i == 0) difference() {
+    body();
+    for (j = joints) if (j[3]) slot_down(j[1], j[2]); else slot_up(j[1], j[2]);
+  }
+  else if (joint(i) == undef) flat(i);
+  else difference() {
+    cross(i);
+    if (joint(i)[3]) slot_up(0, joint(i)[2]); else slot_down(0, joint(i)[2]);
+  }
+}
+
+// x runs from the tail to the beak, y is height above the table
+module body() scale(ko) path("M16 20 C21 22 24 34 24 46 C24 54 21 60 17 64 L17 68 L23 72 L17 77 C20 84 18 92 10 95 C2 98 -10 98 -18 94 C-26 89 -28 78 -26 68 C-24 60 -26 50 -30 42 C-33 34 -36 26 -40 18 C-41.5 15 -39 12.5 -36 14 L-30 20 Z");
+// Crosspieces: x runs across the owl, y is height
+module cross(i) scale(ko) {
+  if (i == 1) soft(0.6) both() path("M0 20 L7 21 C10 30 12 38 15 46 C22 50 30 52 38 56 Q44 57 46 62 Q51 64 53 70 Q58 73 59 79 Q63 83 63 89 L67 93 L61 96 L62 101 L56 100 L55 104 L50 99 C40 92 26 78 14 66 L8 62 L0 62 Z");
+  if (i == 2) soft() both() path("M0 58 C8 58 16 60 22 66 C27 72 28 82 25 90 L28 100 L26 102.5 L18 96 C12 98 6 98 0 97 Z");
+  if (i == 3) translate([0, 36]) ellipse([17, 16]);
+  // Feet gripping a branch
+  if (i == 4) soft() union() {
+    path("M-34 4 C-34 1 -32 0 -30 0 L30 0 C34 0 36 3 35 6 C34 9 31 10 28 10 L-30 10 C-33 10 -34 7 -34 4 Z");
+    both() path("M3 10 L3 16 C3 18 2 20 0 20 L0 34 C6 34 11 32 12 26 L12 16 L16 9 L13 9 L11 12 L9 9 L7 12 L5 9 Z");
+  }
+  if (i == 5) soft() both() path("M0 14 L4 14 C5 10 6 4 7 0 L15 0 C14 6 14 12 13 18 C12 26 8 34 0 34 Z");
+}
+module flat(i) {}
+
+// Engraved eyes on the face
+module eyes(i) if (i == 2) scale(ko) both() translate([11, 80]) {
+  score() { outline() circle(r = 9); outline() circle(r = 5.5); }
+  engrave() circle(r = 3);
+}
+
+// Where each piece goes when the model is built: the body stands on edge
+// along x and the crosspieces stand across it
+function placement(i) = i == 0 ? [[0, stock / 2, 0], [90, 0, 0]] : [[joint(i)[1] - stock / 2, 0, 0], [90, 0, 90]];
+
+// Where each piece sits on the card [x, y, turn], the tabs that hold it
+// [x, y, edge direction] in its own coordinates, and the title's box
+layout = [[38.04, -1.51, 10], [112.09, 99.05, 130], [131.34, -8.49, 10], [61.48, 25.08, 0], [118.18, 29.37, 210], [61.48, 5.84, 350]];
+tabs = [[[-2.16, 77.71, -0.3], [-3.19, 16.0, 180.0], [18.65, 41.91, -77.2], [-32.01, 14.38, 65.6]], [[42.43, 81.63, 45.0], [-46.82, 61.57, 107.4], [8.89, 27.4, -106.9], [-3.31, 49.6, 0.0]], [[-19.23, 80.72, -39.1], [5.01, 46.76, -171.4], [-7.44, 47.24, 166.3]], [[3.54, 41.16, -14.3], [-12.76, 24.45, 109.8]], [[-3.35, 26.89, 11.7], [9.48, 0.0, 180.0], [-27.16, 4.11, 84.7]], [[3.42, 26.5, -23.8], [-4.4, 5.61, -101.3]]];
+title = [105.48, 78.28, 34, 13];
+
+// Cut each outline with gaps at the tabs
+module piece(i, tabs) {
+  difference() {
+    outline() offset(delta = beam / 2) shape(i);
+    for (t = tabs) translate([t[0], t[1]]) rotate(t[2]) square([bridge + beam, 4], center = true);
+  }
+  eyes(i);
+}
+
+if (output == "card") part("Owl card") {
+  rect(card, r = 5);
+  for (i = [0:len(names) - 1]) translate([layout[i][0], layout[i][1]]) rotate(layout[i][2]) piece(i, tabs[i]);
+  engrave() {
+    translate([title[0] + title[2] / 2, title[1] + title[3] * 0.62]) text("OWL", size = title[3] * 0.42, halign = "center", valign = "center");
+    translate([title[0] + title[2] / 2, title[1] + title[3] * 0.16]) text("POCKET WILDLIFE", size = title[3] * 0.15, halign = "center", valign = "center");
+  }
+}
+if (output == "loose") for (i = [0:len(names) - 1]) part(names[i], at = placement(i)[0], rotate = placement(i)[1]) {
+  shape(i);
+  eyes(i);
+}
+// Slots from 0.08 mm narrower to 0.12 mm wider than the stock, and three tabs
+if (output == "coupon") part("Fit coupon") {
+  deltas = [-0.08, -0.04, 0, 0.04, 0.08, 0.12];
+  difference() {
+    rect([130, 44], r = 3);
+    for (k = [0:5]) translate([12 + k * 21, 26]) square([stock + deltas[k], 20]);
+  }
+  engrave() for (k = [0:5]) translate([12 + k * 21 + stock / 2, 21]) text(str(deltas[k] > 0 ? "+" : "", deltas[k]), size = 2.6, halign = "center", valign = "center");
+  for (k = [0:2]) translate([22 + k * 43, 9]) difference() {
+    outline() offset(delta = beam / 2) square([24, 8], center = true);
+    for (x = [-12, 12]) translate([x, 0]) square([4, bridge + beam], center = true);
+  }
+}

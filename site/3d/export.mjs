@@ -32,6 +32,14 @@ const VARIANTS = {
   ],
 };
 
+// Models whose own at and rotate place their parts, rendered with these
+// settings. Each part carries the matrix the render put it in.
+const PLACED = {
+  'pocket-owl': { output: 'loose' },
+  'pocket-dinosaur': { output: 'loose' },
+  'pocket-dragonfly': { output: 'loose' },
+};
+
 function partsOf(source, params) {
   const result = render(`${source}\npart("${MARKER}") rect(1);\n`, {
     fonts: { Atkinson: font },
@@ -46,6 +54,9 @@ function partsOf(source, params) {
   const sy = Math.max(...marker.map((p) => p[1]));
   const back = (poly) => poly.map(([x, y]) => [r2(x - sx), r2(sy - y)]);
   const info = new Map(result.parts.map((p) => [p.name, p]));
+  const placed = new Map(
+    result.assembly.filter((a) => a.placed).map((a) => [`${a.name}#${a.copy}`, a.matrix]),
+  );
   return items
     .filter((it) => it.part !== MARKER)
     .map((it) => {
@@ -60,6 +71,7 @@ function partsOf(source, params) {
         cutLines: get('cut').lines.map(back),
         engrave: get('engrave').regions.map(back),
         score: get('score').lines.map(back),
+        ...(placed.has(`${it.part}#${it.copy}`) && { matrix: placed.get(`${it.part}#${it.copy}`) }),
       };
     });
 }
@@ -70,7 +82,7 @@ for (const slug of slugs) {
     ? VARIANTS[slug].flatMap((params, variant) =>
         partsOf(source, params).map((p) => ({ ...p, variant })),
       )
-    : partsOf(source, {});
+    : partsOf(source, PLACED[slug] ?? {});
   writeFileSync(new URL(`${slug}.json`, out), JSON.stringify({ slug, parts }));
   console.log(slug, parts.length, 'parts');
 }
