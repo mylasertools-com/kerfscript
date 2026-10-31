@@ -48,9 +48,11 @@ first time the app or `kerf` runs, and [docs/desktop.md](docs/desktop.md) and
 - [x] Box, drawer organizer, phone stand, gears, slot desk sign, tilt maze,
       topo island, Morph, Solstice, Hadal, Xenospora, Wave Cathedral and
       Umbra placed with `at` and `rotate`
-- [ ] The mechanisms (Orbit, Trace, Stride, Tidal, Ascent, Expanse,
-      Celestial, Flight, Bloom, Index, Vault, Fracture, Morphogen) placed
-      too, and the website's 3D views built from `render().assembly`
+- [x] The mechanisms (Orbit, Trace, Stride, Tidal, Ascent, Expanse,
+      Celestial, Flight, Bloom, Index, Vault, Fracture, Morphogen) and the
+      new automata placed too, each with an Assembly section for its pose
+- [x] The website's 3D views play each automaton's motion
+- [ ] The website's 3D views built from `render().assembly`
 
 ## Next
 
