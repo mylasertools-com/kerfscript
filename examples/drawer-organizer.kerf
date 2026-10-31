@@ -59,5 +59,10 @@ module cross_divider() difference() {
     rect([slot, tall / 2 + 1]);
 }
 
-if (rows > 1) part("Long divider", qty = rows - 1) long_divider();
-if (cols > 1) part("Cross divider", qty = cols - 1) cross_divider();
+// The dividers stand on the tray floor, each centred on its line
+if (rows > 1) part("Long divider", qty = rows - 1, rotate = [90, 0, 0],
+    at = [for (i = [1:rows - 1]) [t + gap, t + inner[1] * i / rows + t / 2, t]])
+  long_divider();
+if (cols > 1) part("Cross divider", qty = cols - 1, rotate = [90, 0, 90],
+    at = [for (j = [1:cols - 1]) [t + inner[0] * j / cols - t / 2, t + gap, t]])
+  cross_divider();

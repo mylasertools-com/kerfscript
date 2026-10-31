@@ -102,19 +102,34 @@ material(thickness = 3) {
   part("tag") rect([30, 10]);
 }`);
   const loose = r.assembly.filter((p) => !p.placed);
-  assert.deepEqual(loose.map((p) => `${p.name}${p.copy}`), ['divider1', 'divider2', 'tag1']);
+  assert.deepEqual(
+    loose.map((p) => `${p.name}${p.copy}`),
+    ['divider1', 'divider2', 'tag1'],
+  );
   assert.ok(r.assembly.filter((p) => p.placed).length === 5);
   for (const p of loose) {
     assert.deepEqual([p.matrix[0], p.matrix[5], p.matrix[10], p.matrix[11]], [1, 1, 1, 0]);
     assert.ok(p.matrix[3] >= 130);
   }
-  assert.deepEqual(loose.map((p) => [p.matrix[3], p.matrix[7]]), [[130, 0], [130, 57], [214, 57]]);
-  assert.match(r.warnings.join('\n'), /Parts "divider", "tag" have no at or rotate, so they lie flat beside the assembly/);
+  assert.deepEqual(
+    loose.map((p) => [p.matrix[3], p.matrix[7]]),
+    [
+      [130, 0],
+      [130, 57],
+      [214, 57],
+    ],
+  );
+  assert.match(
+    r.warnings.join('\n'),
+    /Parts "divider", "tag" have no at or rotate, so they lie flat beside the assembly/,
+  );
   assert.equal(r.warnings.filter((w) => /collide/.test(w)).length, 0);
 });
 
 test('a design with no placements at all stays unassembled', () => {
-  const r = render('material(thickness = 3) { part("a") rect([40, 20]); part("b") circle(d = 10); }');
+  const r = render(
+    'material(thickness = 3) { part("a") rect([40, 20]); part("b") circle(d = 10); }',
+  );
   assert.deepEqual(r.assembly, []);
   assert.equal(r.warnings.length, 0);
 });
