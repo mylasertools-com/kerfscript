@@ -1,0 +1,210 @@
+// Bloom: a mechanical flower that opens. Turn the drive ring in the middle
+// and six couplers push six sculpted petals straight out along their radial
+// guides, all together, so the flower grows from 34 to 42 cm across; turn it
+// back and the petals close again.
+
+/* [Flower] */
+// Number of petals
+petals = 6; // [5, 6]
+// Petal length, from the inner pin to the tip
+leaf_length = 85; // [70:5:90]
+// Petal width at its widest
+leaf_width = 34; // [26:2:38]
+// Ring angle when the flower is closed; more gives more travel
+closing_angle = 55; // [45:5:55]
+
+/* [Fit] */
+// Added to the 6 mm guide slots and arc slots the sleeves slide in
+guide_clearance = 0.4; // [0.3:0.05:0.5]
+// Added to the 6 mm holes that turn on sleeves
+bearing_clearance = 0.3; // [0.2:0.05:0.4]
+
+/* [Export] */
+// All parts, or one group at a time
+output = "all"; // [all:All parts, frame:Base hub and feet, motion:Ring couplers and petals, spacers:Spacers, coupon:Fit test]
+
+/* [Material] */
+// Sheet thickness
+$thickness = 3; // [2.8:0.1:3.2]
+// Beam width
+$kerf = 0.15; // [0:0.01:0.25]
+
+/* [Hidden] */
+$material = "plywood";
+$sheet = [600, 400];
+$gap = 5;
+$fn = 180;
+t = $thickness;
+n = petals;
+// Radius of the coupler pins on the drive ring, and the coupler length
+pivot_radius = 60;
+coupler_length = 70;
+// Ring angle when the flower is fully open
+opening_angle = 15;
+// Distance between the two pins under each petal
+pin_spacing = 30;
+// The two stop bolts stand at this radius
+stop_radius = 42;
+bush = 6 + bearing_clearance;
+slot = 6 + guide_clearance;
+
+function polar(r, a) = [r * cos(a), r * sin(a)];
+// A slider-crank: with the ring turned a degrees past a petal's guide, its
+// coupler pin is a degrees off the guide line, and the coupler holds the
+// petal's inner pin this far from the centre
+function petal_radius(a) = pivot_radius * cos(a) + sqrt(coupler_length * coupler_length - pivot_radius * pivot_radius * sin(a) * sin(a));
+closed = petal_radius(closing_angle);
+open = petal_radius(opening_angle);
+
+assert(contains([5, 6], n), "Petals: 5 or 6");
+assert(leaf_length >= 70 && leaf_length <= 90, "Leaf length: 70 to 90 mm");
+assert(leaf_width >= 26 && leaf_width <= 38, "Leaf width: 26 to 38 mm");
+assert(closing_angle >= 45 && closing_angle <= 55, "Closing angle: 45 to 55 degrees");
+assert(guide_clearance >= 0.3 && guide_clearance <= 0.5, "Guide clearance: 0.3 to 0.5 mm");
+assert(bearing_clearance >= 0.2 && bearing_clearance <= 0.4, "Bearing clearance: 0.2 to 0.4 mm");
+assert(t >= 2.8 && t <= 3.2, "Thickness: 2.8 to 3.2 mm");
+assert($kerf >= 0 && $kerf <= 0.25, "Kerf: 0 to 0.25 mm");
+assert(contains(["all", "frame", "motion", "spacers", "coupon"], output), "Unknown output");
+
+module label(s, xy, size = 4) {
+  score() translate(xy) text(s, size = size, halign = "center", valign = "center");
+}
+module washer(od, id) {
+  difference() {
+    circle(d = od);
+    circle(d = id, $fn = 64);
+  }
+}
+module bolt_hole(p = [0, 0]) {
+  translate(p) circle(d = 4.4, $fn = 64);
+}
+module capsule(a, b, d) {
+  hull() {
+    translate(a) circle(d = d, $fn = 64);
+    translate(b) circle(d = d, $fn = 64);
+  }
+}
+// An arc slot, as a chain of straight capsules about 2 degrees long
+module arc_slot(rad, a, b, d) {
+  for (j = [0:ceil((b - a) / 2) - 1]) let(c = ceil((b - a) / 2))
+    capsule(polar(rad, a + (b - a) * j / c), polar(rad, a + (b - a) * (j + 1) / c), d);
+}
+
+// Two laminates: a disc with an arm under each petal. The petal's two
+// sleeves run in the arm's slot, which keeps the petal pointing outward.
+module base() {
+  difference() {
+    union() {
+      circle(r = 75);
+      for (k = [0:n - 1]) rotate(360 * k / n) hull() {
+        translate([64, 0]) circle(r = 12);
+        translate([166, 0]) circle(r = 12);
+      }
+    }
+    bolt_hole();
+    for (a = [0, 180]) bolt_hole(polar(stop_radius, a));
+    for (k = [0:n - 1]) {
+      rotate(360 * k / n) capsule([81, 0], [160, 0], slot);
+      // Foot bolts, between the arms, countersunk flush under the ring
+      bolt_hole(polar(65, 360 * (k + 0.5) / n));
+    }
+  }
+  for (k = [0:n - 1]) label(str(k + 1), polar(170, 360 * k / n), 3);
+  label("BLOOM", [0, -18], 6);
+  label("ROTATE / EXPAND", [0, -27], 3);
+}
+
+// The ring turns on the hub. Pin k sits on guide k when the ring is at 0, so
+// at ring angle a it is a degrees ahead of its petal. The fixed stop bolts
+// run in the two arc slots and hold the ring between the opening and
+// closing angles.
+module drive_ring() {
+  difference() {
+    washer(140, 50 + guide_clearance);
+    for (k = [0:n - 1]) bolt_hole(polar(pivot_radius, 360 * k / n));
+    for (a = [0, 180]) arc_slot(stop_radius, a - closing_angle, a - opening_angle, slot);
+    // The grip
+    bolt_hole(polar(43, 90));
+  }
+  for (k = [0:n - 1]) score() line(polar(64, 360 * k / n), polar(68, 360 * k / n));
+  label("TURN", polar(43, 90), 3);
+}
+
+module coupler() {
+  difference() {
+    capsule([0, 0], [coupler_length, 0], 13);
+    circle(d = bush, $fn = 64);
+    translate([coupler_length, 0]) circle(d = bush, $fn = 64);
+  }
+  score() line([11, 0], [coupler_length - 11, 0]);
+}
+
+// The inner pin is at the origin and the petal points along +x
+module petal() {
+  difference() {
+    union() {
+      capsule([0, 0], [30, 0], 14);
+      polygon([[24, -6], [0.45 * leaf_length, -0.38 * leaf_width], [0.68 * leaf_length, -0.5 * leaf_width],
+        [0.87 * leaf_length, -0.28 * leaf_width], [leaf_length, 0], [0.87 * leaf_length, 0.28 * leaf_width],
+        [0.68 * leaf_length, 0.5 * leaf_width], [0.45 * leaf_length, 0.38 * leaf_width], [24, 6]]);
+    }
+    bolt_hole();
+    bolt_hole([pin_spacing, 0]);
+  }
+  // Veins
+  score() {
+    line([37, 0], [leaf_length - 8, 0]);
+    for (f = [0.5, 0.65, 0.8]) {
+      line([f * leaf_length, 0], [(f - 0.08) * leaf_length, leaf_width * 0.22]);
+      line([f * leaf_length, 0], [(f - 0.08) * leaf_length, -leaf_width * 0.22]);
+    }
+  }
+}
+
+// Holes for the 6 mm sleeves, then slots for the guides
+module fit_test() {
+  difference() {
+    rect([150, 65], r = 3);
+    for (j = [0:3]) translate([20 + 35 * j, 18]) circle(d = 6.1 + 0.1 * j, $fn = 64);
+    for (j = [0:2]) translate([25 + 50 * j, 44]) capsule([-8, 0], [8, 0], 6.2 + 0.2 * j);
+  }
+  for (j = [0:3]) label(str(6.1 + 0.1 * j), [20 + 35 * j, 29], 3);
+  for (j = [0:2]) label(str(6.2 + 0.2 * j), [25 + 50 * j, 57], 3);
+}
+
+if (output == "all" || output == "frame") {
+  part("Base", qty = 2) base();
+  part("Hub") washer(50, 4.4);
+  part("Retainer") washer(62, 4.4);
+  part("Foot cap", qty = n) washer(18, 4.4);
+  part("Foot ring", qty = 5 * n) washer(18, 10);
+}
+if (output == "all" || output == "motion") {
+  part("Drive ring") drive_ring();
+  part("Coupler", qty = n) coupler();
+  part("Petal", qty = n) petal();
+  part("Grip ring", qty = 5) washer(16, bush);
+}
+if (output == "all" || output == "spacers") {
+  part("Ring pivot spacer", qty = n) washer(12, bush);
+  part("Inner pin spacer", qty = 2 * n) washer(12, bush);
+  part("Outer pin spacer", qty = 3 * n) washer(12, bush);
+}
+if (output == "all" || output == "coupon") part("Fit test") fit_test();
+
+echo(str("Bloom: ", n, " petals travel ", round((open - closed) * 10) / 10, " mm; the tips span ", round(2 * (closed + leaf_length)), " mm closed and ", round(2 * (open + leaf_length)), " mm open"));
+
+// Assembly, with z = 0 the top of the base and t the sheet thickness: glue
+// the two bases with their slots aligned, and each foot from a cap and five
+// rings; bolt the feet under the holes between the arms, heads countersunk
+// flush. Countersink the six pivot bolts and the grip bolt up through the
+// drive ring. Shim the hub on the base to t + 0.4, lay 0.2 mm thrust film,
+// drop the ring round the hub and bolt the stop sleeves (t + 0.4 long)
+// through the arc slots to the base. Bolt the retainer through hub and base;
+// the ring should turn freely. On each ring pin: sleeve (2t + 1), a pivot
+// spacer and 0.8 mm of shims, then the coupler (2t + 1 to 3t + 1). Each
+// petal hangs on two bolts from above with sleeves (5t + 1.8) through the
+// slot, nuts below the base: two inner pin spacers, 1 mm of shims and the
+// coupler on the inner pin, three outer pin spacers and 1.5 mm on the outer
+// one, so the petal sits at 3t + 1.5. Stack the five grip rings on the grip
+// sleeve (5t + 0.4), then move the ring slowly through its range.

@@ -1,0 +1,209 @@
+// Celestial: a hand-cranked geared orrery. The crank turns three drive gears
+// pinned together on one axle; each meshes with an orbit gear on a fixed
+// journal beside it, so the three planets circle a fixed sun at half, once
+// and twice the crank speed, the other way. Stylized speeds, not astronomical.
+
+/* [Mechanism] */
+// Tooth size: pitch diameter = teeth x module. Also sets the axle spacing and the orbits
+gear_module = 3; // [2.8:0.1:3.2]
+// Total play between two meshing gears, at the pitch circle
+backlash = 0.55; // [0.5:0.05:0.7]
+// Diameter of the planets
+marker_size = 12; // [10:1:14]
+
+/* [Fit] */
+// Added to the 8 mm holes the gears and crank turn on
+bearing_clearance = 0.15; // [0.1:0.05:0.2]
+
+/* [Export] */
+// All parts, or one group at a time
+output = "all"; // [all:All parts, gears:Gears, frame:Base pedestals and feet, markers:Planets and sun, crank:Crank and handle, coupon:Fit test]
+
+/* [Material] */
+// Sheet thickness
+$thickness = 3; // [2.8:0.1:3.2]
+// Beam width
+$kerf = 0.15; // [0:0.01:0.25]
+
+/* [Hidden] */
+$material = "plywood";
+$sheet = [600, 400];
+$gap = 5;
+$fn = 128;
+t = $thickness;
+m = gear_module;
+// Distance between the two axles: every pair has 90 teeth between them
+spacing = 45 * m;
+// Height between the gear levels, and the underside of the lowest pair
+pitch = 20;
+z0 = 15;
+assert(m >= 2.8 && m <= 3.2, "Module: 2.8 to 3.2 mm");
+assert(backlash >= 0.5 && backlash <= 0.7, "Backlash: 0.5 to 0.7 mm");
+assert(marker_size >= 10 && marker_size <= 14, "Marker size: 10 to 14 mm");
+assert(bearing_clearance >= 0.1 && bearing_clearance <= 0.2, "Bearing clearance: 0.1 to 0.2 mm");
+assert(t >= 2.8 && t <= 3.2, "Thickness: 2.8 to 3.2 mm");
+assert($kerf >= 0 && $kerf <= 0.25, "Kerf: 0 to 0.25 mm");
+assert(contains(["all", "gears", "frame", "markers", "crank", "coupon"], output), "Unknown output");
+
+function polar(r, a) = [r * cos(a), r * sin(a)];
+// n scored tally marks, to number the holes on the fit test
+module tally(n, p) {
+  score() for (j = [0:n - 1]) translate(p + [2 * j, 0]) rect([0.3, 4]);
+}
+
+// Involute teeth with a 20 degree pressure angle. backlash is shared between
+// the two gears of a mesh: every tooth is thinned by backlash / 2. The roots
+// get a plain radial relief.
+function gear_inv(a) = tan(a) * 180 / PI - a;
+function gear_polar(r, a) = [r * cos(a), r * sin(a)];
+// Half the angular width of a tooth (or of a ring space) at radius r
+function gear_half(z, m, r, backlash, internal = false) =
+  let(rp = m * z / 2, rb = rp * cos(20), ar = acos(min(1, rb / r)))
+  90 / z + gear_inv(20) - gear_inv(ar) + (internal ? 1 : -1) * backlash / (4 * rp) * 180 / PI;
+function gear_outline(z, m, backlash, internal = false, steps = 24) =
+  let(rp = m * z / 2, rb = rp * cos(20), lo = rp - (internal ? 1 : 1.25) * m,
+    hi = rp + (internal ? 1.25 : 1) * m, start = max(lo, rb),
+    hs = gear_half(z, m, start, backlash, internal), ht = gear_half(z, m, hi, backlash, internal))
+  [for (k = [0:z - 1]) each concat(
+    [gear_polar(lo, 360 * k / z - hs)],
+    [for (j = [(start > lo ? 0 : 1):steps]) let(r = start + (hi - start) * j / steps) gear_polar(r, 360 * k / z - gear_half(z, m, r, backlash, internal))],
+    [for (j = [1:8]) gear_polar(hi, 360 * k / z - ht + 2 * ht * j / 8)],
+    [for (j = [steps - 1:-1:0]) let(r = start + (hi - start) * j / steps) gear_polar(r, 360 * k / z + gear_half(z, m, r, backlash, internal))],
+    [if (start > lo) gear_polar(lo, 360 * k / z + hs)],
+    [for (j = [1:7]) gear_polar(lo, 360 * k / z + hs + (360 / z - 2 * hs) * j / 8)]
+  )];
+module externalgear(z, m, backlash) {
+  polygon(gear_outline(z, m, backlash, false));
+}
+
+// The orbit gears turn freely, each on its own, around the fixed journal at
+// x = 0. The drive gears and the crank sit on the other journal and are tied
+// together by two M3 rods, so turning the crank by theta turns orbit gear z
+// by -theta (90 - z) / z: half, once and twice as far.
+// Timing, with the crank at 0: each orbit gear has a tooth centred on +X, its
+// score line pointing at the drive axle, and the drive gears are turned so a
+// space faces back at it.
+module orbit_gear(z) {
+  difference() {
+    externalgear(z, m, backlash);
+    circle(d = 8 + bearing_clearance);
+  }
+  // The planet's path, and the line to glue it on
+  score() outline() circle(r = z * m / 2 - 12);
+  score() line([8, 0], [z * m / 2 - 5, 0]);
+}
+
+module drive_gear(z) {
+  difference() {
+    rotate(180 - 180 / z) externalgear(z, m, backlash);
+    circle(d = 8 + bearing_clearance);
+    for (x = [-12, 12]) translate([x, 0]) circle(d = 3.4);
+  }
+  score() line([0, 9], [0, z * m / 2 - 5]);
+}
+
+module base() {
+  difference() {
+    translate([-32 * m - 15, -32 * m - 15]) rect([spacing + 64 * m + 30, 64 * m + 30], r = 12);
+    // The M6 rods that hold the two journals
+    for (x = [0, spacing]) translate([x, 0]) circle(d = 6.5);
+    // Hold-down bolts above the feet
+    for (x = [-27 * m, spacing + 27 * m]) for (y = [-27 * m, 27 * m]) translate([x, y]) circle(d = 4.5);
+  }
+  score() translate([spacing / 2, -26 * m]) text("CELESTIAL", size = 9, halign = "center");
+  score() translate([spacing / 2, -29 * m]) text("STYLIZED ORBITS / 1 : 2 : 4", size = 3.5, halign = "center");
+}
+
+module foot() {
+  difference() {
+    circle(d = 22);
+    circle(d = 12);
+  }
+}
+
+module pedestal() {
+  difference() {
+    circle(d = 16);
+    circle(d = 8.1);
+  }
+}
+
+module marker() {
+  circle(d = marker_size);
+  score() outline() circle(d = marker_size - 4);
+}
+
+module sun() {
+  difference() {
+    circle(d = 28);
+    circle(d = 6.5);
+  }
+  for (a = [0:30:330]) score() line(polar(9, a), polar(12, a));
+}
+
+module crank() {
+  difference() {
+    hull() {
+      circle(r = 20);
+      translate([0, 40]) circle(r = 10);
+    }
+    circle(d = 8 + bearing_clearance);
+    for (x = [-12, 12]) translate([x, 0]) circle(d = 3.4);
+    translate([0, 40]) circle(d = 4.5);
+  }
+}
+
+module handle() {
+  difference() {
+    circle(d = 18);
+    circle(d = 6.3);
+  }
+}
+
+// Bottom to top: the outer orbit has the largest gear and the smallest drive
+levels = ["Lower", "Middle", "Upper"];
+if (output == "all" || output == "gears") for (i = [0:2]) {
+  z = [60, 45, 30][i];
+  part(str(levels[i], " orbit gear"), qty = 2) orbit_gear(z);
+  part(str(levels[i], " drive gear"), qty = 2) drive_gear(90 - z);
+}
+if (output == "all" || output == "frame") {
+  part("Base", qty = 2) base();
+  part("Foot", qty = 12) foot();
+  part("Journal pedestal", qty = 4) pedestal();
+}
+if (output == "all" || output == "markers") {
+  part("Planet", qty = 9) marker();
+  part("Sun", qty = 2) sun();
+}
+if (output == "all" || output == "crank") {
+  part("Crank", qty = 2) crank();
+  part("Handle", qty = 5) handle();
+}
+if (output == "all" || output == "coupon") part("Fit test") {
+  difference() {
+    rect([110, 48], r = 3);
+    for (i = [0:3]) translate([15 + 25 * i, 15]) circle(d = 8.1 + 0.1 * i);
+    translate([25, 35]) circle(d = 6.3);
+    translate([55, 35]) circle(d = 3.4);
+    translate([85, 35]) circle(d = 4.5);
+  }
+  for (i = [0:3]) tally(i + 1, [12 + 25 * i, 3]);
+}
+
+echo(str("Celestial: axles ", spacing, " mm apart, gear levels at ", z0, ", ", z0 + pitch, " and ", z0 + 2 * pitch, " mm; the orbits turn 1/2, 1 and 2 times per crank turn"));
+
+// Assembly, with base bottom at z = 0 (assumes 3 mm stock and 1 mm washers):
+// glue the laminates first (base, each gear, each pedestal and the crank of
+// 2, the sun of 2, four feet and three planets of 3, a handle of 5), the
+// gears on an 8 mm mandrel. Glue the feet under the corner holes. Bolt an
+// M6 rod up through each axle hole and clamp an 8 mm steel journal tube on
+// it, a pedestal glued round its foot, shimmed so the lowest gears sit on a
+// washer at z = 15. On the left journal the orbit gears go 60, 45, 30 at
+// z = 15, 35 and 55, with washers and 12 mm sleeves between them, each free
+// to turn alone. On the right the drive gears go 30, 45, 60 at the same
+// heights, then the crank at 75, threaded on two M3 rods with 14 mm spacers
+// between them. With the crank at 0, point every orbit gear's score line at
+// the drive axle and every drive gear's at +Y. Leave 0.25 mm of float under
+// each retaining washer. Glue the planets where the score lines cross the
+// orbits, fix the sun on its rod at z = 85 and bolt the handle on its sleeve.

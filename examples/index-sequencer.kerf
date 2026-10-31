@@ -1,0 +1,218 @@
+// Index: a hand-cranked Geneva sequencer. Turn the grip continuously and a
+// pin on the driver arm drops into a slot of the wheel, turns it on by one
+// station and slides out again. The wheel then stays locked while the driver
+// goes round, so the numbered dial advances one step per turn, then waits.
+
+/* [Mechanism] */
+// Slots in the wheel and numbers on the dial
+stations = 4; // [4, 5, 6]
+// Distance between the driver and wheel shafts
+center_distance = 90; // [85:5:100]
+
+/* [Fit] */
+// Play of the pin across its slot, and gap around the locking disc
+clearance = 0.4; // [0.35:0.05:0.6]
+// Added to the 6 mm holes that turn on brass sleeves
+bearing_clearance = 0.3; // [0.2:0.05:0.4]
+
+/* [Export] */
+// All parts, or one group at a time
+output = "all"; // [all:All parts, motion:Wheel arm and lock, frame:Base and feet, display:Dial and pointer, coupon:Fit test]
+
+/* [Material] */
+// Sheet thickness
+$thickness = 3; // [2.8:0.1:3.2]
+// Beam width
+$kerf = 0.15; // [0:0.01:0.25]
+
+/* [Hidden] */
+$material = "plywood";
+$sheet = [600, 400];
+$gap = 5;
+$fn = 240;
+t = $thickness;
+n = stations;
+c = center_distance;
+// The driver turns at A = [0, 0], the wheel at B = [c, 0]. Slots are
+// 2 alpha apart; the pin runs on a radius r = c sin(alpha), so it meets
+// each slot square-on and the wheel starts and stops without a knock.
+alpha = 180 / n;
+r = c * sin(alpha);
+pin_radius = 3;
+lock_radius = 0.72 * r;
+// The wheel ends where the pin enters, measured at the edge of the slot
+rim = sqrt(pow(c * cos(alpha), 2) + pow(pin_radius, 2));
+// The grip sits opposite the pin
+grip_offset = 0.48 * r;
+// The relief in the locking disc is a circle crossing its edge at right
+// angles, centred out along the pin: it opens 90 - alpha either side of the
+// pin, exactly while the pin is in a slot and the wheel has to turn
+relief_center = lock_radius / sin(alpha);
+relief_radius = lock_radius / tan(alpha);
+assert(contains([4, 5, 6], n), "Stations: 4, 5 or 6");
+assert(c >= 85 && c <= 100, "Center distance: 85 to 100 mm");
+assert(clearance >= 0.35 && clearance <= 0.6, "Clearance: 0.35 to 0.6 mm");
+assert(bearing_clearance >= 0.2 && bearing_clearance <= 0.4, "Bearing clearance: 0.2 to 0.4 mm");
+assert(t >= 2.8 && t <= 3.2, "Thickness: 2.8 to 3.2 mm");
+assert($kerf >= 0 && $kerf <= 0.25, "Kerf: 0 to 0.25 mm");
+assert(contains(["all", "motion", "frame", "display", "coupon"], output), "Unknown output");
+
+function polar(d, a) = [d * cos(a), d * sin(a)];
+module label(s, p, sz = 4) {
+  score() translate(p) text(s, size = sz, halign = "center", valign = "center");
+}
+module ring(od, id) {
+  difference() {
+    circle(d = od);
+    circle(d = id);
+  }
+}
+module bolt() {
+  circle(d = 4.5);
+}
+// The 6 mm sleeve hole, and a 2 mm pin hole that keeps glued layers in line
+module register() {
+  circle(d = 6 + bearing_clearance);
+  translate([-10, 0]) circle(d = 2.1, $fn = 64);
+}
+
+// Drawn mid-index, with a slot facing the driver at -X. Between the slots,
+// concave locking arcs centred c away: while the wheel waits, one of them
+// wraps the locking disc and holds it still.
+module wheel() {
+  difference() {
+    circle(r = rim);
+    for (k = [0:n - 1]) {
+      rotate(180 + 360 * k / n) translate([c - r - pin_radius - 1, -pin_radius - clearance / 2]) rect([2 * rim, 2 * pin_radius + clearance]);
+      translate(polar(c, 180 + alpha + 360 * k / n)) circle(r = lock_radius + clearance);
+    }
+    register();
+  }
+  score() line([9, 0], [17, 0]);
+}
+
+// The relief is 0.2 mm larger than the exact circle, for real-world play
+module locking_disc() {
+  difference() {
+    circle(r = lock_radius);
+    translate([relief_center, 0]) circle(r = relief_radius + 0.2);
+    register();
+    translate([-grip_offset, 0]) bolt();
+  }
+  score() line([-16, 0], [-23, 0]);
+}
+
+// The pin's bolt at +X, the grip's at -X
+module arm() {
+  difference() {
+    hull() {
+      circle(r = 13);
+      translate([r, 0]) circle(r = 9);
+      translate([-grip_offset, 0]) circle(r = 9);
+    }
+    register();
+    translate([r, 0]) bolt();
+    translate([-grip_offset, 0]) bolt();
+  }
+  score() line([15, 0], [r - 9, 0]);
+}
+
+module dial() {
+  difference() {
+    circle(r = 23);
+    register();
+  }
+  for (k = [0:n - 1]) label(str(k + 1), polar(16, alpha + 360 * k / n), 6);
+  score() outline() circle(r = 21);
+}
+
+// A square hook from the output bolt, its arrow pointing back at the dial
+module pointer() {
+  difference() {
+    union() {
+      circle(r = 6);
+      hull() {
+        circle(r = 2);
+        translate([0, 27]) circle(r = 2);
+      }
+      hull() {
+        translate([0, 27]) circle(r = 2);
+        translate([27, 27]) circle(r = 2);
+      }
+      hull() {
+        translate([27, 27]) circle(r = 2);
+        translate([27, 0]) circle(r = 2);
+      }
+      polygon([[22, 0], [29, 4], [29, -4]]);
+    }
+    circle(d = 4.4);
+  }
+}
+
+module base() {
+  difference() {
+    translate([-r - 20, -rim - 20]) rect([c + rim + r + 40, 2 * rim + 40], r = 8);
+    bolt();
+    translate([c, 0]) bolt();
+    // Corner holes, to line up the feet
+    for (x = [-r - 8, c + rim + 8]) for (y = [-rim - 8, rim + 8]) translate([x, y]) bolt();
+  }
+  label("INDEX", [c / 2, -rim - 9], 9);
+  label(str(n, " STATIONS / STEP ", 360 / n, " DEG"), [c / 2, rim + 10], 4);
+  score() {
+    line([0, 0], [c, 0]);
+    translate([c, 0]) outline() circle(r = 23);
+  }
+}
+
+module fit_test() {
+  difference() {
+    rect([140, 55], r = 3);
+    for (i = [0:3]) translate([18 + 32 * i, 17]) circle(d = 6.1 + 0.1 * i);
+    for (i = [0:2]) translate([25 + 42 * i, 39]) rect([18, 6.2 + 0.2 * i], center = true);
+  }
+  for (i = [0:3]) label(str(6.1 + 0.1 * i), [18 + 32 * i, 29], 3);
+}
+
+if (output == "all" || output == "motion") {
+  part("Driver arm", qty = 2) arm();
+  part("Locking disc", qty = 2) locking_disc();
+  part("Geneva wheel", qty = 2) wheel();
+  part("Grip ring", qty = 5) ring(16, 6 + bearing_clearance);
+  part("Output hub", qty = 4) difference() {
+    circle(d = 28);
+    register();
+  }
+}
+if (output == "all" || output == "frame") {
+  part("Base", qty = 2) base();
+  // Takes the M4 shaft only, so the output sleeve stands on it
+  part("Output pedestal", qty = 2) ring(20, 4.5);
+  part("Foot ring", qty = 12) ring(18, 12);
+  part("Foot cap", qty = 4) ring(18, 4.5);
+}
+if (output == "all" || output == "display") {
+  part("Station dial") dial();
+  part("Pointer") pointer();
+  part("Pointer spacer", qty = 2) ring(12, 4.5);
+}
+if (output == "all" || output == "coupon") part("Fit test") fit_test();
+
+echo(str("Index: ", n, " stations, ", 360 / n, " degrees a step, waits ", 100 * (0.5 + 1 / n), "% of each turn; pin on a ", round(r * 10) / 10, " mm radius"));
+
+// Assembly, with base bottom at z = 0 and t the sheet thickness: glue the
+// laminates first (base, pedestal, driver arm, locking disc, wheel, a grip
+// of five rings, four feet of three rings over a cap). Glue the feet under
+// the corner holes and the pedestal over the wheel's hole. Countersink the
+// two outer holes under the driver arm until M4 flat heads sit flush, fit
+// the pin and grip bolts from below, then glue the locking disc on the arm
+// with its relief towards the pin. Glue the wheel, four hubs and the dial
+// into one block, lined up by a 2 mm pin. Both shafts are M4 bolts up
+// through the base, each with a 6 mm brass sleeve to turn on: the driver on
+// a 4t + 1.2 sleeve, the wheel block 0.5 mm above the arm on a 7t + 1.7
+// sleeve over the pedestal. With the pin pointing away from the wheel, set
+// dial 1 facing right so a locking arc wraps the disc. Shim each to 0.2 mm
+// endplay under a washer and nut. Bolt the pointer on two spacers above the
+// wheel's nut, arrow at the right-hand number. Last, a 2t + 0.8 sleeve and
+// small nut on the pin, clear of the wheel, and the grip rings on a 5t + 1.7
+// sleeve.

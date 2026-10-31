@@ -1,0 +1,209 @@
+// Flight: a moth automaton on a standing board. Turn the crank behind the
+// board and a pin on the front disc pushes a slider up and down between two
+// guide posts; two links from the slider rock the wings on their fixed
+// roots, so both wings beat together.
+
+/* [Motion] */
+// Crank pin radius in mm; a bigger radius gives a bigger wingbeat
+crank_radius = 12; // [10:1:12]
+// Length of each wing beyond its root, in mm; the linkage stays the same
+wing_span = 150; // [140:5:165]
+
+/* [Fit] */
+// Total play between the slider's slot and its two guide sleeves
+slide_clearance = 0.4; // [0.3:0.1:0.6]
+
+/* [Export] */
+// All parts, or one group at a time
+output = "all"; // [all:All parts, frame:Backboard and feet, wings:Wings, linkage:Crank and links, spacers:Standoffs and spacer rings, coupon:Fit test]
+
+/* [Material] */
+// Sheet thickness
+$thickness = 3; // [2.8:0.1:3.2]
+// Beam width
+$kerf = 0.15; // [0:0.01:0.25]
+
+/* [Hidden] */
+$material = "plywood";
+$sheet = [600, 400];
+$gap = 5;
+$fn = 120;
+t = $thickness;
+w = wing_span;
+// Front view, x = 0 down the middle of the body, y = 0 at the foot bottoms
+axle = [0, 85];
+guides = [[0, 165], [0, 185]];
+roots = [[-35, 180], [35, 180]];
+// Rods and wing links are 50 mm between holes; each link pin sits 25 mm
+// inboard of its wing root
+link = 50;
+arm = 25;
+assert(crank_radius >= 10 && crank_radius <= 12, "Crank radius: 10 to 12 mm");
+assert(w >= 140 && w <= 165, "Wing span: 140 to 165 mm");
+assert(slide_clearance >= 0.3 && slide_clearance <= 0.6, "Slide clearance: 0.3 to 0.6 mm");
+assert(t >= 2.8 && t <= 3.2, "Thickness: 2.8 to 3.2 mm");
+assert($kerf >= 0 && $kerf <= 0.25, "Kerf: 0 to 0.25 mm");
+assert(contains(["all", "frame", "wings", "linkage", "spacers", "coupon"], output), "Unknown output");
+
+// Right wing angle, 0 = level, with the slider pin at height y
+function wing_angle(y) = let(d = norm([roots[1][0], roots[1][1] - y]))
+  atan2(roots[1][1] - y, roots[1][0]) - acos((arm * arm + d * d - link * link) / (2 * arm * d));
+// The slider pin is highest and lowest with the crank pin straight up or down
+low = wing_angle(axle[1] + crank_radius + link);
+high = wing_angle(axle[1] - crank_radius + link);
+
+// Holes default to the 6.3 mm moving fit on a 6 mm brass sleeve
+module bore(p, d = 6.3) {
+  translate(p) circle(d = d);
+}
+
+module rod(L) {
+  difference() {
+    hull() {
+      circle(r = 7);
+      translate([0, L]) circle(r = 7);
+    }
+    bore([0, 0]);
+    bore([0, L]);
+  }
+}
+
+module frame() {
+  difference() {
+    union() {
+      translate([-65, 0]) rect([130, 205], r = 14);
+      // The moth's head
+      translate([0, 203]) circle(r = 27);
+    }
+    // M4 bolts through the fixed guide posts and wing roots
+    for (p = concat(guides, roots)) bore(p, 4.4);
+    // The brass journal the crank spindle turns in
+    bore(axle, 6.3);
+    // Open slots for the two stand feet
+    for (x = [-45, 45]) translate([x - t - 0.125, -1]) rect([2 * t + 0.25, 25.25]);
+    for (x = [-47, 47]) translate([x, 70]) rect([18, 65], r = 8, center = true);
+  }
+}
+
+module foot() {
+  difference() {
+    polygon([[-65, 0], [65, 0], [65, 15], [30, 42], [-5, 30], [-65, 15]]);
+    translate([-1.5 * t - 0.15, 24]) rect([3 * t + 0.3, 60]);
+  }
+}
+
+// The right wing, root pivot at the origin and link pin 25 mm inboard
+module wing() {
+  difference() {
+    union() {
+      polygon([[0, 0], [0.13 * w, 35], [0.38 * w, 62], [0.70 * w, 69], [w, 47], [0.97 * w, 31], [0.86 * w, 28], [0.92 * w, 15], [0.80 * w, 12], [0.84 * w, -1], [0.70 * w, -5], [0.69 * w, -18], [0.52 * w, -25], [0.32 * w, -20], [0.12 * w, -10]]);
+      hull() {
+        circle(r = 10);
+        translate([-arm, 0]) circle(r = 7);
+      }
+    }
+    bore([0, 0]);
+    bore([-arm, 0]);
+    // Four windows in the wing
+    for (i = [0:3]) hull() {
+      translate([w * (0.25 + i * 0.12), 18 + i * 5]) circle(r = 3);
+      translate([w * (0.32 + i * 0.13), 32 + i * 4]) circle(r = 3);
+    }
+  }
+  // Veins fanning out from the root
+  score() for (i = [0:4]) hull() {
+    translate([12, 3]) circle(d = 0.35);
+    translate([w * (0.38 + i * 0.12), -8 + i * 12]) circle(d = 0.35);
+  }
+}
+
+// Pivot S at the origin; the slot rides on both guide sleeves
+module slider() {
+  difference() {
+    translate([-8, -10]) rect([16, 90], r = 5);
+    bore([0, 0]);
+    hull() {
+      bore([0, 12], 6 + slide_clearance);
+      bore([0, 68], 6 + slide_clearance);
+    }
+  }
+}
+
+module crank() {
+  difference() {
+    circle(r = 23);
+    bore([0, 0], 4.4);
+    bore([0, crank_radius]);
+  }
+}
+
+module rear_crank() {
+  difference() {
+    hull() {
+      circle(r = 10);
+      translate([0, 30]) circle(r = 9);
+    }
+    bore([0, 0], 4.4);
+    bore([0, 30], 4.4);
+  }
+}
+
+module disc(d = 16, hole = 4.4) {
+  difference() {
+    circle(d = d);
+    circle(d = hole);
+  }
+}
+
+if (output == "all" || output == "frame") {
+  part("Backboard", qty = 3) {
+    frame();
+    score() translate([-22, 110]) text("FLIGHT", size = 9);
+  }
+  part("Stand foot", qty = 4) foot();
+}
+if (output == "all" || output == "wings") {
+  part("Right wing") wing();
+  part("Left wing") mirror([1, 0]) wing();
+}
+if (output == "all" || output == "linkage") {
+  part("Crank disc") crank();
+  part("Rear crank", qty = 3) rear_crank();
+  part("Drive rod") rod(link);
+  part("Wing link", qty = 2) rod(link);
+  part("Slider") slider();
+  part("Handle grip", qty = 5) disc(16, 6.3);
+}
+if (output == "all" || output == "spacers") {
+  // 16 under each wing root and 7 under each guide post, glued
+  part("Root standoff", qty = 32) disc(16, 6.3);
+  part("Guide standoff", qty = 14) disc(14, 6.3);
+  // Not fitted: the clamp nut on the spindle turns where it would go
+  part("Spare standoff") disc(14, 6.3);
+  // 14 between the moving layers, and four spares
+  part("Spacer ring", qty = 18) disc(12, 6.3);
+}
+if (output == "all" || output == "coupon") part("Fit test") {
+  difference() {
+    rect([110, 44], r = 3);
+    for (i = [0:3]) bore([15 + 25 * i, 15], 6.1 + 0.1 * i);
+    // The cross-lap slot of a foot and the slider's slot width
+    translate([20, 33]) rect([3 * t + 0.3, 8], center = true);
+    translate([65, 33]) rect([6 + slide_clearance, 8], center = true);
+  }
+  score() translate([5, 3]) text("6.1   6.2   6.3   6.4", size = 4);
+}
+
+echo(str("Flight: wings beat from ", round(low * 10) / 10, " to ", round(high * 10) / 10, " degrees; ", 2 * crank_radius, " mm slider stroke; ", 2 * (roots[1][0] + w), " mm across the wings"));
+
+// Assembly, with depths d measured forward from the front of the board: glue
+// the three backboards and the feet (two plies each) and slide the board down
+// into the feet. Bolt the fixed posts through the board on 6 mm brass sleeves:
+// 16 root standoffs and a 4 mm shim at each wing root, 7 guide standoffs and
+// a 1 mm shim at each guide. The M4 spindle turns in a brass journal in the
+// board, clamped by nuts to the crank disc in front and the rear crank (three
+// plies, with the handle grip on its bush) behind. The moving parts go on
+// sleeves, rear faces at: crank disc t + 1, drive rod 5t + 1, slider 7t + 1
+// (on both guide sleeves), left wing link 11t + 1, right wing link 13t + 1,
+// wings 16t + 4, with spacer rings and 3 mm shims filling the gaps. Join the
+// links to the wings with the wings level, not hanging down.

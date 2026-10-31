@@ -1,0 +1,229 @@
+// Vault: a puzzle box (not a safe) with three dials on its lid. Each dial
+// turns a notched gate wheel under the lid; dial in the code and the three
+// notches line up with the fingers of a sliding fence, so the knob slides
+// the fence off its catch in the front wall and the lid lifts out.
+
+/* [Combination] */
+// First digit; the gate wheels are cut to suit the code
+code_1 = 3; // [0:1:9]
+// Second digit
+code_2 = 1; // [0:1:9]
+// Third digit
+code_3 = 7; // [0:1:9]
+
+/* [Enclosure] */
+// Height of the walls, without the base
+box_height = 90; // [80:5:120]
+
+/* [Fit] */
+// Added to the 18 mm bores the dial hubs turn in
+rotor_clearance = 0.5; // [0.4:0.1:0.6]
+
+/* [Export] */
+// All parts, or one group at a time
+output = "all"; // [all:All parts, enclosure:Box, lid:Lid and its fittings, rotors:Dials and gate wheels, fence:Fence and knob, coupon:Fit test]
+
+/* [Material] */
+// Sheet thickness
+$thickness = 3; // [2.8:0.1:3.2]
+// Beam width
+$kerf = 0.15; // [0:0.01:0.25]
+
+/* [Hidden] */
+$material = "plywood";
+$sheet = [600, 400];
+$gap = 5;
+$fn = 144;
+t = $thickness;
+W = 260;
+D = 180;
+H = box_height;
+// Gap between the lid and the walls, all round
+lid_gap = 0.6;
+// Where the three dials sit along the lid, left to right
+dial_x = [70, 130, 190];
+codes = [code_1, code_2, code_3];
+assert(t >= 2.8 && t <= 3.2, "Thickness: 2.8 to 3.2 mm");
+assert($kerf >= 0 && $kerf <= 0.25, "Kerf: 0 to 0.25 mm");
+assert(H >= 80 && H <= 120, "Box height: 80 to 120 mm");
+assert(rotor_clearance >= 0.4 && rotor_clearance <= 0.6, "Rotor clearance: 0.4 to 0.6 mm");
+for (k = codes) assert(k >= 0 && k <= 9 && floor(k) == k, "Code digits: whole numbers 0 to 9");
+assert(contains(["all", "enclosure", "lid", "rotors", "fence", "coupon"], output), "Unknown output");
+
+function polar(r, a) = [r * cos(a), r * sin(a)];
+module label(s, p, size = 5) {
+  score() translate(p) text(s, size = size, halign = "center", valign = "center");
+}
+module slot(a, b, d) {
+  hull() {
+    translate(a) circle(d = d);
+    translate(b) circle(d = d);
+  }
+}
+module annulus(od, id) {
+  difference() {
+    circle(d = od);
+    circle(d = id);
+  }
+}
+// The M4 bolt hole and two 2 mm pin holes, the same in every layer of a
+// rotor, so the gate wheel can only go on one way round
+module pin_holes() {
+  circle(d = 4.4);
+  translate([6, 0]) circle(d = 2.2);
+  translate([0, 6]) circle(d = 2.2);
+}
+
+// The front and rear walls are doubled. The inner one has windows at fence
+// height, one in front for the fence's catch and two at the back for the
+// lid's tongues; the outer one closes them off.
+module wall(front = true, inner = true) {
+  difference() {
+    rect([W, H]);
+    if (inner) {
+      if (front) translate([125, H - 4 * t - 0.7]) rect([10, t + 1.4]);
+      else for (x = [45, 195]) translate([x - 1, H - 4 * t - 0.7]) rect([22, t + 1.4]);
+    }
+  }
+  if (!inner && front) {
+    label("VAULT", [W / 2, H * 0.58], 18);
+    label("THREE DIAL PUZZLE", [W / 2, H * 0.32], 5);
+  }
+}
+
+// Score lines mark the inner faces of the doubled walls
+module base() {
+  rect([W, D]);
+  score() {
+    line([t, 2 * t], [W - t, 2 * t]);
+    line([t, D - 2 * t], [W - t, D - 2 * t]);
+  }
+}
+
+// Drawn where it sits in the box, front at the bottom: the dial bores, the
+// two fence guide holes and the slot the knob moves in, with a pointer under
+// each dial
+module lid() {
+  difference() {
+    translate([t + lid_gap, 2 * t + lid_gap]) rect([W - 2 * (t + lid_gap), D - 2 * (2 * t + lid_gap)]);
+    for (x = dial_x) translate([x, 75]) circle(d = 18 + rotor_clearance);
+    for (x = [35, 225]) translate([x, 29]) circle(d = 3.4);
+    slot([130, 20], [130, 30], 8.6);
+  }
+  for (i = [0:2]) {
+    score() polygon([[dial_x[i] - 2, 45], [dial_x[i] + 2, 45], [dial_x[i], 49]]);
+    label(str(i + 1), [dial_x[i], 39], 4);
+  }
+  label("VAULT", [130, 123], 12);
+  label("SET  /  SLIDE  /  LIFT", [130, 142], 4);
+  // Arrow: slide the knob this way to open
+  score() {
+    line([148, 20], [148, 30]);
+    line([146, 28], [148, 30]);
+    line([150, 28], [148, 30]);
+  }
+}
+
+// Digit k is drawn 36k degrees clockwise of the front, and the gate wheel's
+// notch is turned the same way for its code. Turning the rotor to bring the
+// code under the pointer brings the notch round to face the fence.
+module gate(k) {
+  difference() {
+    circle(r = 24);
+    rotate(-36 * k) translate([-3.5, -25]) rect([7, 13]);
+    pin_holes();
+  }
+  score() line([9, 0], [19, 0]);
+}
+
+module dial() {
+  difference() {
+    circle(r = 24);
+    pin_holes();
+  }
+  for (k = [0:9]) {
+    label(str(k), polar(18, -90 - 36 * k), 4);
+    score() line(polar(21.5, -90 - 36 * k), polar(23, -90 - 36 * k));
+  }
+  score() line([9, 0], [13, 0]);
+}
+
+module hub() {
+  difference() {
+    circle(d = 18);
+    pin_holes();
+  }
+}
+
+// Drawn where it sits under the lid, locked. Its fingers stop 1 mm short of
+// the gate wheels; the tab in front reaches into the front wall's window.
+// With every notch facing it the fence slides 10 mm back on its two guide
+// slots, the fingers enter the notches and the tab leaves the window. One
+// wrong dial stops the whole fence after about 1 mm.
+module fence() {
+  difference() {
+    union() {
+      translate([25, 13]) rect([210, 26], r = 2);
+      for (x = dial_x) translate([x - 2.75, 38]) rect([5.5, 12]);
+      translate([126, t + 0.5]) rect([8, 39 - (t + 0.5)]);
+    }
+    for (x = [35, 225]) slot([x, 19], [x, 29], 6.6);
+    translate([130, 20]) circle(d = 4.4);
+  }
+  score() line([130, 34], [130, 39]);
+}
+
+module coupon() {
+  difference() {
+    rect([140, 65], r = 3);
+    for (i = [0:3]) translate([19 + 30 * i, 18]) circle(d = 18.2 + i * 0.1);
+    for (i = [0:2]) translate([25 + 35 * i, 47]) circle(d = 6.2 + i * 0.2);
+  }
+  for (i = [0:3]) label(str(18.2 + i * 0.1), [19 + 30 * i, 32], 3);
+  for (i = [0:2]) label(str(6.2 + i * 0.2), [25 + 35 * i, 59], 3);
+}
+
+if (output == "all" || output == "enclosure") {
+  part("Base") base();
+  part("Front wall") wall(true, false);
+  part("Front inner wall") wall(true, true);
+  part("Rear wall") wall(false, false);
+  part("Rear inner wall") wall(false, true);
+  part("Side wall", qty = 2) rect([D - 4 * t, H]);
+  part("Corner cleat", qty = 8) rect([12, H - 8 * t]);
+  part("Floor cleat", qty = 4) rect([100, 12]);
+  part("Lid ledge", qty = 4) rect([100, 12]);
+}
+if (output == "all" || output == "lid") {
+  part("Lid") lid();
+  part("Bearing pad", qty = 6) annulus(32, 18 + rotor_clearance);
+  part("Rear tongue", qty = 2) rect([20, 22]);
+  part("Tongue spacer", qty = 4) rect([20, 12]);
+}
+if (output == "all" || output == "rotors") {
+  for (i = [0:2]) part(str("Gate wheel ", i + 1, ", code ", codes[i])) gate(codes[i]);
+  part("Dial", qty = 3) dial();
+  part("Hub disc", qty = 9) hub();
+}
+if (output == "all" || output == "fence") {
+  part("Fence") fence();
+  part("Fence spacer", qty = 4) annulus(14, 6.2);
+  part("Fence keeper", qty = 2) annulus(16, 3.4);
+  part("Knob stem", qty = 3) annulus(8, 4.4);
+  part("Knob") annulus(24, 4.4);
+}
+if (output == "all" || output == "coupon") part("Fit test") coupon();
+
+echo(str("Vault: code ", code_1, "-", code_2, "-", code_3, ", ", W, " x ", D, " x ", H + t, " mm; fence guide sleeves ", 3 * t + 0.4, " mm long"));
+
+// Assembly, with z up from the bottom of the base: glue each inner wall to
+// its outer wall, stand them and the side walls on the base, add the corner
+// cleats in pairs at the four corners (up to H - 7t), the floor cleats and
+// a ledge of two strips each side (y 50 to 150) with its top at H. Under
+// the lid glue two bearing pads round each bore. Each rotor is a gate wheel,
+// three hub discs through the bore, a 0.5 mm shim and the dial on top, on
+// an M4 bolt with two 2 mm pins, glued to each other but not to the lid.
+// The fence hangs on two M3 bolts: lid, fence spacers, a 6 mm brass sleeve
+// 3t + 0.4 long through the fence slot, keeper, nut. Bolt the 1 mm washer,
+// the stems and the knob to the fence through the lid slot. Glue each rear
+// tongue under its two spacers, its end 3 mm past the back of the lid.

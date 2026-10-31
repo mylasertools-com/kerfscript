@@ -1,0 +1,234 @@
+// Expanse: a split-top organizer. Turn the disc rim at the front and the two
+// trays on top glide apart, sideways and in step, to uncover a well in the
+// middle; turn it back and they close over it again. Two pins on the disc
+// push the trays' followers along fixed guide rails.
+
+/* [Box] */
+// Width of each tray, in the direction it slides
+tray_width = 100; // [96:2:108]
+// Depth of each tray, front to back
+tray_depth = 140; // [136:2:150]
+// Height of the tray walls
+tray_height = 30; // [25:1:35]
+
+/* [Motion] */
+// Distance from the disc centre to each drive pin
+crank_radius = 70; // [66:1:72]
+// Disc angle with the trays fully open
+open_angle = 15; // [12:1:20]
+// Disc angle with the trays closed
+closed_angle = 74; // [72:1:74]
+
+/* [Fit] */
+// Added to the slots the 6 mm sleeves run in, and the play between the followers and the rails
+slide_clearance = 0.4; // [0.3:0.05:0.5]
+
+/* [Export] */
+// All parts, or one group at a time
+output = "all"; // [all:All parts, chassis:Base deck feet and rails, trays:Followers and trays, drive:Drive disc, well:Well walls, coupon:Fit test]
+
+/* [Material] */
+// Sheet thickness
+$thickness = 3; // [2.8:0.1:3.2]
+// Beam width
+$kerf = 0.15; // [0:0.01:0.25]
+
+/* [Hidden] */
+$material = "plywood";
+$sheet = [600, 400];
+$gap = 5;
+$fn = 96;
+t = $thickness;
+W = tray_width;
+D = tray_depth;
+H = tray_height;
+R = crank_radius;
+// Each tray centre sits closed_x from the middle when closed and moves out
+// by R x (cos(angle) - cos(closed_angle)) as the disc turns
+closed_x = W / 2 + 2;
+travel = R * (cos(open_angle) - cos(closed_angle));
+// Where the drive slot sits across each follower; the same at every angle
+slot_x = R * cos(closed_angle) - closed_x;
+// The four fixed guide bolts
+guide_x = 86;
+guide_y = D / 2 - 18;
+// The tray posts
+post_y = D / 2 - 8;
+base_w = 2 * (closed_x + travel + W / 2 + 15);
+base_d = D + 50;
+well_w = W - 10;
+well_d = D - 50;
+rail_len = base_w - 40;
+// The rails' inner faces are the follower depth plus slide_clearance apart
+rail_y = D / 2 + 10 + slide_clearance / 2 + t / 2;
+leg_x = rail_len / 2 - 10;
+arc_steps = ceil((closed_angle - open_angle) / 2);
+assert(W >= 96 && W <= 108, "Tray width: 96 to 108 mm");
+assert(D >= 136 && D <= 150, "Tray depth: 136 to 150 mm");
+assert(H >= 25 && H <= 35, "Tray height: 25 to 35 mm");
+assert(R >= 66 && R <= 72, "Crank radius: 66 to 72 mm");
+// Leaves wood between each drive slot and the tray post holes beside it
+assert(R * cos(closed_angle) >= 19, "Crank radius x cos(closed angle): at least 19 mm; use a larger radius or a smaller closed angle");
+assert(open_angle >= 12 && open_angle <= 20, "Open angle: 12 to 20 degrees");
+assert(closed_angle >= 72 && closed_angle <= 74, "Closed angle: 72 to 74 degrees");
+assert(slide_clearance >= 0.3 && slide_clearance <= 0.5, "Slide clearance: 0.3 to 0.5 mm");
+assert(t >= 2.8 && t <= 3.2, "Thickness: 2.8 to 3.2 mm");
+assert($kerf >= 0 && $kerf <= 0.25, "Kerf: 0 to 0.25 mm");
+assert(contains(["all", "chassis", "trays", "drive", "well", "coupon"], output), "Unknown output");
+
+function polar(r, a) = [r * cos(a), r * sin(a)];
+module capsule(a, b, r) {
+  hull() {
+    translate(a) circle(r = r);
+    translate(b) circle(r = r);
+  }
+}
+// M4 holes by default
+module hole(p, d = 4.4) {
+  translate(p) circle(d = d, $fn = 48);
+}
+module ring(d, inner) {
+  difference() {
+    circle(d = d);
+    circle(d = inner, $fn = 48);
+  }
+}
+
+// Holes for the centre axle, the four deck standoffs, the four guide bolts
+// and the two stop pins, and slots for the rail legs
+module base() {
+  difference() {
+    rect([base_w, base_d], center = true, r = 5);
+    hole([0, 0]);
+    for (x = [-base_w / 2 + 8, base_w / 2 - 8]) for (y = [-base_d / 2 + 8, base_d / 2 - 8]) hole([x, y]);
+    for (s = [-1, 1]) for (y = [-guide_y, guide_y]) hole([s * guide_x, y]);
+    for (a = [100, 280]) hole([35 * cos(a), 35 * sin(a)]);
+    for (x = [-leg_x, leg_x]) for (y = [-rail_y, rail_y]) translate([x, y]) rect([12.2, t + 0.2], center = true);
+  }
+  score() translate([0, -base_d / 2 + 10]) text("EXPANSE", size = 8, halign = "center");
+}
+
+// The rails stop the followers from turning. The bar stands 9 to 18 mm above
+// the base, level with the followers' edges and clear of the disc below; the
+// legs stand outside the disc and glue into the base.
+module rail() {
+  union() {
+    translate([-rail_len / 2, 9]) rect([rail_len, 9]);
+    for (x = [-leg_x, leg_x]) translate([x - 6, -t]) rect([12, 9 + t + 0.2]);
+  }
+}
+
+module deck() {
+  difference() {
+    rect([base_w, base_d], center = true, r = 5);
+    for (x = [-base_w / 2 + 8, base_w / 2 - 8]) for (y = [-base_d / 2 + 8, base_d / 2 - 8]) hole([x, y]);
+    // The front notch shows the disc rim
+    translate([-50, -base_d / 2 - 1]) rect([100, 31], r = 3);
+    // Long slots for the tray posts, the length of the travel
+    for (s = [-1, 1]) for (px = [-W / 2 + 8, W / 2 - 8]) for (y = [-post_y, post_y])
+      capsule([s * (closed_x - 1) + px, y], [s * (closed_x + travel + 1) + px, y], 5);
+    // Slots for the tabs of the four well walls
+    for (x = [-well_w / 2, well_w / 2]) for (y = [-well_d / 4, well_d / 4]) translate([x, y]) rect([t + 0.2, 10.2], center = true);
+    for (y = [-well_d / 2, well_d / 2]) for (x = [-well_w / 4, well_w / 4]) translate([x, y]) rect([10.2, t + 0.2], center = true);
+  }
+  score() text("CENTRAL WELL", size = 4, halign = "center");
+}
+
+// s = 1 for the right follower, -1 for the left, which is the same part
+// turned half round. A drive pin at angle a is at R cos(a) across and
+// R sin(a) along: it slides along the drive slot and pushes the follower
+// across. The guide bolts run in the two slots that follow the travel.
+module follower(s) {
+  difference() {
+    rect([W, D + 20], center = true, r = 3);
+    capsule([s * slot_x, s * (R * sin(open_angle) - 1)], [s * slot_x, s * (R * sin(closed_angle) + 1)], (6 + slide_clearance) / 2);
+    for (y = [-guide_y, guide_y]) capsule([s * (guide_x - closed_x + 1), y], [s * (guide_x - closed_x - travel - 1), y], (6 + slide_clearance) / 2);
+    for (x = [-W / 2 + 8, W / 2 - 8]) for (y = [-post_y, post_y]) hole([x, y]);
+  }
+  score() text(s == 1 ? "RIGHT" : "LEFT", size = 5, halign = "center");
+}
+
+// Post holes, and slots for the end walls (across the ends) and the side
+// walls (along the sides)
+module tray_floor() {
+  difference() {
+    rect([W, D], center = true, r = 2);
+    for (x = [-W / 2 + 8, W / 2 - 8]) for (y = [-post_y, post_y]) hole([x, y]);
+    for (y = [-D / 2 + t / 2, D / 2 - t / 2]) for (x = [-W / 4, W / 4]) translate([x, y]) rect([12.2, t + 0.2], center = true);
+    for (x = [-W / 2 + t / 2, W / 2 - t / 2]) for (y = [-D / 4, D / 4]) translate([x, y]) rect([t + 0.2, 12.2], center = true);
+  }
+}
+
+// A wall of length len with two tabs, sep either side of its middle, that
+// go down through the floor or the deck
+module wall(len, sep) {
+  union() {
+    translate([-len / 2, 0]) rect([len, H], r = 1);
+    for (x = [-sep, sep]) translate([x - 6, -t]) rect([12, t + 0.2]);
+  }
+}
+module well_wall(len, sep) {
+  union() {
+    translate([-len / 2, 0]) rect([len, 17], r = 1);
+    for (x = [-sep, sep]) translate([x - 5, -t]) rect([10, t + 0.2]);
+  }
+}
+
+module drive_disc() {
+  difference() {
+    circle(r = R + 18);
+    hole([0, 0], 6.3);
+    for (s = [-1, 1]) hole([s * R, 0]);
+    // The two fixed stop pins each ride in an arc slot, which ends where the
+    // trays are fully open or closed
+    for (a0 = [100, 280]) for (i = [0:arc_steps - 1])
+      let(a = lerp(a0 - closed_angle, a0 - open_angle, i / arc_steps), b = lerp(a0 - closed_angle, a0 - open_angle, (i + 1) / arc_steps))
+        capsule(polar(35, a), polar(35, b), 3.2);
+  }
+  // Grip marks round the rim
+  for (a = [0:30:330]) score() rotate(a) line([R + 10, 0], [R + 15, 0]);
+}
+
+if (output == "all" || output == "chassis") {
+  part("Base") base();
+  part("Deck") deck();
+  part("Foot", qty = 12) ring(20, 10);
+  part("Guide rail", qty = 2) rail();
+}
+if (output == "all" || output == "trays") {
+  part("Right follower") follower(1);
+  part("Left follower") follower(-1);
+  part("Tray floor", qty = 2) tray_floor();
+  part("Tray side wall", qty = 4) wall(D - 2 * t, D / 4);
+  part("Tray end wall", qty = 4) wall(W, W / 4);
+}
+if (output == "all" || output == "drive") part("Drive disc") drive_disc();
+if (output == "all" || output == "well") {
+  part("Well side wall", qty = 2) well_wall(well_d - t, well_d / 4);
+  part("Well end wall", qty = 2) well_wall(well_w + t, well_w / 4);
+}
+if (output == "all" || output == "coupon") part("Fit test") {
+  difference() {
+    rect([120, 45], r = 3);
+    for (i = [0:3]) translate([18 + 27 * i, 14]) circle(d = 6.2 + 0.1 * i, $fn = 48);
+    translate([18, 31]) rect([12.2, t + 0.2], center = true);
+    hole([60, 31]);
+  }
+  for (i = [0:3]) score() translate([18 + 27 * i, 4]) text(str(6.2 + 0.1 * i), size = 3, halign = "center");
+}
+
+echo(str("Expanse: two ", W, " x ", D, " x ", H, " mm trays, ", round(travel * 10) / 10, " mm travel each, base ", round(base_w * 10) / 10, " x ", base_d, " mm"));
+
+// Assembly, with base bottom at z = 0, t the sheet thickness and M4 hardware
+// throughout: glue three feet under each corner of the base and the two rails
+// into its slots, with a follower as the spacing gauge. Fit the countersunk
+// drive bolts in the disc, the centre axle and two stop bolts up through the
+// base with 5.2 mm sleeves and a 2 mm thrust washer at the centre, then the
+// disc (t + 2 to 2t + 2), scored face up with the stop pins in its arcs, nuts
+// against the sleeves. Add 8.2 mm sleeves on the drive bolts and stand the
+// four guide bolts in 10 mm spacers with 13.2 mm sleeves. Screw four 30 mm
+// standoffs to each follower, lower RIGHT and LEFT (t + 10) over the sleeves
+// between the rails and nut them. Bolt the deck (t + 20) on four 20 mm corner
+// standoffs, the posts through its slots, and screw the tray floors on the
+// posts (2t + 40). Glue the end walls across each floor's ends, the side walls
+// between them, and the four well walls into the deck.

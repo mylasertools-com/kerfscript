@@ -1,0 +1,234 @@
+// Ascent: a hand-cranked marble lift. Turn the crank clockwise and a pocket
+// in the laminated wheel carries one marble up the left side, over the top
+// and down to an opening in the shroud on the right, where it drops out and
+// rolls down a sloping chute into a covered catch box.
+
+/* [Mechanism] */
+// Measured diameter of the marble; sets the pockets and the wheel thickness
+marble_diameter = 16; // [14:1:18]
+// Radius of the pocket wheel
+wheel_radius = 110; // [105:5:115]
+// Number of pockets round the wheel
+pockets = 6; // [5, 6]
+
+/* [Material] */
+// Sheet thickness
+$thickness = 3; // [2.8:0.1:3.2]
+// Beam width
+$kerf = 0.15; // [0:0.01:0.25]
+
+/* [Export] */
+// All parts, or one group at a time
+output = "all"; // [all:All parts, wheel:Wheel and crank, frame:Frame, chute:Chute and catch, coupon:Fit test]
+
+/* [Hidden] */
+$material = "plywood";
+$sheet = [600, 400];
+$gap = 5;
+$fn = 144;
+t = $thickness;
+D = marble_diameter;
+R = wheel_radius;
+// Centre of the round end of each pocket
+pocket_r = R - D - 4;
+pocket_w = D + 2;
+// Wheel layers: at least the marble plus 2 mm thick. The shroud has one
+// more, so the wheel has half a sheet to spare on each side.
+layers = ceil((D + 2) / t);
+cheek_gap = (layers + 1) * t;
+outer = R + 20;
+// Shaft height above the base
+axle_height = R + 110;
+assert(D >= 14 && D <= 18, "Marble: 14 to 18 mm");
+assert(R >= 105 && R <= 115, "Wheel radius: 105 to 115 mm");
+assert(pockets == 5 || pockets == 6, "Pockets: 5 or 6");
+assert(t >= 2.8 && t <= 3.2, "Thickness: 2.8 to 3.2 mm");
+assert($kerf >= 0 && $kerf <= 0.25, "Kerf: 0 to 0.25 mm");
+assert(contains(["all", "wheel", "frame", "chute", "coupon"], output), "Unknown output");
+
+module hole(p, d = 4.4) {
+  translate(p) circle(d = d, $fn = 48);
+}
+
+module ring(d, inner) {
+  difference() {
+    circle(d = d);
+    circle(d = inner, $fn = 48);
+  }
+}
+
+module capsule(a, b, r) {
+  hull() {
+    translate(a) circle(r = r);
+    translate(b) circle(r = r);
+  }
+}
+
+// Part of an annulus between radii r1 and r2, from angle a to angle b
+module sector(a, b, r1, r2) {
+  polygon(concat(
+    [for (i = [0:40]) let(q = lerp(a, b, i / 40)) [r2 * cos(q), r2 * sin(q)]],
+    [for (i = [40:-1:0]) let(q = lerp(a, b, i / 40)) [r1 * cos(q), r1 * sin(q)]]
+  ));
+}
+
+// Six M4 bolts through the cheeks and shroud, none in the release opening
+module bolt_holes() {
+  for (a = [0, 60, 120, 180, 240, 285]) hole([(R + 13) * cos(a), (R + 13) * sin(a)]);
+}
+
+// Each pocket is a slot open at the rim: the marble rests in its round end
+// on the way up and slides out against the shroud on the way down. The
+// rounded slots between the pockets only take weight off.
+module wheel() {
+  difference() {
+    circle(r = R);
+    hole([0, 0], 6.5);
+    for (i = [0:pockets - 1]) rotate(-90 + i * 360 / pockets) union() {
+      translate([pocket_r, 0]) circle(d = pocket_w);
+      translate([pocket_r, -pocket_w / 2]) rect([R - pocket_r + 3, pocket_w]);
+    }
+    for (a = [0:360 / pockets:359]) rotate(a) capsule([30, 0], [pocket_r - 24, 0], 6);
+  }
+  score() translate([-16, 0]) text("CW", size = 6);
+}
+
+// A ring 2 mm clear of the wheel keeps the marble in its pocket, except
+// between -65 and -25 degrees, where it lets the marble out to the chute
+module shroud() {
+  difference() {
+    circle(r = outer);
+    circle(r = R + 2);
+    sector(-65, -25, R + 1, outer + 2);
+    bolt_holes();
+  }
+}
+
+// The chute's side walls are part of the cheeks: 24 mm high above the floor
+// line y = -110 - 0.25 (x - 65), a 1 in 4 slope that stays clear of the wheel
+module chute_side() {
+  polygon([[65, -110], [258, -158.25], [258, -134.25], [65, -86]]);
+}
+
+// Both cheeks, seen from the front with the shaft at the origin: the round
+// cover, the stand down to the base, the chute wall and a leg under it. The
+// front one has windows onto the wheel, slots too narrow for the marble to
+// pass, and the loading port under the gate.
+module cheek(front = false) {
+  difference() {
+    union() {
+      circle(r = outer);
+      translate([-75, -axle_height]) rect([150, axle_height - outer + 12]);
+      chute_side();
+      translate([194, -axle_height]) rect([12, axle_height - 130]);
+    }
+    // For an 8 mm bush
+    hole([0, 0], 8.2);
+    bolt_holes();
+    if (front) {
+      for (a = [0:60:300]) sector(a + 12, a + 48, 24, pocket_r - D / 2 - 6);
+      // Viewing slots round the rim, none at the bottom where the loading
+      // port and the gate's pivot are
+      for (a = [-180, -60, 0, 60, 120]) sector(a + 8, a + 48, R - D / 2 - 4, R - D / 2 + 2);
+      // Loading port, in line with a pocket pointing straight down
+      hole([0, -(R + 2 - D / 2)], D + 2);
+      hole([D / 2 + 13, -(R + 2 - D / 2)]);
+    }
+  }
+  if (front) score() translate([0, -170]) text("ASCENT", size = 8, halign = "center");
+  if (front) score() translate([65, -56]) text("PAUSE", size = 4);
+}
+
+module base() {
+  difference() {
+    translate([90, 0]) rect([450, 110], center = true, r = 4);
+    // Optional holes to clamp the base down; the gussets are glued
+    for (x = [-60, 60]) for (y = [-35, 35]) hole([x, y]);
+    for (x = [125, 185]) for (y = [-35, 35]) hole([x, y]);
+  }
+  score() translate([-120, 40]) text("ONE MARBLE / CLOCKWISE / MANUAL RELOAD", size = 4);
+}
+
+module catch_square() {
+  rect([50, 50], center = true);
+}
+
+module catch_wall(w) {
+  rect([w, 22], center = true);
+}
+
+module gusset() {
+  difference() {
+    polygon([[0, 0], [40, 0], [0, 55]]);
+    hole([10, 12]);
+  }
+}
+
+// Swings on an M4 pivot to uncover the loading port; a wingnut holds it shut
+module gate() {
+  difference() {
+    hull() {
+      circle(d = D + 12);
+      translate([D / 2 + 13, 0]) circle(d = 12);
+    }
+    hole([D / 2 + 13, 0]);
+  }
+  score() translate([-6, -2]) text("LOAD", size = 3);
+}
+
+module crank() {
+  difference() {
+    capsule([0, 0], [35, 0], 12);
+    hole([0, 0], 6.5);
+    hole([35, 0]);
+  }
+}
+
+// Test holes for the 6 mm shaft and grip sleeve, and a slot for the sheet
+module coupon() {
+  difference() {
+    rect([90, 40], center = true);
+    for (i = [0:3]) hole([-30 + i * 20, 0], 6 + i * 0.2);
+    translate([-20, 12]) rect([40, t + 0.2], center = true);
+  }
+  score() translate([-35, -15]) text("6.0 / 6.2 / 6.4 / 6.6", size = 3);
+}
+
+if (output == "all" || output == "wheel") {
+  part("Wheel", qty = layers) wheel();
+  part("Crank", qty = 2) crank();
+  part("Hub ring", qty = 4) ring(28, 6.5);
+  part("Grip", qty = 4) ring(18, 6.4);
+}
+if (output == "all" || output == "frame") {
+  part("Rear cheek") cheek(false);
+  part("Front cheek") cheek(true);
+  part("Shroud", qty = layers + 1) shroud();
+  part("Base") base();
+  part("Loading gate") gate();
+  part("Gusset", qty = 4) gusset();
+}
+if (output == "all" || output == "chute") {
+  part("Chute floor") rect([198.94, cheek_gap], center = true);
+  part("Catch floor") catch_square();
+  part("Catch lid") catch_square();
+  part("Catch side wall", qty = 2) catch_wall(50);
+  part("Catch end wall") catch_wall(50 - 2 * t);
+  // From the base up to the underside of the catch floor
+  part("Catch pedestal", qty = 2) rect([40, axle_height - 158.25 - t], center = true);
+}
+if (output == "all" || output == "coupon") part("Fit test") coupon();
+
+echo(str("Ascent: ", layers, " wheel layers in a ", cheek_gap, " mm cheek gap, ", 2 * R, " mm wheel, ", D, " mm marble"));
+
+// Assembly, front view, shaft at the origin: glue the wheel layers on a rod
+// and the shroud rings on the six bolts, and sand the pockets smooth. Epoxy
+// a 6 mm steel shaft (80 mm) into the wheel, centred on it, and an 8 mm brass
+// bush into each cheek. Bolt rear cheek, shroud and front cheek with six M4
+// x 40 bolts, the front nuts only finger tight, with a shaft collar outside
+// each cheek. Pivot the gate on a countersunk M4 bolt, its head flush inside
+// the front cheek. Glue the cheeks onto the base with the gussets, the chute
+// floor between the cheek walls, and the catch floor on its pedestals with
+// two side walls and the end wall on top; tape the lid on. On the shaft
+// behind the rear collar glue two hub rings, the two crank layers and two
+// more rings, then bolt the grip (four rings on a 6 mm sleeve) to the crank.

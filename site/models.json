@@ -77,6 +77,41 @@
     "tags": ["joinery", "parts", "mechanism"]
   },
   {
+    "file": "ascent",
+    "title": "Ascent marble lift",
+    "tags": ["joinery", "parts", "mechanism"]
+  },
+  {
+    "file": "expanse",
+    "title": "Expanse sliding organizer",
+    "tags": ["joinery", "parts", "mechanism"]
+  },
+  {
+    "file": "celestial",
+    "title": "Celestial geared orrery",
+    "tags": ["math", "parts", "mechanism"]
+  },
+  {
+    "file": "flight",
+    "title": "Flight moth automaton",
+    "tags": ["math", "parts", "mechanism"]
+  },
+  {
+    "file": "bloom",
+    "title": "Bloom expanding flower",
+    "tags": ["math", "parts", "mechanism"]
+  },
+  {
+    "file": "index-sequencer",
+    "title": "Index Geneva sequencer",
+    "tags": ["math", "parts", "mechanism"]
+  },
+  {
+    "file": "vault",
+    "title": "Vault three-dial puzzle box",
+    "tags": ["joinery", "parts", "mechanism"]
+  },
+  {
     "file": "fracture",
     "title": "Fracture recursive relief",
     "tags": ["recursion", "layers", "presets"]
