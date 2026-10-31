@@ -1,0 +1,194 @@
+// Inversor: Peaucellier and Lipkin's linkage of 1864, the first to turn a
+// circle into an exactly straight line. Two long arms from a fixed pivot hold
+// a rhombus of four short links; swing the handle on the input link and the
+// pencil at the far corner draws a ruler-straight line along the scored scale.
+
+/* [Linkage] */
+// Side of the rhombus; the arms stay 150 mm and the line moves to suit
+rhombus_side = 60; // [55:1:65]
+// Length of the straight line between the two stops
+line_length = 140; // [100:10:160]
+
+/* [Fit] */
+// Added to the 6 mm holes the brass bushes turn in
+pivot_clearance = 0.3; // [0.2:0.05:0.4]
+
+/* [Assembly] */
+// The input link's angle in the assembled view, from the line O to Q; it
+// stops at the ends of the line
+input_angle = 30; // [-44:1:44]
+
+/* [Export] */
+// All parts, or one group at a time
+output = "all"; // [all:All parts, base:Base and feet, links:Links, spacers:Posts glides and spacers, coupon:Fit test]
+
+/* [Material] */
+// Sheet thickness
+$thickness = 3; // [2.8:0.1:3.2]
+// Beam width
+$kerf = 0.15; // [0:0.01:0.25]
+
+/* [Hidden] */
+$material = "plywood";
+$sheet = [600, 400];
+$gap = 5;
+$fn = 96;
+t = $thickness;
+s = rhombus_side;
+// Arms from O, and the input link, which turns about Q with OQ = QA
+arm = 150;
+crank = 55;
+hole = 6 + pivot_clearance;
+pencil = 8.4;
+// OA x OP = arm^2 - s^2 whatever the pose, so A's circle through O becomes
+// the line x = line_x
+line_x = (arm * arm - s * s) / (2 * crank);
+half = line_length / 2;
+// The input link's swing either side of the axis, and the dowel stops
+swing = 2 * atan(half / line_x);
+stop_r = 35;
+stop_a = swing + asin(10 / stop_r);
+// The base, with the fixed pivot O on it
+W = 255;
+D = 240;
+O = [35, D / 2];
+Q = O + [crank, 0];
+assert(s >= 55 && s <= 65, "Rhombus side: 55 to 65 mm");
+assert(line_length >= 100 && line_length <= 160, "Line length: 100 to 160 mm");
+assert(pivot_clearance >= 0.2 && pivot_clearance <= 0.4, "Pivot clearance: 0.2 to 0.4 mm");
+assert(t >= 2.8 && t <= 3.2, "Thickness: 2.8 to 3.2 mm");
+assert($kerf >= 0 && $kerf <= 0.25, "Kerf: 0 to 0.25 mm");
+assert(input_angle >= -44 && input_angle <= 44, "Input angle: -44 to 44 degrees");
+assert(contains(["all", "base", "links", "spacers", "coupon"], output), "Unknown output");
+
+function polar(r, a) = [r * cos(a), r * sin(a)];
+// Where circles round p (radius r1) and q (radius r2) cross; sgn picks the side
+function meet(p, r1, q, r2, sgn) = let(v = q - p, d = norm(v), a = (r1 * r1 - r2 * r2 + d * d) / (2 * d), h = sqrt(max(0, r1 * r1 - a * a)))
+  p + v * a / d + [-v[1], v[0]] * h / d * sgn;
+// Joints A, B, D, P with the input link at angle phi, relative to O. P is A
+// reflected across BD, the far corner of the rhombus.
+function joints(phi) = let(
+  A = [crank, 0] + polar(crank, phi),
+  B = meet([0, 0], arm, A, s, 1),
+  Dj = meet([0, 0], arm, A, s, -1))
+  [A, B, Dj, B + Dj - A];
+
+module label(txt, p, size = 4, h = "center") {
+  score() translate(p) text(txt, size = size, halign = h, valign = "center");
+}
+
+// A link drawn along x, holes at 0 and len; the second hole can be the pencil's
+module link(len, name, end = hole) {
+  difference() {
+    hull() {
+      circle(r = 7);
+      translate([len, 0]) circle(r = 7);
+    }
+    circle(d = hole);
+    translate([len, 0]) circle(d = end);
+  }
+  label(name, [len / 2, 0], 4);
+}
+
+module ring(od, id) {
+  difference() {
+    circle(d = od);
+    circle(d = id);
+  }
+}
+
+module base() {
+  difference() {
+    rect([W, D], r = 8);
+    // M4 bolts up through the fixed pivots, 6 mm dowels for the stops
+    for (p = [O, Q]) translate(p) circle(d = 4.4);
+    for (a = [-stop_a, stop_a]) translate(Q + polar(stop_r, a)) circle(d = 6);
+  }
+  // The scale: the line the pencil draws, a tick every 5 mm, numbered every 20
+  X = O[0] + line_x;
+  score() {
+    line([X, O[1] - half], [X, O[1] + half]);
+    for (y = [-half, half]) line([X - 6, O[1] + y], [X + 6, O[1] + y]);
+    for (i = [0:5:line_length]) line([X + 12, O[1] - half + i], [X + (i % 10 == 0 ? 17 : 14.5), O[1] - half + i]);
+    // The circle the input corner A follows, through O
+    polyline([for (a = [-swing:2:swing]) Q + polar(crank, a)]);
+  }
+  for (i = [0:20:line_length]) label(str(i), [X + 19, O[1] - half + i], 3.5, "left");
+  label("O", O + [-15, 0], 5);
+  label("Q", Q + [0, -14], 5);
+  label("INVERSOR", [52, 34], 14);
+  label("PEAUCELLIER AND LIPKIN, 1864", [52, 20], 4);
+  label("A CIRCLE THROUGH O DRAWS A STRAIGHT LINE", [52, 13], 3);
+}
+
+// Spacer stacks on each joint, bottom to top, from the base
+spacer_rings = 9;
+glide_rings = 4;
+sleeves = 7;
+post_rings = 8;
+
+// The assembled view. Heights h are above the base, whose top is at 2t; the
+// links sit on five layers: input link (h t), A-B and D-P (3t), A-D and B-P
+// (5t), arm O-B (7t), arm O-D (9t).
+pose = joints(max(-swing, min(swing, input_angle)));
+function joint(k) = k == "O" ? O : k == "Q" ? Q : O + pose[search(k, ["A", "B", "D", "P"])];
+function lift(k, h) = concat(joint(k), [2 * t + h]);
+// A link lies from joint a towards joint b
+function heading(a, b) = let(v = joint(b) - joint(a)) [0, 0, atan2(v[1], v[0])];
+corners = [[14, 14], [W - 14, 14], [14, D - 14], [W - 14, D - 14]];
+handle_h = 6 * t + 3.7;
+
+if (output == "all" || output == "base") {
+  part("Base", qty = 2, at = [[0, 0, 0], [0, 0, t]]) base();
+  // Two under each corner
+  part("Foot", qty = 8, at = [for (c = corners, k = [1:2]) concat(c, [-k * t])]) circle(d = 20);
+}
+if (output == "all" || output == "links") {
+  part("Input link", at = lift("Q", t), rotate = heading("Q", "A")) link(crank, "INPUT  Q-A");
+  part("Arm", qty = 2, at = [lift("O", 7 * t), lift("O", 9 * t)], rotate = [heading("O", "B"), heading("O", "D")])
+    link(arm, "ARM  O");
+  part("Short link", qty = 2, at = [lift("A", 3 * t), lift("A", 5 * t)], rotate = [heading("A", "B"), heading("A", "D")])
+    link(s, "A");
+  part("Pen link", qty = 2, at = [lift("D", 3 * t), lift("B", 5 * t)], rotate = [heading("D", "P"), heading("B", "P")])
+    link(s, "PEN", pencil);
+}
+if (output == "all" || output == "spacers") {
+  part("Post ring", qty = post_rings, at = concat([for (h = [0:6]) lift("O", h * t)], [lift("Q", 0)])) ring(16, hole);
+  part("Spacer ring", qty = spacer_rings, at = [lift("A", 2 * t), lift("A", 4 * t), lift("B", 4 * t), lift("B", 6 * t),
+      lift("D", 4 * t), lift("D", 6 * t), lift("D", 7 * t), lift("D", 8 * t), lift("O", 8 * t)])
+    ring(12, hole);
+  // The bottom glide under A, B and D holds the bolt head in its bigger hole
+  part("Glide", qty = 3, at = [lift("A", 0), lift("B", 0), lift("D", 0)]) ring(14, 8.4);
+  part("Glide ring", qty = glide_rings, at = [lift("B", t), lift("B", 2 * t), lift("D", t), lift("D", 2 * t)]) ring(14, hole);
+  part("Pencil sleeve", qty = sleeves, at = [for (h = [0, 1, 2, 4, 6, 7, 8]) lift("P", h * t)]) ring(14, pencil);
+  part("Handle grip", qty = 4, at = [for (k = [0:3]) lift("A", handle_h + k * t)]) ring(16, hole);
+}
+// The fit test lies on the table beside the base
+if (output == "all" || output == "coupon") part("Fit test", at = [W + 20, 0, -2 * t]) {
+  difference() {
+    rect([140, 48], r = 3);
+    for (i = [0:3]) translate([15 + 25 * i, 16]) circle(d = 6.1 + 0.1 * i);
+    translate([118, 16]) circle(d = pencil);
+    translate([20, 36]) circle(d = 4.4);
+    for (i = [0:1]) translate([45 + 20 * i, 36]) circle(d = 5.9 + 0.1 * i);
+  }
+  for (i = [0:3]) label(str(6.1 + 0.1 * i), [15 + 25 * i, 5], 3);
+  label("PEN", [118, 5], 3);
+  label("DOWEL", [55, 44], 3);
+}
+
+echo(str("Inversor: ", line_length, " mm line ", round(line_x * 10) / 10, " mm from O; input link swings ", round(swing * 10) / 10, " degrees each way; base ", W, " x ", D, " mm"));
+
+// Assembly, with heights h above the base: glue the two base plies and the
+// feet in pairs under the corners. Fixed pivots are M4 bolts up through the
+// base on 6 mm brass bushes: at Q one post ring under the input link (h t), at
+// O seven post rings under the two arms (h 7t and 9t). Glue the 6 mm dowel
+// stops in, t + 1 mm proud. The moving joints are M4 bolts in brass bushes,
+// heads in the glides, washer and nut on top; every glide stands on the base.
+// A: glide, input link, ring, short link (h 3t), ring, short link (h 5t), nut,
+// then a bush with the four handle grips and a second nut on a 50 mm bolt. B:
+// glide and two glide rings, short link, ring, pen link (h 5t), ring, arm. D:
+// glide and two glide rings, pen link (h 3t), ring, short link, three rings,
+// arm (h 9t). At P a pencil stub is the pin: three sleeves under the lower pen
+// link, one between the pen links and three on top, glued to their links, tip
+// on the paper.

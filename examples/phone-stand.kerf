@@ -41,9 +41,10 @@ module brace() difference() {
   for (x = [12, 12 + span + thickness]) translate([x - clearance / 2, brace_h / 2]) rect([slot, brace_h / 2 + 1]);
 }
 
+// Assembled: the sides stand span apart, the brace across them in its slots
 material(thickness = thickness, kerf = 0.1, name = "plywood") {
-  part("side", qty = 2) side();
-  part("brace") {
+  part("side", qty = 2, at = [[0, 12 + thickness, 0], [0, 12 + 2 * thickness + span, 0]], rotate = [90, 0, 0]) side();
+  part("brace", at = [brace_x - thickness / 2, 0, 0], rotate = [90, 0, 90]) {
     brace();
     engrave() translate([(span + 2 * thickness + 24) / 2, brace_h * 0.28]) text(label, 6, halign = "center", valign = "center");
   }

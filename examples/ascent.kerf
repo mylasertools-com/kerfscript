@@ -17,6 +17,10 @@ $thickness = 3; // [2.8:0.1:3.2]
 // Beam width
 $kerf = 0.15; // [0:0.01:0.25]
 
+/* [Assembly] */
+// Crank angle in the assembled view, clockwise seen from the front
+crank_angle = 0; // [0:5:360]
+
 /* [Export] */
 // All parts, or one group at a time
 output = "all"; // [all:All parts, wheel:Wheel and crank, frame:Frame, chute:Chute and catch, coupon:Fit test]
@@ -44,6 +48,7 @@ assert(R >= 105 && R <= 115, "Wheel radius: 105 to 115 mm");
 assert(pockets == 5 || pockets == 6, "Pockets: 5 or 6");
 assert(t >= 2.8 && t <= 3.2, "Thickness: 2.8 to 3.2 mm");
 assert($kerf >= 0 && $kerf <= 0.25, "Kerf: 0 to 0.25 mm");
+assert(crank_angle >= 0 && crank_angle <= 360, "Crank angle: 0 to 360 degrees");
 assert(contains(["all", "wheel", "frame", "chute", "coupon"], output), "Unknown output");
 
 module hole(p, d = 4.4) {
@@ -194,30 +199,56 @@ module coupon() {
   score() translate([-35, -15]) text("6.0 / 6.2 / 6.4 / 6.6", size = 3);
 }
 
+// The assembled view, z up from the table, the shaft along y with the front
+// towards -y. Parts drawn in the front view stand up with their back face
+// at depth z0 (front is +z0). At crank angle 0 a pocket points 45 degrees
+// down to the right, into the release opening.
+turn = -15 - crank_angle;
+crank_z = -40;
+slope = atan2(158.25 - 110, 258 - 65);
+// The axle stands axle_height above the base
+centre = axle_height + t;
+floor_top = centre - 158.25;
+function depth(z0, x = 0, y = 0) = [x, -z0, centre + y];
+function facing(b = 0) = [90, -b, 0];
+across = [90, 0, 90];
+// Hub rings: two behind the crank and two in front of it
+hub_z = [crank_z - 3 * t, crank_z - 2 * t, crank_z + t, crank_z + 2 * t];
+
 if (output == "all" || output == "wheel") {
-  part("Wheel", qty = layers) wheel();
-  part("Crank", qty = 2) crank();
-  part("Hub ring", qty = 4) ring(28, 6.5);
-  part("Grip", qty = 4) ring(18, 6.4);
+  part("Wheel", qty = layers, at = [for (k = [0:layers - 1]) depth(-layers * t / 2 + k * t)], rotate = facing(turn)) wheel();
+  part("Crank", qty = 2, at = [depth(crank_z - t), depth(crank_z)], rotate = facing(turn)) crank();
+  part("Hub ring", qty = 4, at = [for (z = hub_z) depth(z)], rotate = facing(turn)) ring(28, 6.5);
+  // The grip turns with the crank, 35 mm out
+  part("Grip", qty = 4, at = [for (k = [1:4]) depth(crank_z - t - 0.8 - k * t) + [35 * cos(turn), 0, 35 * sin(turn)]], rotate = facing(turn))
+    ring(18, 6.4);
 }
 if (output == "all" || output == "frame") {
-  part("Rear cheek") cheek(false);
-  part("Front cheek") cheek(true);
-  part("Shroud", qty = layers + 1) shroud();
-  part("Base") base();
-  part("Loading gate") gate();
-  part("Gusset", qty = 4) gusset();
+  part("Rear cheek", at = depth(-cheek_gap / 2 - t), rotate = facing()) cheek(false);
+  part("Front cheek", at = depth(cheek_gap / 2), rotate = facing()) cheek(true);
+  part("Shroud", qty = layers + 1, at = [for (k = [0:layers]) depth(-cheek_gap / 2 + k * t)], rotate = facing()) shroud();
+  part("Base", at = [0, 0, 0]) base();
+  part("Loading gate", at = depth(cheek_gap / 2 + t, 0, -(R + 2 - D / 2)), rotate = facing()) gate();
+  // Two behind the stand and two in front, at x = -50 and 50
+  part("Gusset", qty = 4, at = [[-50 + t / 2, -cheek_gap / 2 - t, t], [50 + t / 2, -cheek_gap / 2 - t, t],
+      [-50 - t / 2, cheek_gap / 2 + t, t], [50 - t / 2, cheek_gap / 2 + t, t]],
+      rotate = [[90, 0, 270], [90, 0, 270], across, across])
+    gusset();
 }
 if (output == "all" || output == "chute") {
-  part("Chute floor") rect([198.94, cheek_gap], center = true);
-  part("Catch floor") catch_square();
-  part("Catch lid") catch_square();
-  part("Catch side wall", qty = 2) catch_wall(50);
-  part("Catch end wall") catch_wall(50 - 2 * t);
+  // Its top face on the floor line, from (65, -110) to (258, -158.25)
+  part("Chute floor", at = [(65 + 258) / 2 - t * sin(slope), 0, centre - (110 + 158.25) / 2 - t * cos(slope)], rotate = [0, slope, 0])
+    rect([198.94, cheek_gap], center = true);
+  part("Catch floor", at = [283, 0, floor_top - t]) catch_square();
+  part("Catch lid", at = [283, 0, floor_top + 22]) catch_square();
+  part("Catch side wall", qty = 2, at = [[283, 25, floor_top + 11], [283, 3 - 25, floor_top + 11]], rotate = facing()) catch_wall(50);
+  part("Catch end wall", at = [308 - t, 0, floor_top + 11], rotate = across) catch_wall(50 - 2 * t);
   // From the base up to the underside of the catch floor
-  part("Catch pedestal", qty = 2) rect([40, axle_height - 158.25 - t], center = true);
+  part("Catch pedestal", qty = 2, at = [[283, 20, t + (floor_top - 2 * t) / 2], [283, t - 20, t + (floor_top - 2 * t) / 2]], rotate = facing())
+    rect([40, axle_height - 158.25 - t], center = true);
 }
-if (output == "all" || output == "coupon") part("Fit test") coupon();
+// The fit test lies on the table in front of the stand
+if (output == "all" || output == "coupon") part("Fit test", at = [0, -110, 0]) coupon();
 
 echo(str("Ascent: ", layers, " wheel layers in a ", cheek_gap, " mm cheek gap, ", 2 * R, " mm wheel, ", D, " mm marble"));
 

@@ -105,7 +105,8 @@ module blank() {
 }
 
 module relief(z) {
-  part(str("Layer ", z)) difference() {
+  // Assembled: on the backer, the deepest layer first and layer 0 at the front
+  part(str("Layer ", z), at = [0, 0, (layers - z) * $thickness]) difference() {
     blank();
     for (a = [0:n - 1]) rotate(a * 360 / n) cutouts(sector, depth, z);
   }
@@ -114,7 +115,7 @@ module relief(z) {
 
 if (output == "all") {
   for (z = [0:layers - 1]) relief(z);
-  part("Backer") blank();
+  part("Backer", at = [0, 0, 0]) blank();
 } else if (output == "backer") part("Backer") blank();
 else for (z = [0:layers - 1]) if (output == "layer" + str(z)) relief(z);
 

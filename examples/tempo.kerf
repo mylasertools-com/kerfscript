@@ -1,0 +1,431 @@
+// Tempo: a Graham deadbeat escapement that really ticks. A falling weight
+// turns the escape wheel; its teeth push the two pallets of the anchor in
+// turn, and the anchor swings the pendulum and lets the wheel on by half a
+// tooth each beat. The hand stands dead still between beats. Wind the knob
+// behind, start the pendulum swinging and set the beat with the crutch bolt.
+
+/* [Clock] */
+// Pendulum length in mm, from the anchor arbor to the centre of the bob
+pendulum_length = 250; // [180:10:320]
+// Teeth on the escape wheel; the wheel grows with them
+teeth = 30; // [24:1:40]
+// How far the impulse faces turn the anchor, in degrees
+lift = 3; // [2:0.5:4]
+
+/* [Fit] */
+// Added to the 6 mm holes the brass bushes are glued into
+bush_clearance = 0.1; // [0:0.05:0.3]
+
+/* [Export] */
+// All parts, or one group at a time
+output = "all"; // [all:All parts, frame:Plates and base, escapement:Escape wheel and anchor, pendulum:Crutch rod and bob, drive:Drum ratchet and weight, coupon:Fit test]
+
+/* [Assembly] */
+// How far the pendulum swings each side in the assembled view, in degrees
+amplitude = 4; // [3:0.5:5.5]
+// Where the pendulum is in its swing, in degrees: 0 is hanging straight and moving right, 90 at the right end
+swing_phase = 15; // [0:15:345]
+
+/* [Material] */
+// Sheet thickness
+$thickness = 3; // [2.8:0.1:3.2]
+// Beam width
+$kerf = 0.15; // [0:0.01:0.25]
+
+/* [Hidden] */
+$material = "plywood";
+$sheet = [600, 400];
+$gap = 5;
+$fn = 96;
+t = $thickness;
+L = pendulum_length;
+N = teeth;
+assert(L >= 180 && L <= 320, "Pendulum length: 180 to 320 mm");
+assert(N == floor(N) && N >= 24 && N <= 40, "Teeth: whole numbers 24 to 40");
+assert(lift >= 2 && lift <= 4, "Lift: 2 to 4 degrees");
+assert(amplitude >= 3 && amplitude <= 5.5, "Amplitude: 3 to 5.5 degrees");
+assert(bush_clearance >= 0 && bush_clearance <= 0.3, "Bush clearance: 0 to 0.3 mm");
+assert(t >= 2.8 && t <= 3.2, "Thickness: 2.8 to 3.2 mm");
+assert($kerf >= 0 && $kerf <= 0.25, "Kerf: 0 to 0.25 mm");
+assert(contains(["all", "frame", "escapement", "pendulum", "drive", "coupon"], output), "Unknown output");
+
+function polar(r, a) = [r * cos(a), r * sin(a)];
+function rad(a) = a * PI / 180;
+
+// Escapement, all angles in degrees. Every tooth is 15 mm from the next at
+// the tips, so the wheel grows with its tooth count.
+R = N * 15 / (2 * PI);
+pitch_a = 360 / N;
+// The anchor spans a whole number of teeth and a half: when one pallet holds
+// a tooth, the other sits in a gap
+span = floor(N / 4) + 0.5;
+hs = span * pitch_a / 2;
+// Anchor arbor above the wheel, where the lines to the two pallets touch
+// the tip circle, so a tooth on a locking face pushes straight at the arbor
+D = R / cos(hs);
+rho = R * tan(hs);
+// Lock: how far the anchor turns past a tooth before it can escape. Drop:
+// how far the wheel turns free after each impulse. Swing: the largest
+// pendulum swing the pallets are cut for.
+lock = 1.5;
+drop = 1.5;
+swing = 5.5;
+tip_w = 0.6;
+tau = tip_w / R * 180 / PI;
+// Pallet width in wheel degrees: half a tooth, less the drop
+w = pitch_a / 2 - drop;
+// The entry pallet unlocks at +c, the exit pallet at -c
+c = (lift - lock) / 2;
+// Tooth height: room for the deepest pallet at full swing
+h = rad(swing - c + lift) * rho + 2;
+Rr = R - h;
+lean = 8;
+d1 = h * tan(lean) / Rr * 180 / PI;
+d2 = d1 + 0.33 * 15 / Rr * 180 / PI;
+
+// Wheel tip positions, seen from the anchor arbor: where a tip locks and
+// where it leaves each pallet
+function tip(a) = polar(R, a) - [0, D];
+function ang(p) = atan2(p[1], p[0]);
+r_out = norm(tip(90 + hs + w / 2));
+r_in = norm(tip(90 + hs - w / 2));
+// Corners in the anchor's own frame: the anchor turns by +alpha, so a tip at
+// world angle a meets the anchor at a - alpha
+a_lock_e = ang(tip(90 + hs + w / 2)) - c;
+a_end_e = ang(tip(90 + hs - w / 2)) - (c - lift);
+a_lock_x = ang(tip(90 - hs + w / 2)) + c;
+a_end_x = ang(tip(90 - hs - w / 2)) - (lift - c);
+// The anchor's bow stays clear of the tips at full swing; the pallets reach
+// up into it
+band = R + rho * sin(swing) + 2;
+ext = (band - R + 4) / rad(1) / rho - c;
+
+// Frame: heights above the base top, depths forward from the back of the
+// back plate. The plates are two plies, 4t + 1 apart.
+gap = 4 * t + 1;
+front_d = 2 * t + gap;
+// Anchor arbor height: room for the bob below it, and for the wheel
+zP = max(L + 70, D + R + 45);
+zW = zP - D;
+PW = 2 * (R + 40);
+PH = zP + 54;
+island = 0.45 * R;
+pillars = [[-(PW / 2 - 12), zP + 34], [PW / 2 - 12, zP + 34], [-(PW / 2 - 12), zW - R - 20], [PW / 2 - 12, zW - R - 20]];
+tabs = [-(PW / 2 - 32), PW / 2 - 32];
+// Behind the back plate: a washer, a brass sleeve, the click disc and ring,
+// then the drum, far enough back that the weight pot clears the plate
+sleeve = 28;
+core_r = 5;
+core_d = -(1 + sleeve + 2 * t + 1.5 * t);
+bob_d = 90;
+period = 2 * PI * sqrt(L / 1000 / 9.81);
+// How far the weight pot can fall, and how long that keeps it going
+fall = zW - 40 - 17 * t;
+run = fall / (2 * PI * core_r) * N * period;
+// In front: the front face of the front plate, the hand on a washer, the
+// crutch on two spacers and two washers, the rod and the bob round it
+fp = front_d + 2 * t;
+hand_d = fp + 1;
+crutch_d = fp + 2 * t + 2;
+rod_d = crutch_d + 2 * t;
+bob_back = rod_d - 3 * t;
+base_front = rod_d + 5 * t + 15;
+base_back = -core_d + 35 + 12;
+
+function fix2(v) = let(n = round(v * 100)) str(floor(n / 100), ".", n % 100 < 10 ? "0" : "", n % 100);
+module label(s, p, size = 5) {
+  score() translate(p) text(s, size = size, halign = "center", valign = "center");
+}
+module ring(od, id) {
+  difference() {
+    circle(d = od);
+    circle(d = id);
+  }
+}
+
+// Graham teeth: a straight front face leaning forward, so only the tip
+// touches a locking face, and a curved back that leaves room for the
+// pallets. The wheel turns clockwise from the front.
+function tooth(k) = let(f = 90 + k * pitch_a) concat(
+  [for (j = [1:5]) polar(Rr, f - pitch_a + d2 + j * (pitch_a + d1 - d2) / 6)],
+  [polar(Rr, f + d1), polar(R, f), polar(R, f + tau)],
+  [for (j = [1:8]) let(s = j / 8) polar(R - h * s, f + tau + d1 * s + (d2 - d1 - tau) * pow(s, 1.6))]
+);
+
+module escape_wheel() {
+  difference() {
+    polygon([for (k = [0:N - 1]) each tooth(k)]);
+    circle(d = 4.1);
+    // Six spokes
+    for (k = [0:5]) offset(r = 3) offset(delta = -3) polygon(concat(
+      [for (j = [0:6]) polar(15, k * 60 + 8 + j * 44 / 6)],
+      [for (j = [6:-1:0]) polar(Rr - 7, k * 60 + 5 + j * 50 / 6)]));
+  }
+}
+
+// Drawn with the anchor arbor at the origin and the wheel centre at
+// [0, -D]. Each locking face is an arc round the arbor; each impulse face
+// runs from the locking corner to a corner `lift` degrees deeper.
+module anchor() {
+  difference() {
+    union() {
+      circle(r = 11);
+      translate([-8, -(D - band - 11)]) rect([16, D - band - 11]);
+      polygon(concat(
+        [for (j = [0:16]) [0, -D] + polar(band, 90 - hs - 9 + j * (2 * hs + 18) / 16)],
+        [for (j = [16:-1:0]) [0, -D] + polar(band + 13, 90 - hs - 9 + j * (2 * hs + 18) / 16)]));
+      // Entry pallet, on the left
+      polygon(concat(
+        [for (j = [0:8]) polar(r_out, a_lock_e - ext + j * ext / 8)],
+        [polar(r_in, a_end_e)],
+        [for (j = [0:8]) polar(r_in, a_end_e - j * (a_end_e - a_lock_e + ext) / 8)]));
+      // Exit pallet, on the right
+      polygon(concat(
+        [for (j = [0:8]) polar(r_in, a_lock_x + j * ext / 8)],
+        [for (j = [0:8]) polar(r_out, a_lock_x + ext - j * (a_lock_x + ext - a_end_x) / 8)]));
+    }
+    circle(d = 4.1);
+  }
+  label("IN", [0, -D] + polar(band + 6.5, 90 + hs - 2), 4);
+  label("OUT", [0, -D] + polar(band + 6.5, 90 - hs + 2), 4);
+}
+
+module plate(front = false, outer = false) {
+  difference() {
+    union() {
+      translate([-PW / 2, 0]) rect([PW, PH], r = 10);
+      for (x = tabs) translate([x - 12, -2 * t]) rect([24, 2 * t + 1]);
+    }
+    for (p = [[0, zP], [0, zW]]) translate(p) circle(d = 6 + bush_clearance);
+    for (p = pillars) translate(p) circle(d = 4.4);
+    // Two windows onto the wheel and the pallets
+    if (front) difference() {
+      union() {
+        translate([0, zW]) circle(r = R + 25);
+        translate([0, zP]) circle(r = 30);
+      }
+      translate([0, zW]) circle(r = island);
+      translate([0, zP]) circle(r = 15);
+      translate([-9, 0]) rect([18, PH]);
+    }
+  }
+  if (outer) {
+    label("TEMPO", [0, zP + 42], 11);
+    // One mark for every beat: the hand moves half a tooth each time
+    for (k = [0:2 * N - 1]) score() hull() {
+      translate([0, zW] + polar(island - 3, 90 - k * 180 / N)) circle(d = 0.4);
+      translate([0, zW] + polar(island - (k % 5 == 0 ? 9 : 6), 90 - k * 180 / N)) circle(d = 0.4);
+    }
+  }
+}
+
+module base(top = false) {
+  difference() {
+    translate([-PW / 2 - 10, -base_front]) rect([PW + 20, base_front + base_back], r = 8);
+    for (x = tabs) for (d = [0, front_d]) translate([x - 12.1, -d - 2 * t - 0.1]) rect([24.2, 2 * t + 0.2]);
+  }
+  if (top) {
+    label("GRAHAM DEADBEAT ESCAPEMENT", [0, -base_front + 9], 5);
+    label(str("WIND THE KNOB BEHIND, THEN SWING THE BOB ", round(swing - 2), " DEGREES"), [0, base_back - 9], 3.5);
+  }
+}
+
+module hand() {
+  difference() {
+    union() {
+      circle(r = 7);
+      polygon([[-3, 0], [3, 0], [0.8, island - 6], [-0.8, island - 6]]);
+      polygon([[-4, 0], [4, 0], [0, -14]]);
+    }
+    circle(d = 4.1);
+  }
+}
+
+// The crutch is glued on the front of the anchor arbor. The rod hangs on
+// bolt A and is held by bolt B in the curved slot: loosen B and swing the
+// rod a little to put the clock in beat.
+module crutch() {
+  difference() {
+    hull() {
+      circle(r = 11);
+      translate([0, -58]) circle(r = 9);
+    }
+    circle(d = 4.1);
+    translate([0, -40]) circle(d = 3.4);
+    for (a = [-10:2:10]) hull() {
+      translate([0, -40] + polar(16, -90 + a)) circle(d = 3.4);
+      translate([0, -40] + polar(16, -90 + a + 2)) circle(d = 3.4);
+    }
+  }
+}
+
+module rod() {
+  difference() {
+    translate([-7, -(L + 37)]) rect([14, L + 5], r = 3);
+    translate([0, -40]) circle(d = 3.4);
+    translate([0, -56]) circle(d = 3.4);
+    hull() {
+      translate([0, -(L - 27)]) circle(d = 4.4);
+      translate([0, -(L + 27)]) circle(d = 4.4);
+    }
+  }
+  // The top of the bob reads against these: higher is faster
+  for (k = [-3:3]) score() hull() {
+    translate([-6, -(L - bob_d / 2) + 5 * k]) circle(d = 0.4);
+    translate([k == 0 ? 3 : -2, -(L - bob_d / 2) + 5 * k]) circle(d = 0.4);
+  }
+  label("F", [3.5, -(L - bob_d / 2) + 12], 3.5);
+  label("S", [3.5, -(L - bob_d / 2) - 12], 3.5);
+}
+
+module bob_disc() {
+  difference() {
+    circle(d = bob_d);
+    for (y = [-12, 12]) translate([0, y]) circle(d = 4.4);
+  }
+}
+
+// Ratchet: the drum turns free on the arbor when you wind, and drives the
+// click disc, glued to the arbor, when the weight pulls. Two flexible
+// fingers in the click ring drop into the ratchet teeth.
+rt = 12;
+module ratchet() {
+  difference() {
+    polygon([for (k = [0:rt - 1]) each [polar(12.8, k * 30 + 2), polar(15, k * 30), polar(15, k * 30 + 3), polar(12.8, k * 30 + 26)]]);
+    circle(d = 4.4);
+  }
+}
+
+module click_ring() {
+  difference() {
+    union() {
+      ring(64, 47);
+      for (a = [0, 180]) {
+        // Root block, finger and hook
+        polygon(concat([for (j = [0:4]) polar(23.6, a - 14 + j * 3.5)], [for (j = [4:-1:0]) polar(17, a - 14 + j * 3.5)]));
+        polygon(concat([for (j = [0:30]) polar(20, a + j * 5)], [for (j = [30:-1:0]) polar(17, a + j * 5)]));
+        // The hook's end face lies on the line of a ratchet tooth's front
+        polygon([polar(17.5, a + 150 - 2 * 2.5 / 2.2), polar(13.1, a + 150 + 2 * 1.9 / 2.2), polar(13.1, a + 147), polar(17.5, a + 132)]);
+      }
+    }
+  }
+}
+
+// The assembled view. The pendulum and anchor turn alpha anticlockwise (seen
+// from the front); the wheel turns theta clockwise from where it is drawn.
+// With the exit pallet locked the wheel stands at theta_x; each impulse turns
+// it on by the pallet width w while the anchor turns through the lift, then
+// it drops onto the other pallet, half a tooth on.
+alpha = amplitude * sin(swing_phase);
+theta_x = (hs - w / 2) % pitch_a;
+// Wheel turn after a pallet unlocks, u = 0 to 1 through the lift, kept a
+// hair behind the impulse face
+function impulse(u) = max(0, w * u - 0.05);
+cycle = floor((swing_phase + 90) / 360);
+psi = swing_phase - 360 * cycle;
+theta = theta_x + pitch_a * cycle + (psi <= 90
+  ? (alpha < -c ? 0 : alpha < lift - c ? impulse((alpha + c) / lift) : pitch_a / 2)
+  : (alpha > c ? pitch_a / 2 : alpha > c - lift ? pitch_a / 2 + impulse((c - alpha) / lift) : pitch_a));
+// A part in the plane of the plates, its origin at p (x, height above the
+// base top) and its back face at depth d; world y points to the back
+function at_front(p, d) = [p[0], -d, p[1] + 2 * t];
+// Turned a degrees anticlockwise as seen from the front
+function turned(a) = [90, -a, 0];
+// A point of the pendulum, drawn with the anchor arbor at the origin
+function swung(v) = [0, zP] + [v[0] * cos(alpha) - v[1] * sin(alpha), v[0] * sin(alpha) + v[1] * cos(alpha)];
+click_d = -(1 + sleeve + t);
+bob_at = swung([0, -L]);
+// The weight pot hangs from the right of the drum, lower as the wheel turns
+pot_top = zW + 2 * t - 40 - core_r * rad(theta);
+
+if (output == "all" || output == "frame") {
+  part("Front plate", at = at_front([0, 0], fp - t), rotate = turned(0)) plate(true, true);
+  part("Front plate inner", at = at_front([0, 0], front_d), rotate = turned(0)) plate(true, false);
+  part("Back plate", qty = 2, at = [at_front([0, 0], 0), at_front([0, 0], t)], rotate = turned(0)) plate(false, false);
+  part("Base", at = [0, 0, t]) base(true);
+  part("Base lower", at = [0, 0, 0]) base(false);
+  part("Pillar ring", qty = 16, at = [for (p = pillars, k = [0:3]) at_front(p, (2 + k) * t)], rotate = turned(0)) ring(14, 4.4);
+}
+if (output == "all" || output == "escapement") {
+  part("Escape wheel", qty = 2, at = [for (k = [0:1]) at_front([0, zW], (3 + k) * t + 0.5)], rotate = turned(-theta)) escape_wheel();
+  part("Anchor", qty = 2, at = [for (k = [0:1]) at_front([0, zP], (3 + k) * t + 0.5)], rotate = turned(alpha)) anchor();
+  // The hand can go on the arbor at any angle; shown where the rod hides it least
+  part("Hand", at = at_front([0, zW], hand_d), rotate = turned(-theta - 120)) hand();
+  // Each side of the wheel and the anchor, and two under the crutch
+  part("Arbor spacer", qty = 6, rotate = turned(0), at = [at_front([0, zW], 2 * t), at_front([0, zW], front_d - t),
+    at_front([0, zP], 2 * t), at_front([0, zP], front_d - t), at_front([0, zP], fp), at_front([0, zP], fp + t)]) ring(12, 4.4);
+}
+if (output == "all" || output == "pendulum") {
+  part("Crutch", qty = 2, at = [for (k = [0:1]) at_front([0, zP], crutch_d + k * t)], rotate = turned(alpha)) crutch();
+  part("Pendulum rod", qty = 2, at = [for (k = [0:1]) at_front([0, zP], rod_d + k * t)], rotate = turned(alpha)) rod();
+  part("Bob face", at = at_front(bob_at, rod_d + 4 * t), rotate = turned(alpha)) {
+    bob_disc();
+    label(str("L ", L, " MM"), [0, 26], 5);
+    label(str("T ", fix2(period), " S"), [0, -26], 5);
+  }
+  // Three behind the rod, two in front of it under the face
+  part("Bob disc", qty = 5, at = [for (d = [0, 1, 2, 5, 6]) at_front(bob_at, bob_back + d * t)], rotate = turned(alpha)) bob_disc();
+  // Either side of the rod, in its two layers
+  part("Bob cheek", qty = 4, at = [for (k = [0:3]) at_front(bob_at, rod_d + floor(k / 2) * t)],
+    rotate = [for (k = [0:3]) turned(alpha + 180 * (k % 2))]) intersection() {
+    circle(d = bob_d);
+    translate([7.3, -bob_d / 2]) rect([bob_d, bob_d]);
+  }
+}
+if (output == "all" || output == "drive") {
+  part("Click disc", at = at_front([0, zW], click_d), rotate = turned(-theta)) ring(64, 4.1);
+  part("Click ring", at = at_front([0, zW], click_d - t), rotate = turned(-theta)) click_ring();
+  part("Ratchet wheel", at = at_front([0, zW], click_d - t), rotate = turned(-theta)) ratchet();
+  part("Drum core", qty = 3, at = [for (k = [1:3]) at_front([0, zW], click_d - (k + 1) * t)], rotate = turned(-theta)) ring(2 * core_r, 4.4);
+  // Tie the string through the small hole
+  part("Drum flange", at = at_front([0, zW], click_d - 5 * t), rotate = turned(-theta)) difference() {
+    ring(44, 4.4);
+    translate([0, core_r + 3]) circle(d = 1.6);
+  }
+  part("Winding knob", qty = 2, at = [for (k = [6:7]) at_front([0, zW], click_d - k * t)], rotate = turned(-theta)) difference() {
+    union() {
+      circle(r = 14);
+      for (k = [0:11]) translate(polar(14, k * 30)) circle(r = 3);
+    }
+    circle(d = 4.4);
+  }
+  part("End collar", at = at_front([0, zW], click_d - 8 * t), rotate = turned(-theta)) ring(16, 4.1);
+  part("Weight base", at = [core_r, -core_d, pot_top - 17 * t]) circle(d = 70);
+  part("Weight ring", qty = 15, at = [for (k = [0:14]) [core_r, -core_d, pot_top - (16 - k) * t]]) ring(70, 54);
+  part("Weight bail", at = [core_r, -core_d, pot_top - t]) difference() {
+    union() {
+      ring(70, 54);
+      translate([-32, -5]) rect([64, 10]);
+    }
+    circle(d = 3);
+  }
+}
+if (output == "all" || output == "coupon") part("Fit test", at = [PW / 2 + 40, -base_front, 0]) {
+  difference() {
+    rect([130, 52], r = 3);
+    for (i = [0:3]) translate([16 + 26 * i, 16]) circle(d = 6 + 0.1 * i);
+    for (i = [0:2]) translate([16 + 26 * i, 38]) circle(d = 4 + 0.1 * i);
+    translate([92, 38]) circle(d = 4.4);
+    translate([106, 38]) circle(d = 3.4);
+    translate([118, 30]) rect([2 * t + 0.2, 16], center = true);
+  }
+  for (i = [0:3]) score() translate([16 + 26 * i, 4]) text(str(6 + 0.1 * i), size = 3, halign = "center");
+  for (i = [0:2]) score() translate([16 + 26 * i, 26]) text(str(4 + 0.1 * i), size = 3, halign = "center");
+}
+
+echo(str("Tempo: pendulum ", L, " mm, period ", fix2(period), " s (2 pi root L/g), a tick every ", fix2(period / 2), " s; ", N, " teeth on a ", round(2 * R), " mm wheel, once round in ", round(N * period), " s; anchor spans ", span, " teeth, lift ", lift, ", lock ", lock, ", drop ", drop, " degrees; about ", round(run), " s per wind"));
+
+// Assembly, depths forward from the back of the back plate: glue the
+// laminates (each plate, the base, wheel, anchor, crutch and rod of 2; the
+// bob of 3 discs, the 4 cheeks in two layers, 2 discs and the face; the knob
+// of 2; the weight pot of base, 15 rings and bail). Glue 6 mm brass tube
+// bushes into the arbor holes and stand both plates in the base on four M4 x
+// 35 pillar bolts, 4 rings and a 1 mm washer on each. Epoxy the wheel and the
+// anchor to 4 mm steel rod arbors between the plates, a spacer each side. In
+// front go the hand on a washer and, on the anchor arbor, two spacers, two
+// washers and the crutch. Behind: a washer, a 28 mm brass tube sleeve, the
+// click disc and ring (epoxied to the arbor), then ratchet, three cores,
+// flange and knob glued together and free to turn, and the end collar. Bolt
+// the rod to the crutch with two M3 bolts, clamp the bob on with two M4 bolts
+// and wing nuts, and hang the pot, with 200 to 500 g of sand or nuts in it,
+// on string tied to the flange and wound on the cores.

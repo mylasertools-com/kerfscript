@@ -1,0 +1,370 @@
+// Tally: a hand-cranked counter with an odometer carry. Each turn of the
+// crank moves the units drum on one digit; as any drum rolls from 9 to 0,
+// two teeth on its side turn a pinion a quarter turn, and the pinion moves
+// the next drum on one digit. In between, the pinions are locked, so the
+// count in the lid's window can't slip.
+
+/* [Counter] */
+// Number of digit drums
+wheels = 4; // [3:1:5]
+
+/* [Fit] */
+// Total play between two meshing gears, at the pitch circle
+backlash = 0.4; // [0.3:0.05:0.6]
+// Gap between a lock disc and the pinion that rides on it
+lock_clearance = 0.3; // [0.2:0.05:0.4]
+// Added to the 6 mm and 4 mm holes that turn on the shafts
+bearing_clearance = 0.3; // [0.2:0.05:0.4]
+
+/* [Assembly] */
+// Count shown in the window of the assembled view
+count = 2026; // [0:1:99999]
+// Crank angle from straight up; the count moves on between 324 and 360
+crank_angle = 100; // [0:5:355]
+
+/* [Export] */
+// All parts, or one group at a time
+output = "all"; // [all:All parts, drums:Digit drums, carry:Carry pinions, crank:Crank, box:Box and lid, coupon:Fit test]
+
+/* [Material] */
+// Sheet thickness
+$thickness = 3; // [2.8:0.1:3.2]
+// Beam width
+$kerf = 0.15; // [0:0.01:0.25]
+
+/* [Hidden] */
+$material = "plywood";
+$sheet = [600, 400];
+$gap = 5;
+$fn = 144;
+t = $thickness;
+n = wheels;
+// Gears: module 3, a 20 tooth ring on every drum, 8 tooth pinions, so the
+// pinion shaft is (20 + 8) / 2 x 3 = 42 mm from the drum shaft
+m = 3;
+a = 14 * m;
+// A drum turns from 9 to 0 while its angle goes from -9 to 27 degrees; that
+// is the window where its two teeth turn the pinion. Digit d shows at 27 + 36d.
+tc = -9;
+// Lock discs, and the pinion's lock star with lobes on four of its teeth
+lock_radius = 28;
+star_radius = 19.5;
+// Digit drums: decagons with a tile glued on each face
+drum_face = 30;
+tile_width = 2 * drum_face * tan(18) - 0.3;
+drum_layers = 5;
+// The drum shaft runs 38 mm above the base, the pinion shaft 42 mm behind it
+shaft_z = 38;
+box_w = t * (1 + 8 * n) + 0.5;
+box_front = 36;
+box_back = a + 22;
+box_d = box_front + box_back;
+box_h = 75;
+crank_radius = 30;
+assert(n >= 3 && n <= 5 && floor(n) == n, "Wheels: 3, 4 or 5");
+assert(backlash >= 0.3 && backlash <= 0.6, "Backlash: 0.3 to 0.6 mm");
+assert(lock_clearance >= 0.2 && lock_clearance <= 0.4, "Lock clearance: 0.2 to 0.4 mm");
+assert(bearing_clearance >= 0.2 && bearing_clearance <= 0.4, "Bearing clearance: 0.2 to 0.4 mm");
+assert(t >= 2.8 && t <= 3.2, "Thickness: 2.8 to 3.2 mm");
+assert($kerf >= 0 && $kerf <= 0.25, "Kerf: 0 to 0.25 mm");
+assert(count >= 0 && count <= 99999 && floor(count) == count, "Count: whole numbers 0 to 99999");
+assert(crank_angle >= 0 && crank_angle < 360, "Crank angle: 0 to 360");
+assert(contains(["all", "drums", "carry", "crank", "box", "coupon"], output), "Unknown output");
+
+function polar(r, ang) = [r * cos(ang), r * sin(ang)];
+module label(s, p, size = 4) {
+  score() translate(p) text(s, size = size, halign = "center", valign = "center");
+}
+module ring(od, id) {
+  difference() {
+    circle(d = od);
+    circle(d = id);
+  }
+}
+
+// Involute teeth with a 20 degree pressure angle, as in Celestial. Teeth not
+// in the list are left out down to the root circle; tip can be raised for
+// the cutting copy of a pinion.
+function gear_inv(ang) = tan(ang) * 180 / PI - ang;
+function gear_half(z, r, bl) =
+  let(rp = m * z / 2, rb = rp * cos(20), ar = acos(min(1, rb / r)))
+  90 / z + gear_inv(20) - gear_inv(ar) - bl / (4 * rp) * 180 / PI;
+function gear_outline(z, bl, teeth, tip, steps = 12) =
+  let(rp = m * z / 2, rb = rp * cos(20), lo = rp - 1.25 * m, hi = is_undef(tip) ? rp + m : tip,
+    start = max(lo, rb), hs = gear_half(z, start, bl), ht = gear_half(z, hi, bl))
+  [for (k = [0:z - 1]) let(c = 360 * k / z) each ((is_undef(teeth) || contains(teeth, k)) ? concat(
+    [polar(lo, c - hs)],
+    [for (j = [(start > lo ? 0 : 1):steps]) let(r = start + (hi - start) * j / steps) polar(r, c - gear_half(z, r, bl))],
+    [for (j = [1:5]) polar(hi, c - ht + 2 * ht * j / 6)],
+    [for (j = [steps:-1:(start > lo ? 0 : 1)]) let(r = start + (hi - start) * j / steps) polar(r, c + gear_half(z, r, bl))],
+    [if (start > lo) polar(lo, c + hs)],
+    [for (j = [1:5]) polar(lo, c + hs + (360 / z - 2 * hs) * j / 6)]
+  ) : [for (j = [0:11]) polar(lo, c - 180 / z + 30 * j / z)])];
+
+// The pinion as cut, and a fatter copy (teeth 0.15 mm fuller each side,
+// tips 0.3 mm longer) that trims the two carry teeth, for clearance
+pinion_pts = gear_outline(8, backlash);
+pinion_cutter = gear_outline(8, -0.3, undef, 4 * m + m + 0.3);
+two_teeth = gear_outline(20, backlash, [0, 19]);
+ring_pts = gear_outline(20, backlash);
+
+// The lock star: a disc of star_radius with four concave arcs of the lock
+// disc's radius (plus clearance) cut from it, centred a away at 45, 135, 225
+// and 315 degrees. What is left are four lobes on the teeth at 0, 90, 180
+// and 270. grow makes the slightly larger copy that cuts the lock disc.
+function star_pts(grow) =
+  let(r1 = star_radius + grow, rho = lock_radius + lock_clearance - grow,
+    g = acos((r1 * r1 + a * a - rho * rho) / (2 * r1 * a)))
+  [for (k = [0:3]) let(c = 45 + 90 * k, C = polar(a, c),
+    pa = polar(r1, c - g), pb = polar(r1, c + g),
+    sa = atan2(pa[1] - C[1], pa[0] - C[0]), sb = atan2(pb[1] - C[1], pb[0] - C[0]),
+    ua = sa - 360 * round((sa - c - 180) / 360), ub = sb - 360 * round((sb - c - 180) / 360))
+    each concat(
+      [for (j = [0:8]) polar(r1, c - 90 + g + (90 - 2 * g) * j / 8)],
+      [for (j = [0:16]) C + polar(rho, ua + (ub - ua) * j / 16)])];
+star_shape = star_pts(0);
+star_cutter = star_pts(lock_clearance);
+
+// Pinion angle while a drum turns from theta = tc to tc + 36: 2.5 times as
+// fast as the drum (20 teeth to 8), the other way, a quarter turn in all.
+// Before and after, it stands still with a tooth pointing at the drum shaft.
+function pinion_at(th) = 225 - 2.5 * clamp(th - tc, 0, 36);
+// Drum angles where the pinion is still close enough to matter
+before = [for (th = [tc - 20:0.5:tc]) th];
+after = [for (th = [tc + 36:0.5:tc + 56]) th];
+during = [for (th = [tc:0.5:tc + 36]) th];
+
+// The bore every layer of a drum turns on, and two 2 mm pins that keep its
+// glued layers in line
+module register() {
+  circle(d = 6 + bearing_clearance);
+  translate([6.5, 0]) circle(d = 2.1, $fn = 32);
+  translate([0, 6.5]) circle(d = 2.1, $fn = 32);
+}
+module mark() {
+  score() line([9, 0], [14, 0]);
+}
+
+module digit_ring() {
+  difference() {
+    polygon(ring_pts);
+    register();
+  }
+  mark();
+}
+
+// Two teeth of the 20 tooth gear. The pinion only moves in the window, so
+// whatever its standing teeth would touch before and after is trimmed off.
+module carry_gear() {
+  difference() {
+    // Opening by 0.1 mm drops the slivers the trimming leaves
+    offset(r = 0.1) offset(delta = -0.1) difference() {
+      polygon(two_teeth);
+      for (th = concat(before, after)) rotate(-th) translate([a, 0]) rotate(pinion_at(th)) polygon(pinion_cutter);
+    }
+    register();
+  }
+  mark();
+}
+
+// The pinion's lobes ride on this disc. The notch is cut by the lobe that
+// swings through it in the window; nowhere else can the pinion turn.
+module lock_disc() {
+  difference() {
+    circle(r = lock_radius);
+    for (th = during) rotate(-th) translate([a, 0]) rotate(pinion_at(th)) polygon(star_cutter);
+    register();
+  }
+  mark();
+}
+
+// Faces centred at 27 + 36k degrees; digit d's tile goes on the face at
+// 63 - 36d, so it faces up into the lid's window when the drum is at 27 + 36d
+module drum_disc() {
+  difference() {
+    polygon([for (k = [0:9]) polar(drum_face / cos(18), 9 + 36 * k)]);
+    register();
+  }
+  mark();
+}
+
+module tile(d) {
+  rect([drum_layers * t, tile_width]);
+  engrave() translate([drum_layers * t / 2, tile_width / 2]) text(str(d), size = 13, halign = "center", valign = "center");
+}
+
+module pinion_gear() {
+  difference() {
+    polygon(pinion_pts);
+    circle(d = 4 + bearing_clearance);
+    translate([6, 0]) circle(d = 2.1, $fn = 32);
+  }
+}
+
+module pinion_lock() {
+  difference() {
+    polygon(star_shape);
+    circle(d = 4 + bearing_clearance);
+    translate([6, 0]) circle(d = 2.1, $fn = 32);
+  }
+  score() line([9, 0], [star_radius - 3, 0]);
+}
+
+// The crank: hub discs turn in the right wall's bore; the outer crank layer
+// traps the handle bolt's nut. The handle is at 63 degrees, so it points up
+// once a count is done.
+module crank_hub() {
+  difference() {
+    circle(d = 18);
+    register();
+  }
+}
+module crank(trap) {
+  difference() {
+    hull() {
+      circle(r = 13);
+      translate(polar(crank_radius, 63)) circle(r = 8.5);
+    }
+    register();
+    translate(polar(crank_radius, 63)) if (trap) circle(r = 4.2, $fn = 6); else circle(d = 4.4);
+  }
+  if (!trap) label("TALLY", polar(18, 63) + [-7, 3], 3.5);
+}
+
+// Box panels, with the drum shaft at x = 0 of the inside, y = 0 of the depth
+module side_wall(right) {
+  difference() {
+    finger_rect([box_d + 2 * t, box_h], ["flat", "out", "flat", "out"]);
+    translate([t + box_front, shaft_z]) circle(d = right ? 18.5 : 6 + bearing_clearance);
+    translate([t + box_front + a, shaft_z]) circle(d = 4);
+  }
+  // Which way to turn, round the bearing pad
+  if (right) score() translate([t + box_front, shaft_z]) {
+    arc(r = 25, start = 200, end = 340);
+    line(polar(25, 340), polar(25, 340) + polar(4, 220));
+    line(polar(25, 340), polar(25, 340) + polar(4, 280));
+  }
+}
+
+module front_panel() {
+  finger_rect([box_w + 2 * t, box_h], ["flat", "in", "flat", "in"]);
+  label("TALLY", [t + box_w / 2, 42], 16);
+  label("ONE TURN, ONE COUNT", [t + box_w / 2, 24], 4.5);
+}
+
+module back_panel() {
+  finger_rect([box_w + 2 * t, box_h], ["flat", "in", "flat", "in"]);
+}
+
+// Drawn as it sits on the box: a window over the top tile of each drum
+module lid() {
+  difference() {
+    rect([box_w + 2 * t, box_d + 2 * t], r = 1);
+    for (i = [0:n - 1]) translate([2 * t + 8 * t * i + 1, t + box_front - 8]) rect([drum_layers * t - 2, 16], r = 1);
+  }
+  score() translate([2 * t - 2, t + box_front - 10]) rect([8 * t * (n - 1) + drum_layers * t + 4, 20], r = 2);
+  label("TALLY", [t + box_w / 2, t + box_front + 30], 12);
+  label(str(n, " DIGIT COUNTER"), [t + box_w / 2, t + box_front + 19], 4);
+}
+
+module coupon() {
+  difference() {
+    rect([118, 50], r = 3);
+    for (i = [0:2]) translate([12 + 14 * i, 14]) circle(d = 6.2 + 0.1 * i);
+    for (i = [0:2]) translate([12 + 14 * i, 36]) circle(d = 4.2 + 0.1 * i);
+    translate([54, 36]) circle(d = 4);
+    for (i = [0:2]) translate([66 + 8 * i, 36]) circle(d = 2 + 0.1 * i, $fn = 32);
+    translate([98, 25]) circle(d = 18.5);
+  }
+  label("6.2  6.3  6.4", [26, 4], 3);
+  label("4.2  4.3  4.4  4.0", [33, 46], 3);
+  label("2.0 2.1 2.2", [74, 46], 3);
+  label("HUB 18.5", [98, 7], 3);
+}
+
+// The assembled view: x along the drum shaft from the inside of the left
+// wall, y = 0 under the drum shaft, z = 0 on the table. A part drawn round
+// a shaft and stood across x with on_shaft(angle) turns by that angle.
+shaft_at = t + shaft_z;
+shown = count % pow(10, n);
+// How far the units drum (and each drum above a run of 9s) has rolled on
+rolled = clamp((crank_angle - 324) / 36, 0, 1);
+function rolling(j) = shown % pow(10, j) == pow(10, j) - 1 ? rolled : 0;
+function digit(j) = floor(shown / pow(10, j)) % 10;
+// Drum j's angle; drum -1 is the crank
+function drum_angle(j) = j < 0 ? 27 + crank_angle : 27 + 36 * (digit(j) + rolling(j));
+// Pinion j turns a quarter for every step drum j + 1 has made
+function pinion_angle(j) = 225 - 90 * (floor(shown / pow(10, j + 1)) + rolling(j + 1));
+function on_shaft(ang) = [90, -ang, 90];
+// Where drum j's layers start along x: carry gear, lock disc, five drum
+// discs, digit ring. Its pinion's first gear is one layer before.
+function layer_x(j) = 7 * t + 8 * t * (n - 2 - j);
+function drum_at(j, x) = [x, 0, shaft_at];
+// A tile on the drum face at ang (as turned): it stands at 30 mm, its middle
+// on the face, its x along the shaft
+function tile_at(j, ang) = [layer_x(j) + 2 * t, drum_face * cos(ang) - tile_width / 2 * sin(ang), shaft_at + drum_face * sin(ang) + tile_width / 2 * cos(ang)];
+crank_x = layer_x(-1);
+lid_x = -box_w - 3 * t;
+
+if (output == "all" || output == "drums") {
+  part("Digit ring", qty = n, at = [for (j = [0:n - 1]) drum_at(j, layer_x(j) + 7 * t)],
+    rotate = [for (j = [0:n - 1]) on_shaft(drum_angle(j))]) digit_ring();
+  // Copy 1 is the crank's, then drums 0 to n - 2
+  part("Carry gear", qty = n, at = [for (j = [-1:n - 2]) drum_at(j, layer_x(j))],
+    rotate = [for (j = [-1:n - 2]) on_shaft(drum_angle(j))]) carry_gear();
+  part("Lock disc", qty = n, at = [for (j = [-1:n - 2]) drum_at(j, layer_x(j) + t)],
+    rotate = [for (j = [-1:n - 2]) on_shaft(drum_angle(j))]) lock_disc();
+  part("Drum disc", qty = drum_layers * n, at = [for (j = [0:n - 1], k = [0:drum_layers - 1]) drum_at(j, layer_x(j) + (2 + k) * t)],
+    rotate = [for (j = [0:n - 1], k = [0:drum_layers - 1]) on_shaft(drum_angle(j))]) drum_disc();
+  for (d = [0:9]) part(str("Tile ", d), qty = n, at = [for (j = [0:n - 1]) tile_at(j, drum_angle(j) + 63 - 36 * d)],
+    rotate = [for (j = [0:n - 1]) [drum_angle(j) + 63 - 36 * d - 90, 0, 0]]) tile(d);
+  part("Shaft spacer", at = drum_at(n - 1, 0), rotate = on_shaft(drum_angle(n - 1)))
+    difference() { circle(d = 16); circle(d = 6 + bearing_clearance); }
+}
+if (output == "all" || output == "carry") {
+  // Two gears each: one in the upper drum's ring, one in the lower drum's carry gear
+  part("Pinion gear", qty = 2 * n, at = [for (j = [-1:n - 2], k = [0:1]) [layer_x(j) - t + k * t, a, shaft_at]],
+    rotate = [for (j = [-1:n - 2], k = [0:1]) on_shaft(pinion_angle(j))]) pinion_gear();
+  part("Pinion lock", qty = n, at = [for (j = [-1:n - 2]) [layer_x(j) + t, a, shaft_at]],
+    rotate = [for (j = [-1:n - 2]) on_shaft(pinion_angle(j))]) pinion_lock();
+}
+if (output == "all" || output == "crank") {
+  crank_turn = on_shaft(drum_angle(-1));
+  handle = polar(crank_radius, 63 + drum_angle(-1));
+  part("Crank hub", qty = 3, at = [for (k = [2:4]) drum_at(-1, crank_x + k * t)], rotate = crank_turn) crank_hub();
+  part("Crank inner", at = drum_at(-1, crank_x + 5 * t), rotate = crank_turn) crank(true);
+  part("Crank outer", at = drum_at(-1, crank_x + 6 * t), rotate = crank_turn) crank(false);
+  // On a brass tube over the handle bolt, past a 0.8 mm washer
+  part("Handle ring", qty = 4, at = [for (k = [0:3]) [crank_x + 7 * t + 0.8 + k * t, handle[0], shaft_at + handle[1]]], rotate = crank_turn)
+    ring(16, 6.2);
+  part("Cap ring", qty = 2, at = [drum_at(-1, -2 * t), drum_at(-1, crank_x + 7 * t + 0.5)], rotate = crank_turn) ring(16, 6);
+  part("Cap", qty = 2, at = [drum_at(-1, -3 * t), drum_at(-1, crank_x + 8 * t + 0.5)], rotate = crank_turn) circle(d = 16);
+}
+if (output == "all" || output == "box") {
+  part("Base", at = [-t, -box_front - t, 0]) rect([box_w + 2 * t, box_d + 2 * t], r = 1);
+  part("Left wall", at = [-t, -box_front - t, t], rotate = [90, 0, 90]) side_wall(false);
+  part("Right wall", at = [box_w, -box_front - t, t], rotate = [90, 0, 90]) side_wall(true);
+  part("Bearing pad", at = [box_w + t, 0, shaft_at], rotate = [90, 0, 90]) ring(40, 18.5);
+  part("Front", at = [-t, -box_front, t], rotate = [90, 0, 0]) front_panel();
+  part("Back", at = [-t, box_back + t, t], rotate = [90, 0, 0]) back_panel();
+  // The lid is off, lying on the table against the left wall, pulled
+  // forward 50 mm so its name shows
+  part("Lid", at = [lid_x, -box_front - t - 50, t]) lid();
+  part("Lid locator", qty = 2, at = [[lid_x + t + 10, -box_front - 50, 0], [lid_x + t + 10, box_back - 58, 0]]) rect([box_w - 20, 8]);
+}
+if (output == "all" || output == "coupon") part("Fit test", at = [0, -box_front - t - 70, 0]) coupon();
+
+echo(str("Tally: ", n, " drums, counts to ", pow(10, n) - 1, "; pinion shaft ", a, " mm behind the drum shaft; box ", box_w + 2 * t, " x ", box_d + 2 * t, " x ", box_h + 2 * t, " mm; drum shaft ", 8 * n * t + 9 * t + 0.5, " mm long, pinion shaft ", box_w + 2 * t, " mm"));
+
+// Assembly, x along the drum shaft from the inside of the left wall: glue
+// the finger-jointed walls on the base, the bearing pad round the right
+// wall's bore, the locators under the lid. Each drum, left to right, is a
+// carry gear and lock disc (not on the leftmost), five drum discs and a digit
+// ring on two 2 mm steel pins, tiles 0 to 9 round its faces; the crank is a
+// carry gear, lock disc, three hubs and the two crank layers. Thread the 6 mm
+// steel rod through the shaft spacer, the drums and the crank, a plywood cap
+// glued on each end. Each carry pinion is two gears and a lock on a 2 mm pin,
+// on the 4 mm steel rod (glued in the walls) between 6 mm brass tubes 6t and
+// 5t long. Set the drums to 0000 and every pinion with a tooth at the drum
+// shaft. The handle rings turn on a 6 mm brass tube over an M4 bolt, washers
+// each end, the nut trapped in the inner crank.

@@ -1,0 +1,288 @@
+// Crawl: an eight-legged walker on Klann linkages. Each leg is a six-bar
+// linkage: the crank drives a connecting arm held by a lower rocker, and the
+// arm swings the leg, held at the top by an upper rocker. Turn the handle and
+// each foot sweeps flat along the floor for half a turn, then lifts high and
+// reaches forward; four feet are always down, so it stands on its own.
+
+/* [Legs] */
+// Size: every length of the Klann linkage is this many mm per patent unit
+unit = 80; // [76:1:84]
+// Width of the links in mm
+link_width = 10; // [9:0.5:10]
+
+/* [Fit] */
+// Added to the 6 mm holes the brass sleeves turn in
+pivot_clearance = 0.3; // [0.2:0.05:0.4]
+// Added to the square holes for the 6 mm square bar
+shaft_fit = 0.15; // [0.05:0.05:0.3]
+// Added to the 18 mm bores the journals turn in
+journal_clearance = 0.3; // [0.2:0.05:0.5]
+
+/* [Assembly] */
+// Crank angle in the assembled view: 0 to 180 the outer feet are down, 180 to 360 the inner ones
+crank_angle = 90; // [0:15:360]
+
+/* [Export] */
+// All parts, or one group at a time
+output = "all"; // [all:All parts, frame:Plates, crank:Crank discs journals and handle, legs:Legs and rockers, spacers:Spacer rings, coupon:Fit test]
+
+/* [Material] */
+// Sheet thickness
+$thickness = 3; // [2.8:0.1:3.2]
+// Beam width
+$kerf = 0.15; // [0:0.01:0.25]
+
+/* [Hidden] */
+$material = "plywood";
+$sheet = [600, 400];
+$gap = 5;
+$fn = 72;
+t = $thickness;
+u = unit;
+w = link_width / 2;
+boss = 7;
+hole = 6 + pivot_clearance;
+assert(u >= 76 && u <= 84, "Size: 76 to 84 mm per unit");
+assert(link_width >= 9 && link_width <= 10, "Link width: 9 to 10 mm");
+assert(pivot_clearance >= 0.2 && pivot_clearance <= 0.4, "Pivot clearance: 0.2 to 0.4 mm");
+assert(shaft_fit >= 0.05 && shaft_fit <= 0.3, "Shaft fit: 0.05 to 0.3 mm");
+assert(journal_clearance >= 0.2 && journal_clearance <= 0.5, "Journal clearance: 0.2 to 0.5 mm");
+assert(crank_angle >= 0 && crank_angle <= 360, "Crank angle: 0 to 360 degrees");
+assert(t >= 2.8 && t <= 3.2, "Thickness: 2.8 to 3.2 mm");
+assert($kerf >= 0 && $kerf <= 0.25, "Kerf: 0 to 0.25 mm");
+assert(contains(["all", "frame", "crank", "legs", "spacers", "coupon"], output), "Unknown output");
+
+// Klann's leg in the patent's units, in its fully extended pose: crank
+// axle O, the two rocker axles, then the crank pin P, elbow E, knee K, hip H
+// and foot F
+pO = [1.599, 0.75];
+pA = [1.366, 1.366];
+pB = [1.009, 0.574];
+pP = [1.331, 0.75];
+pE = [0.741, 0.75];
+pK = [0.232, 0.866];
+pH = [0.866, 1.5];
+pF = [0, 0];
+// In mm about the crank axle, turned to face forward (+x)
+function mm(p) = [pO[0] - p[0], p[1] - pO[1]] * u;
+A = mm(pA);
+B = mm(pB);
+crank = norm(mm(pP));
+
+function polar(rad, a) = [rad * cos(a), rad * sin(a)];
+function meet(p, rad, q, rad2, sgn) = let(v = q - p, d = norm(v), a = (rad * rad - rad2 * rad2 + d * d) / (2 * d), h = sqrt(max(0, rad * rad - a * a)))
+  p + v * a / d + [-v[1], v[0]] * h / d * sgn;
+// Where c sits seen from a, with b straight along +x
+function canon(a, b, c) = let(v = b - a, g = atan2(v[1], v[0]), q = c - a)
+  [q[0] * cos(g) + q[1] * sin(g), q[1] * cos(g) - q[0] * sin(g)];
+// The joints with the crank pin at angle a: E, K, H, F
+function leg(a) = let(
+  P = polar(crank, a),
+  E = meet(P, norm(mm(pE) - mm(pP)), B, norm(mm(pE) - B), 1),
+  K = meet(P, norm(mm(pK) - mm(pP)), E, norm(mm(pK) - mm(pE)), 1),
+  H = meet(K, norm(mm(pH) - mm(pK)), A, norm(mm(pH) - A), -1),
+  F = meet(K, norm(mm(pF) - mm(pK)), H, norm(mm(pF) - mm(pH)), 1))
+  [E, K, H, F];
+// P, E, K, H, F, A, B of a front leg, or of a rear leg (its mirror image on
+// the same crank pin)
+function joints(a, rear = false) = let(j = concat([polar(crank, rear ? 180 - a : a)], leg(rear ? 180 - a : a), [A, B]))
+  rear ? [for (p = j) [-p[0], p[1]]] : j;
+iP = 0; iE = 1; iK = 2; iH = 3; iF = 4; iA = 5; iB = 6;
+path = [for (a = [0:3:357]) leg(a)[3]];
+stance = [for (i = [0:60]) path[i]];
+low = min([for (p = path) p[1]]);
+stride = max([for (p = stance) p[0]]) - min([for (p = stance) p[0]]);
+lift = max([for (p = path) p[1]]) - max([for (p = stance) p[1]]);
+
+module bar(a, b) {
+  hull() {
+    translate(a) circle(r = w);
+    translate(b) circle(r = w);
+  }
+}
+
+// A link through its joints, with a hole at each joint in holes
+module link(pts, holes, name) {
+  difference() {
+    union() {
+      for (i = [0:len(pts) - 2]) bar(pts[i], pts[i + 1]);
+      for (p = pts) translate(p) circle(r = boss);
+    }
+    for (p = holes) translate(p) circle(d = hole);
+  }
+  // Along the first bar, never upside down
+  score() let(a = pts[0], b = pts[1], g = atan2(b[1] - a[1], b[0] - a[0]))
+    translate((a + b) / 2) rotate(abs(g) > 90 ? g + 180 : g) text(name, size = 3.2, halign = "center", valign = "center");
+}
+
+// Each drawn with its first joint at the origin and its second along +x
+cP = [0, 0];
+cE = [norm(mm(pE) - mm(pP)), 0];
+cK = canon(mm(pP), mm(pE), mm(pK));
+gK = [0, 0];
+gH = [norm(mm(pH) - mm(pK)), 0];
+gF = canon(mm(pK), mm(pH), mm(pF));
+
+module square_bore() {
+  rect([6 + shaft_fit, 6 + shaft_fit], center = true);
+}
+
+module plate(r) {
+  difference() {
+    hull() {
+      for (s = [-1, 1]) {
+        translate([s * A[0], A[1]]) circle(r = r);
+        translate([s * B[0], B[1]]) circle(r = r);
+      }
+      circle(r = 16);
+    }
+    for (s = [-1, 1]) {
+      translate([s * A[0], A[1]]) circle(d = 4.4);
+      translate([s * B[0], B[1]]) circle(d = 4.4);
+    }
+    circle(d = 18 + journal_clearance);
+  }
+}
+
+module ring(od, inner) {
+  difference() {
+    circle(d = od);
+    circle(d = inner);
+  }
+}
+
+module hub(od) {
+  difference() {
+    circle(d = od);
+    square_bore();
+  }
+}
+
+// Assembled view: x forward, z up, y across, seen from the right (-y) as
+// the parts are drawn. Four groups of a front and a rear leg, each on one
+// crank pin: outside and inside each side plate. Across (y) a group is its
+// crank disc, a 5 mm gap, then four layers with 4 mm gaps for the nuts:
+// front rockers; front leg and rear arm; rear leg and front arm; rear
+// rockers; and 5 mm to the next part. lay is each layer's offset from the disc.
+lay = [5, 9 + t, 13 + 2 * t, 17 + 3 * t];
+depth = 22 + 4 * t;
+d_in = 10 + depth;
+d_out = d_in + 9 * t;
+top = d_out + depth + 5 * t;
+// Handle radius: its bolt head turns just inside the tie rod nuts
+handle = 36;
+// Disc face, which way the group runs from it, and the crank phase: the
+// inner groups are half a turn behind the outer ones
+groups = [[d_out, 1, 0], [d_in, -1, 180], [-d_out, -1, 0], [-d_in, 1, 180]];
+function gj(g, rear) = joints(crank_angle + groups[g][2], rear);
+// Height of the crank axle: the lowest foot pads stand on the floor
+ride = boss - min([for (g = [0:3], r = [false, true]) gj(g, r)[iF][1]]);
+// Low side of the layer s mm from group g's disc
+function lo(g, s) = groups[g][1] > 0 ? groups[g][0] + s : groups[g][0] - s - t;
+// A part lying in the side view, its point [0, 0] at p, turned a degrees,
+// its sheet from y to y + t; flipped over, it is its own mirror image
+function side_at(p, y, flipped = false) = [p[0], flipped ? y : y + t, ride + p[1]];
+function side_rot(a, flipped = false) = [flipped ? -90 : 90, -a, 0];
+// Eight links, two per group: [at, rotate] drawn from joint i1 towards i2,
+// on layer lf for the front leg and lr for the rear one
+function links(i1, i2, lf, lr) = [for (c = [0:7]) let(g = floor(c / 2), r = c % 2 == 1, j = gj(g, r), a = j[i1], b = j[i2])
+  [side_at(a, lo(g, lay[r ? lr : lf]), r), side_rot(atan2(b[1] - a[1], b[0] - a[0]), r)]];
+// Spacer rings on the joints: joint, rear leg, offset of the ring's near face
+rings = [for (g = [0:3], q = [[iE, false, lay[0] + t], [iE, false, lay[1]], [iE, false, lay[1] + t], [iE, true, lay[1] + t],
+  [iE, true, lay[2]], [iE, true, lay[2] + t], [iH, false, lay[0] + t], [iK, false, lay[1] + t], [iK, true, lay[1] + t],
+  [iH, true, lay[2] + t], [iP, false, lay[1] + t]]) [side_at(gj(g, q[1])[q[0]], lo(g, q[2])), side_rot(0)]];
+// Turning with the crank: y of each crank disc ply and its phase, the hub rings
+discs = [for (s = [1, -1], q = [[d_in, 180], [d_in + 7 * t, 0], [d_out + depth, 0]], k = [0, 1]) [s * (q[0] + k * t) - (s < 0 ? t : 0), q[1]]];
+hubs = concat([for (s = [1, -1], y = [d_in + 2 * t, d_in + 5 * t, d_out + depth + 2 * t], k = [0, 1]) s * (y + k * t) - (s < 0 ? t : 0)],
+  [top, -top - t, -top - 2 * t]);
+O = [0, 0];
+plates = [d_in + 4 * t, -d_in - 5 * t];
+outers = [d_out + depth + 4 * t, -d_out - depth - 5 * t];
+// On the left (+y) a plate is turned round so its face looks outward
+function plate_at(y) = [0, y > 0 ? y : y + t, ride];
+function plate_rot(y) = y > 0 ? [90, 0, 180] : [90, 0, 0];
+
+if (output == "all" || output == "frame") {
+  part("Side plate", qty = 2, at = [for (y = plates) plate_at(y)], rotate = [for (y = plates) plate_rot(y)]) {
+    plate(14);
+    score() translate([0, -26]) text("SIDE PLATE", size = 4, halign = "center");
+  }
+  // Both faces outward, the name the right way round on each side
+  part("Outer plate", qty = 2, at = [for (y = outers) plate_at(y)], rotate = [for (y = outers) plate_rot(y)]) {
+    plate(11);
+    score() translate([0, 30]) text("CRAWL", size = 9, halign = "center");
+    score() translate([0, -21]) text("KLANN LINKAGE", size = 3.5, halign = "center");
+  }
+}
+if (output == "all" || output == "crank") {
+  // Glued in pairs; the crank pin hole is for the M4 rod
+  part("Crank disc", qty = 12, at = [for (q = discs) side_at(O, q[0])], rotate = [for (q = discs) side_rot(crank_angle + q[1])]) {
+    difference() {
+      circle(r = crank + 8);
+      square_bore();
+      translate([crank, 0]) circle(d = 4.4);
+    }
+    score() line([5, 0], [crank - 5, 0]);
+  }
+  part("Journal", qty = 4, at = [for (y = [plates[0], outers[0], plates[1], outers[1]]) side_at(O, y)], rotate = side_rot(crank_angle)) hub(18);
+  part("Hub ring", qty = 15, at = [for (y = hubs) side_at(O, y)], rotate = side_rot(crank_angle)) hub(14);
+  // The handle is on the right, outside the hub rings and the tie rod nuts,
+  // keyed a quarter turn behind the outer crank pins
+  part("Handle crank", qty = 2, at = [for (k = [1, 2]) side_at(O, -top - (2 + k) * t)], rotate = side_rot(crank_angle - 90)) difference() {
+    hull() {
+      circle(r = 11);
+      translate([handle, 0]) circle(r = 8);
+    }
+    square_bore();
+    translate([handle, 0]) circle(d = 4.4);
+  }
+  part("Handle grip", qty = 6, at = [for (k = [1:6]) side_at(polar(handle, crank_angle - 90), -top - (4 + k) * t)], rotate = side_rot(crank_angle - 90)) ring(18, hole);
+  part("End cap", at = side_at(O, top + t), rotate = side_rot(crank_angle)) hub(24);
+}
+if (output == "all" || output == "legs") {
+  arms = links(iP, iE, 2, 1);
+  part("Connecting arm", qty = 8, at = [for (q = arms) q[0]], rotate = [for (q = arms) q[1]]) link([cP, cE, cK], [cP, cE, cK], "ARM");
+  legs = links(iK, iH, 1, 2);
+  part("Leg", qty = 8, at = [for (q = legs) q[0]], rotate = [for (q = legs) q[1]]) link([gH, gK, gF], [gH, gK], "LEG");
+  uppers = links(iA, iH, 0, 3);
+  part("Upper rocker", qty = 8, at = [for (q = uppers) q[0]], rotate = [for (q = uppers) q[1]])
+    link([[0, 0], [norm(mm(pH) - A), 0]], [[0, 0], [norm(mm(pH) - A), 0]], "UPPER");
+  lowers = links(iB, iE, 0, 3);
+  part("Lower rocker", qty = 8, at = [for (q = lowers) q[0]], rotate = [for (q = lowers) q[1]])
+    link([[0, 0], [norm(mm(pE) - B), 0]], [[0, 0], [norm(mm(pE) - B), 0]], "LOW");
+}
+if (output == "all" || output == "spacers") part("Spacer ring", qty = 44, at = [for (q = rings) q[0]], rotate = [for (q = rings) q[1]]) ring(11, hole);
+if (output == "all" || output == "coupon") part("Fit test", at = [150, -24, 0], rotate = [0, 0, 0]) {
+  difference() {
+    rect([120, 48], r = 3);
+    for (i = [0:3]) translate([14 + 20 * i, 14]) circle(d = 6.1 + 0.1 * i);
+    translate([96, 14]) circle(d = 4.4);
+    translate([18, 34]) square_bore();
+    translate([45, 32]) circle(d = 18 + journal_clearance);
+  }
+  for (i = [0:3]) score() translate([14 + 20 * i, 3]) text(str(6.1 + 0.1 * i), size = 3, halign = "center");
+}
+
+echo(str("Crawl: stride ", round(stride), " mm, lift ", round(lift), " mm, crank ", round(crank * 10) / 10, " mm; crank axle ", round(boss - low),
+  " mm up at most; ", round(2 * (max([for (p = path) p[0]]) + boss)), " mm long, ", round(2 * top), " mm across the outer plates"));
+
+// Assembly, across the walker from the middle (3 mm sheet): side plates at
+// 56 mm and outer plates at 117 mm on four M4 threaded rods 250 mm long at
+// the rocker axles, a washer and nut each side of every plate. The crank is
+// built up from parts on 6 mm square bar. On each side a 27 mm bar turns in
+// a journal in the side plate, two hub rings each side, with a crank disc of
+// two glued plies on each end; a short bar through each outer plate's journal
+// carries the outer disc and, outside, a hub ring and the end cap on the
+// left, or two hub rings and the handle crank on the right. M4 rods through
+// the discs, nutted each side of each disc, are the crank pins: one 106 mm
+// across the inside, half a turn round from the two outer ones. Beside each
+// disc is a group of two legs: a 5 mm gap, the front upper and lower rockers,
+// front leg and rear arm, rear leg and front arm, the rear rockers, 5 mm to
+// the next part, with 4 mm gaps between layers for the nuts. Each rocker
+// turns on a brass sleeve t + 0.2 long clamped by washers and nuts on its
+// tie rod; both arms turn on one sleeve on the crank pin, nutted each side,
+// with a spacer ring between. The hips and knees are 6 mm brass sleeves on
+// M4 x 20 bolts, the elbows on M4 x 25 bolts with their heads towards the
+// disc; fill each 4 mm gap a joint crosses with a spacer ring and a 1 mm
+// washer, and the layer an elbow crosses with a ring. Turn the handle with
+// its top going backwards and Crawl walks forwards.

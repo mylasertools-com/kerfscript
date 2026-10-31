@@ -1,0 +1,499 @@
+// Hours: a weight-driven wall clock with a wooden gear train between open
+// skeleton plates. The weight turns the drum, the train turns the minute
+// arbor once an hour, and a deadbeat anchor on the pendulum lets the escape
+// wheel through half a tooth a beat. Wind it by turning the knob below the
+// centre clockwise; set the time by turning the hands, which are a push fit.
+
+/* [Clock] */
+// Time for one swing of the pendulum, in seconds; sets the escape wheel's teeth and the pendulum length
+beat = 0.75; // [0.75, 1]
+// How far the weight can fall, in mm, for the running time
+drop = 1000; // [500:50:1500]
+// Total play between two meshing gears, at the pitch circle
+backlash = 0.4; // [0.3:0.05:0.6]
+
+/* [Fit] */
+// Added to the 4 mm holes that grip a steel rod: wheels, pinions, anchor, hands, knob
+rod_fit = 0.05; // [0:0.05:0.2]
+// Added to the 6 mm holes that grip a brass tube: bushes, hour wheel and hour hand
+tube_fit = 0.1; // [0:0.05:0.3]
+// Added to holes that turn on a rod or tube, and to the pendulum's dowel channel
+running_clearance = 0.3; // [0.2:0.05:0.5]
+
+/* [Assembly] */
+// Hour shown in the assembled view
+hour = 10; // [1:1:12]
+// Minute shown in the assembled view
+minute = 10; // [0:1:59]
+// Pendulum angle in the assembled view, degrees, positive to the right
+swing = 3; // [-4:0.5:4]
+
+/* [Export] */
+// All parts, or one group at a time
+output = "all"; // [all:All parts, frame:Plates and wall fittings, train:Wheels and pinions, escapement:Escape wheel and anchor, winding:Drum ratchet and knob, dial:Motion works dial and hands, pendulum:Pendulum, coupon:Fit test]
+
+/* [Material] */
+// Sheet thickness
+$thickness = 3; // [2.8:0.1:3.2]
+// Beam width
+$kerf = 0.15; // [0:0.01:0.25]
+
+/* [Hidden] */
+$material = "plywood";
+$sheet = [600, 400];
+$gap = 5;
+$fn = 96;
+t = $thickness;
+m = 2;
+// Profile shift: the 8 and 10 leaf pinions would be undercut without it,
+// and the wheels give it back so every centre distance stays m (z1 + z2) / 2
+shift = 0.55;
+// The train, from the drum to the escape wheel, and the motion works
+z_great = 64;
+z_centre = 64;
+z_third = 60;
+z_leaf = 8;
+z_cannon = 10;
+z_minute = 30;
+z_hour = 32;
+// Escape wheel: once round a minute, half a tooth a beat
+z_escape = round(30 / beat);
+// Arbors, with the minute arbor (the dial centre) at the origin
+M = [0, 0];
+G = [0, -m * (z_great + z_leaf) / 2];
+T = [m * (z_centre + z_leaf) / 2 * cos(70), m * (z_centre + z_leaf) / 2 * sin(70)];
+E = [0, T.y + sqrt(pow(m * (z_third + z_leaf) / 2, 2) - T.x * T.x)];
+// Anchor pivot above the escape wheel, and the escape wheel's tip radius
+anchor_height = 65;
+A = E + [0, anchor_height];
+R = 45;
+// Minute wheel stud, the four pillars, the dial posts
+S = [-40, 0];
+pillars = [[-80, -110], [80, -110], [-60, A.y], [60, A.y]];
+dial_r = 76;
+posts = [for (a = [45:90:315]) [dial_r * cos(a), dial_r * sin(a)]];
+drum_r = 18;
+// Pendulum length from the beat: L = g (beat / pi)^2
+L = 9806.65 * beat * beat / (PI * PI);
+assert(beat == 0.75 || beat == 1, "Beat: 0.75 or 1 s");
+assert(drop >= 500 && drop <= 1500, "Drop: 500 to 1500 mm");
+assert(backlash >= 0.3 && backlash <= 0.6, "Backlash: 0.3 to 0.6 mm");
+assert(rod_fit >= 0 && rod_fit <= 0.2, "Rod fit: 0 to 0.2 mm");
+assert(tube_fit >= 0 && tube_fit <= 0.3, "Tube fit: 0 to 0.3 mm");
+assert(running_clearance >= 0.2 && running_clearance <= 0.5, "Running clearance: 0.2 to 0.5 mm");
+assert(hour >= 1 && hour <= 12 && floor(hour) == hour, "Hour: 1 to 12");
+assert(minute >= 0 && minute <= 59 && floor(minute) == minute, "Minute: 0 to 59");
+assert(swing >= -4 && swing <= 4, "Swing: -4 to 4 degrees");
+assert(t >= 2.8 && t <= 3.2, "Thickness: 2.8 to 3.2 mm");
+assert($kerf >= 0 && $kerf <= 0.25, "Kerf: 0 to 0.25 mm");
+assert(contains(["all", "frame", "train", "escapement", "winding", "dial", "pendulum", "coupon"], output), "Unknown output");
+
+function polar(r, a) = [r * cos(a), r * sin(a)];
+module label(s, p, size = 4) {
+  score() translate(p) text(s, size = size, halign = "center", valign = "center");
+}
+module bar(a, b, w) {
+  hull() {
+    translate(a) circle(d = w);
+    translate(b) circle(d = w);
+  }
+}
+rod_hole = 4 + rod_fit;
+tube_hole = 6 + tube_fit;
+
+// Involute teeth, 20 degree pressure angle, with a profile shift x. backlash
+// is shared between the two gears of a mesh. Pinion tips are cut back where
+// the tooth would come to a point.
+function gear_inv(a) = tan(a) * 180 / PI - a;
+function gear_half(z, r, x) =
+  let(rp = m * z / 2, rb = rp * cos(20), ar = acos(min(1, rb / r)))
+  (90 + 360 * x * tan(20) / PI) / z + gear_inv(20) - gear_inv(ar) - backlash / (4 * rp) * 180 / PI;
+function gear_tip(z, x, lo, hi, k = 0) =
+  k == 20 ? lo : let(mid = (lo + hi) / 2)
+  gear_half(z, mid, x) * PI / 180 * mid > 0.3 * m ? gear_tip(z, x, mid, hi, k + 1) : gear_tip(z, x, lo, mid, k + 1);
+function gear_outline(z, x, steps) =
+  let(rp = m * z / 2, rb = rp * cos(20), lo = rp - m * (1.25 - x),
+    hi = gear_tip(z, x, rp, rp + m * (1 + x)), start = max(lo, rb),
+    hs = gear_half(z, start, x), ht = gear_half(z, hi, x))
+  [for (k = [0:z - 1]) each concat(
+    [polar(lo, 360 * k / z - hs)],
+    [for (j = [(start > lo ? 0 : 1):steps]) let(r = start + (hi - start) * j / steps) polar(r, 360 * k / z - gear_half(z, r, x))],
+    [for (j = [1:3]) polar(hi, 360 * k / z - ht + 2 * ht * j / 4)],
+    [for (j = [steps:-1:0]) let(r = start + (hi - start) * j / steps) polar(r, 360 * k / z + gear_half(z, r, x))],
+    [if (start > lo) polar(lo, 360 * k / z + hs)],
+    [for (j = [1:3]) polar(lo, 360 * k / z + hs + (360 / z - 2 * hs) * j / 4)]
+  )];
+// Spoked wheels show the train behind them
+module spokes(rim, hub, n = 5, w = 6) {
+  difference() {
+    circle(r = rim);
+    circle(r = hub);
+    for (i = [0:n - 1]) rotate(90 + 360 * i / n) translate([0, -w / 2]) rect([rim + 1, w]);
+  }
+}
+module wheel(z, hole, hub = 10, n = 5) {
+  rim = m * z / 2 - m * (1.25 + shift) - 5;
+  difference() {
+    polygon(gear_outline(z, -shift, 5));
+    circle(d = hole);
+    if (rim > hub + 6) spokes(rim, hub, n);
+  }
+  label(str(z), [0, (hub + rim) / 2], 4);
+}
+module pinion(z, hole) {
+  difference() {
+    polygon(gear_outline(z, shift, 8));
+    circle(d = hole);
+  }
+}
+
+// Escape wheel, turning clockwise seen from the front. Each tooth leans
+// forward: its leading tip corner (on the tip circle, at 360 k / N) does the
+// locking on both pallets. The back is hollowed to clear the pallets.
+tooth_h = 5.5;
+module escape_wheel() {
+  pa = 360 / z_escape;
+  rr = R - tooth_h;
+  rake = tooth_h * tan(12) / rr * 180 / PI;
+  tw = 0.7 / R * 180 / PI;
+  bw = 0.42 * pa;
+  difference() {
+    polygon([for (k = [0:z_escape - 1]) let(a = k * pa) each concat(
+      [polar(rr, a + rake), polar(R, a), polar(R, a + tw), polar(R - tooth_h * 0.6, a + tw + (rake + bw - tw) * 0.25), polar(rr, a + rake + bw)],
+      [for (j = [1:3]) polar(rr, a + rake + bw + (pa - bw) * j / 4)]
+    )]);
+    circle(d = rod_hole);
+    spokes(rr - 5, 9, 5, 5);
+  }
+}
+
+// Graham deadbeat anchor, drawn round its pivot with the escape wheel's
+// centre at [0, -anchor_height]. The pallets span half a tooth more than
+// a whole number of teeth. Locking faces are arcs round the pivot, so a
+// locked tooth cannot push the pendulum; the entry pallet locks on its
+// outer face, the exit pallet on its inner face. Impulse runs from +-s0 to
+// -+(lift - s0) degrees of swing, leaving lift - 2 s0 of lock.
+span = floor(z_escape / 4) + 0.5;
+phi = span * 180 / z_escape;
+L0 = sqrt(R * R + anchor_height * anchor_height - 2 * anchor_height * R * cos(phi));
+// Drop: the free turn of the wheel between pallets, more than the tooth tip is wide
+drop_e = 1.1;
+pallet_w = PI * R / z_escape - drop_e;
+lift = 2;
+s0 = 0.6;
+lock_ext = 10;
+ro = L0 + pallet_w / 2;
+ri = L0 - pallet_w / 2;
+// Where the tip circle crosses the circle of radius r round the pivot; side -1 left, 1 right
+function tip_at(r, side) = let(qy = (R * R - r * r - anchor_height * anchor_height) / (2 * anchor_height))
+  atan2(qy, side * sqrt(r * r - qy * qy));
+// Pallet corners, as angles round the pivot. Entry: deeper into the wheel as
+// the anchor turns anticlockwise. Exit: deeper as it turns clockwise.
+eo = tip_at(ro, -1) - s0;
+ei = tip_at(ri, -1) - s0 + lift;
+er = eo - lock_ext;
+xi = tip_at(ri, 1) + s0;
+xo = tip_at(ro, 1) + s0 - lift;
+xr = xi + lock_ext;
+module anchor() {
+  difference() {
+    union() {
+      circle(r = 10);
+      polygon(concat([for (j = [0:24]) polar(ro, er + (eo - er) * j / 24)], [polar(ri, ei)], [for (j = [24:-1:0]) polar(ri, er + (ei - er) * j / 24)]));
+      polygon(concat([for (j = [0:24]) polar(ri, xr + (xi - xr) * j / 24)], [polar(ro, xo)], [for (j = [24:-1:0]) polar(ro, xr + (xo - xr) * j / 24)]));
+      for (a = [er - 1, xr + 1]) hull() {
+        circle(r = 4);
+        translate(polar(L0, a)) circle(r = pallet_w / 2 + 1);
+      }
+    }
+    circle(d = rod_hole);
+  }
+}
+
+// Ratchet and click, drawn round the great wheel's centre. The weight turns
+// the drum anticlockwise; each tooth's steep face (at 90 + 15 k degrees)
+// pushes the click and so the great wheel. Winding turns the drum the other
+// way: the teeth lift the click and bend its long spring finger against a pin.
+ratchet_n = 24;
+module ratchet() {
+  difference() {
+    polygon([for (k = [0:ratchet_n - 1]) let(a = 90 + 360 * k / ratchet_n) each
+      [polar(22.5, a), for (j = [1:5]) polar(22.5 + 2.5 * j / 5, a + 360 / ratchet_n * j / 5 - 0.05)]]);
+    circle(d = rod_hole);
+  }
+}
+click_pin = polar(36, 128);
+finger_end = click_pin + polar(36, 235);
+spring_pin = finger_end + polar(2.7, 325);
+module click() {
+  difference() {
+    union() {
+      translate(click_pin) circle(r = 4.5);
+      polygon([polar(22.9, 90.6), polar(25.8, 97), polar(26.6, 105), polar(28, 116), click_pin + polar(4, 250),
+        click_pin + polar(4, 60), polar(31, 104), polar(25.8, 90.6)]);
+      hull() {
+        translate(click_pin + polar(4, 235)) circle(r = 0.7);
+        translate(finger_end) circle(r = 0.7);
+      }
+    }
+    translate(click_pin) circle(d = 4 + running_clearance);
+  }
+}
+module disc(r, hole = rod_hole) {
+  difference() {
+    circle(r = r);
+    circle(d = hole);
+  }
+}
+module knob() {
+  difference() {
+    circle(r = 11);
+    for (i = [0:11]) translate(polar(11.5, 30 * i)) circle(r = 2);
+    circle(d = rod_hole);
+  }
+}
+
+// The plates: bosses round the arbors and pillars, joined by bars. Both
+// are drawn as seen from the front.
+function side_x(y, s) = s * (80 - 20 * (y + 110) / (A.y + 110));
+module plate(front) {
+  bars = [[pillars[0], G], [pillars[1], G], [pillars[0], pillars[2]], [pillars[1], pillars[3]],
+    [pillars[2], A], [pillars[3], A], [E, A], [M, [side_x(0, -1), 0]], [M, [side_x(0, 1), 0]],
+    [T, [side_x(T.y, 1), T.y]], [G, M]];
+  difference() {
+    union() {
+      for (b = bars) bar(b[0], b[1], 10);
+      for (p = [M, G, T, E, A]) translate(p) circle(r = 9);
+      for (p = pillars) translate(p) circle(r = 8);
+      if (front) {
+        translate(S) circle(r = 8);
+        for (p = posts) {
+          translate(p) circle(r = 7);
+          bar(p, [side_x(p.y, sign(p.x)), p.y], 8);
+        }
+      }
+    }
+    for (p = [M, G, T, E, A]) translate(p) circle(d = tube_hole);
+    for (p = pillars) translate(p) circle(d = 4.4);
+    if (front) {
+      translate(S) circle(d = 4.4);
+      for (p = posts) translate(p) circle(d = 4.4);
+    }
+  }
+}
+
+// The wall bar hangs on a screw through its keyhole; its nut layer hides
+// the pillar nuts so it lies flat on the wall
+module wall_bar(nut_layer) {
+  difference() {
+    hull() for (p = [pillars[2], pillars[3]]) translate(p) circle(r = 11);
+    for (p = [pillars[2], pillars[3]]) translate(p) circle(d = nut_layer ? 8.4 : 4.4);
+    translate([0, A.y - 4]) circle(d = 9);
+    bar([0, A.y - 4], [0, A.y + 5], 4.4);
+  }
+}
+
+// Dial: a chapter ring, so the train shows through it. 6 is left out for
+// the winding hole.
+module dial() {
+  difference() {
+    circle(r = 88);
+    circle(r = 64);
+    translate(G) circle(d = 8);
+    for (p = posts) translate(p) circle(d = 4.4);
+  }
+  for (h = [1:12]) {
+    a = 90 - 30 * h;
+    engrave() translate(polar(84.5, a)) rotate(a) rect([5, h % 3 == 0 ? 3 : 1.6], center = true);
+    if (h != 6) engrave() translate(polar(74, a)) text(str(h), size = 8, halign = "center", valign = "center");
+  }
+  for (i = [0:59]) if (i % 5 != 0) score() line(polar(85, 6 * i), polar(87, 6 * i));
+}
+module hand(len, tail, w, hole, boss) {
+  difference() {
+    union() {
+      circle(r = boss);
+      polygon([[-w / 2, 0], [w / 2, 0], [0.6, len], [-0.6, len]]);
+      translate([0, len * 0.72]) rotate(45) rect(w * 1.3, center = true);
+      hull() {
+        circle(r = w / 2);
+        translate([0, -tail]) circle(r = w * 0.7);
+      }
+    }
+    circle(d = hole);
+    translate([0, len * 0.72]) circle(d = w * 0.7);
+  }
+}
+
+// Pendulum: a 6 mm dowel held between laminations. The two middle layers
+// have a channel, the outer two close it.
+module pendulum_top(channel) {
+  difference() {
+    translate([-9, -60]) rect([18, 73], r = 4);
+    circle(d = rod_hole);
+    if (channel) translate([-(6 + running_clearance) / 2, -61]) rect([6 + running_clearance, 51]);
+  }
+}
+module bob(channel) {
+  difference() {
+    circle(r = 45);
+    if (channel) translate([-(6 + running_clearance) / 2, -25]) rect([6 + running_clearance, 71]);
+  }
+}
+
+module coupon() {
+  holes = [rod_hole, 4 + running_clearance, tube_hole, 6 + running_clearance, 4.4];
+  names = ["ROD", "TURN", "TUBE", "TURN", "M4"];
+  difference() {
+    rect([130, 40], r = 3);
+    for (i = [0:4]) translate([15 + 25 * i, 25]) circle(d = holes[i]);
+  }
+  for (i = [0:4]) label(names[i], [15 + 25 * i, 10], 3.5);
+}
+
+// Assembled view. The clock hangs facing -y with its back plate's front face
+// at y = 0 and the wall at y = 8 t + 4; x and z are the plates' x and y, the
+// dial centre raised so the bob clears the floor. Depths d are measured
+// forward from the back plate, so a part's back face sits at y = -d.
+Z0 = L + 60 - A.y;
+function at_d(p, d) = [p.x, -d, Z0 + p.y];
+function up(a) = [90, -a, 0];
+function stack(p, d, n) = [for (i = [0:n - 1]) at_d(p, d + i * t)];
+// Between the plates, back to front: escape wheel and anchor, the escape
+// pinion with the third wheel in the middle of its face, the third pinion
+// and centre wheel, the centre pinion and great wheel, then the ratchet and
+// click, the drum and its flange. 1 mm or half a layer between neighbours.
+d_escape = 1;
+d_epinion = 1 + 2 * t;
+d_third = 1 + 2.5 * t;
+d_tpinion = 1 + 3.5 * t;
+d_centre = 1 + 4 * t;
+d_cpinion = 1 + 5 * t;
+d_great = 1 + 5.5 * t;
+d_ratchet = 1 + 7.5 * t;
+d_drum = 1 + 8.5 * t;
+d_flange = 1 + 12.5 * t;
+d_front = 2 + 13.5 * t;
+// In front of the front plate: the motion works, the dial, the hands
+f0 = d_front + 2 * t;
+d_cannon = f0 + 1;
+d_minute = f0 + 1 + 0.5 * t;
+d_mpinion = f0 + 1 + 1.5 * t;
+d_hour = f0 + 1 + 2.5 * t;
+d_dial = f0 + 2 + 3.5 * t;
+d_hhand = f0 + 3 + 4.5 * t;
+d_mhand = f0 + 4 + 6.5 * t;
+// Behind the back plate: the pendulum, then the wall bar
+d_pend = -(2 * t + 1) - 4 * t;
+d_wall = -(6 * t + 4);
+
+// The time and the swing set every wheel. Locked on a pallet (or riding its
+// impulse face near the middle of the swing), the escape wheel's angle comes
+// from the anchor; the train follows it back to the minute arbor, which is
+// within 0.1 degree of the time shown.
+// Where the segment p to q crosses the circle of radius r round the origin
+function seg_circle(p, q, r) = let(v = q - p, a = v * v, b = 2 * (p * v), c = p * p - r * r,
+  s = sqrt(max(0, b * b - 4 * a * c)), u = (-b - s) / (2 * a)) p + v * (u >= 0 && u <= 1 ? u : (-b + s) / (2 * a));
+pivot = [0, anchor_height];
+// The leading corner of the engaged tooth, round the escape wheel's centre
+contact = swing >= s0 ? pivot + polar(ro, tip_at(ro, -1))
+  : swing >= 0 ? seg_circle(pivot + polar(ro, eo + swing), pivot + polar(ri, ei + swing), R)
+  : swing > -s0 ? seg_circle(pivot + polar(ri, xi + swing), pivot + polar(ro, xo + swing), R)
+  : pivot + polar(ri, tip_at(ri, 1));
+gamma = atan2(contact.y, contact.x);
+pa = 360 / z_escape;
+time_angle = -6 * (60 * (hour % 12) + minute);
+a_escape = gamma + pa * round((60 * time_angle - gamma) / pa);
+a_minute = a_escape / 60;
+a_third = -a_minute * z_centre / z_leaf;
+a_great = -a_minute * z_leaf / z_great;
+a_stud = -a_minute * z_cannon / z_minute;
+a_hour = a_minute / 12;
+// A driven gear's turn so its teeth fall between the driver's: driver at c1
+// turned r1, driven at c2
+function mesh(c1, r1, z1, c2, z2) = let(b = atan2(c2.y - c1.y, c2.x - c1.x)) b + 180 + 180 / z2 + (b - r1) * z1 / z2;
+// Each wheel's turn when the minute arbor is at 0, its pinion at 0
+o_third = mesh(E, 0, z_leaf, T, z_third);
+o_centre = mesh(T, 0, z_leaf, M, z_centre);
+o_great = mesh(M, 0, z_leaf, G, z_great);
+o_minute = mesh(M, 0, z_cannon, S, z_minute);
+o_hour = mesh(S, 0, z_leaf, M, z_hour);
+r_great = a_great + o_great;
+// The bob's centre, L below the anchor arbor
+bob_at = A + polar(L, swing - 90);
+
+if (output == "all" || output == "frame") {
+  part("Back plate", qty = 2, at = stack(M, -2 * t, 2), rotate = up(0)) plate(false);
+  part("Front plate", qty = 2, at = stack(M, d_front, 2), rotate = up(0)) plate(true);
+  part("Wall bar", at = at_d(M, d_wall - t), rotate = up(0)) wall_bar(false);
+  part("Wall bar, nut layer", at = at_d(M, d_wall - 2 * t), rotate = up(0)) wall_bar(true);
+  part("Wall pad", qty = 2, at = [at_d(pillars[0], d_wall - t), at_d(pillars[1], d_wall - t)], rotate = up(0)) disc(10, 4.4);
+  part("Wall pad, nut layer", qty = 2, at = [at_d(pillars[0], d_wall - 2 * t), at_d(pillars[1], d_wall - 2 * t)], rotate = up(0)) disc(10, 8.4);
+}
+if (output == "all" || output == "train") {
+  part("Great wheel", qty = 2, at = stack(G, d_great, 2), rotate = up(r_great)) difference() {
+    wheel(z_great, 4 + running_clearance, 47, 6);
+    // Holes for the click's pivot and spring pins
+    translate(click_pin) circle(d = rod_hole);
+    translate(spring_pin) circle(d = rod_hole);
+  }
+  part("Centre pinion", qty = 3, at = stack(M, d_cpinion, 3), rotate = up(a_minute)) pinion(z_leaf, rod_hole);
+  part("Centre wheel", at = at_d(M, d_centre), rotate = up(a_minute + o_centre)) wheel(z_centre, rod_hole);
+  part("Third pinion", qty = 2, at = stack(T, d_tpinion, 2), rotate = up(a_third)) pinion(z_leaf, rod_hole);
+  part("Third wheel", at = at_d(T, d_third), rotate = up(a_third + o_third)) wheel(z_third, rod_hole);
+  part("Escape pinion", qty = 2, at = stack(E, d_epinion, 2), rotate = up(a_escape)) pinion(z_leaf, rod_hole);
+}
+if (output == "all" || output == "escapement") {
+  part("Escape wheel", qty = 2, at = stack(E, d_escape, 2), rotate = up(a_escape)) escape_wheel();
+  part("Anchor", qty = 2, at = stack(A, d_escape, 2), rotate = up(swing)) anchor();
+}
+if (output == "all" || output == "winding") {
+  part("Drum", qty = 4, at = stack(G, d_drum, 4), rotate = up(r_great)) disc(drum_r);
+  part("Drum flange", at = at_d(G, d_flange), rotate = up(r_great)) disc(28);
+  part("Ratchet wheel", at = at_d(G, d_ratchet), rotate = up(r_great)) ratchet();
+  part("Click", at = at_d(G, d_ratchet), rotate = up(r_great)) click();
+  part("Winding knob", qty = 2, at = stack(G, d_hhand, 2), rotate = up(r_great)) knob();
+}
+if (output == "all" || output == "dial") {
+  part("Cannon pinion", qty = 2, at = stack(M, d_cannon, 2), rotate = up(a_minute)) pinion(z_cannon, rod_hole);
+  part("Minute wheel", at = at_d(S, d_minute), rotate = up(a_stud + o_minute)) wheel(z_minute, 6 + running_clearance, 8, 4);
+  part("Minute pinion", qty = 2, at = stack(S, d_mpinion, 2), rotate = up(a_stud)) pinion(z_leaf, 6 + running_clearance);
+  part("Hour wheel", at = at_d(M, d_hour), rotate = up(a_hour + o_hour)) wheel(z_hour, tube_hole, 8, 4);
+  part("Dial", at = at_d(M, d_dial), rotate = up(0)) dial();
+  part("Hour hand", at = at_d(M, d_hhand), rotate = up(a_hour)) hand(48, 10, 5, tube_hole, 6.5);
+  part("Minute hand", at = at_d(M, d_mhand), rotate = up(a_minute)) hand(84, 16, 4, rod_hole, 5.5);
+}
+if (output == "all" || output == "pendulum") {
+  // Front to back: the engraved layer, two channel layers, the back
+  part("Pendulum top", qty = 2, at = [at_d(A, d_pend + 3 * t), at_d(A, d_pend)], rotate = up(swing)) pendulum_top(false);
+  part("Pendulum top, channel", qty = 2, at = stack(A, d_pend + t, 2), rotate = up(swing)) pendulum_top(true);
+  part("Bob", at = at_d(bob_at, d_pend + 3 * t), rotate = up(swing)) {
+    bob(false);
+    engrave() translate([0, 8]) text("HOURS", size = 13, halign = "center", valign = "center");
+    label(str(beat, " s BEAT"), [0, -10], 5);
+    label("UP: FASTER", [0, -24], 4);
+  }
+  part("Bob back", at = at_d(bob_at, d_pend), rotate = up(swing)) bob(false);
+  part("Bob, channel", qty = 2, at = stack(bob_at, d_pend + t, 2), rotate = up(swing)) bob(true);
+}
+if (output == "all" || output == "coupon") part("Fit test", at = [150, -80, 0]) coupon();
+
+echo(str("Hours: ", beat, " s beat, pendulum ", round(L), " mm from arbor to bob centre; ", z_escape, "-tooth escape wheel turns once a minute; train ", z_centre, "/", z_leaf, " x ", z_third, "/", z_leaf, " = ", z_centre * z_third / (z_leaf * z_leaf), " from minute arbor to escape wheel; motion works ", z_minute, "/", z_cannon, " x ", z_hour, "/", z_leaf, " = ", z_minute * z_hour / (z_cannon * z_leaf), ":1; great wheel turns once in ", z_great / z_leaf, " h, so ", round(drop / (PI * (2 * drum_r + 1)) * z_great / z_leaf), " h on a ", drop, " mm drop; dowel ", round(L + 8), " mm"));
+
+// Assembly, depths forward from the back plate's front face (3 mm stock):
+// glue the plate pairs, the laminated wheels and pinions on a 4 mm rod, the
+// drum (ratchet wheel, four drums, flange) and the pendulum layers round a
+// 6 mm dowel. The arbors are 4 mm steel rod turning in 6 mm brass tube bushes
+// (4 mm bore) glued in both plates, with brass tube collars between the
+// wheels. Back to front: escape wheel and anchor at 1, escape pinion 7 with
+// the third wheel 8.5, third pinion 11.5 with the centre wheel 13, centre
+// pinion 16 with the great wheel 17.5 (free on its arbor, the click on two
+// rod pins in front of it), ratchet 23.5, drum to 41.5, front plate 42.5.
+// The pillars are four M4 bolts in 42.5 mm tubes; 16 mm tubes behind carry
+// the wall bar and pads, nuts sunk in their nut layers. In front go the cannon
+// pinion (glued), the minute wheel and pinion on a brass sleeve on an M4 stud,
+// the hour wheel on a 6 mm brass hour pipe over the arbor, the dial on four
+// M4 posts, the hands and the knob. Glue the pendulum top on the anchor arbor
+// behind the back plate, the bob's centre L below it. Hang about 2 kg on a
+// string wound on the left of the drum, and level the clock until it ticks
+// evenly.

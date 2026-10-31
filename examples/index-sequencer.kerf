@@ -15,6 +15,11 @@ clearance = 0.4; // [0.35:0.05:0.6]
 // Added to the 6 mm holes that turn on brass sleeves
 bearing_clearance = 0.3; // [0.2:0.05:0.4]
 
+/* [Assembly] */
+// Driver angle in the assembled view, from the pin pointing at the wheel;
+// each turn indexes the wheel one station on
+driver_angle = -18; // [-180:2:1260]
+
 /* [Export] */
 // All parts, or one group at a time
 output = "all"; // [all:All parts, motion:Wheel arm and lock, frame:Base and feet, display:Dial and pointer, coupon:Fit test]
@@ -55,6 +60,7 @@ assert(clearance >= 0.35 && clearance <= 0.6, "Clearance: 0.35 to 0.6 mm");
 assert(bearing_clearance >= 0.2 && bearing_clearance <= 0.4, "Bearing clearance: 0.2 to 0.4 mm");
 assert(t >= 2.8 && t <= 3.2, "Thickness: 2.8 to 3.2 mm");
 assert($kerf >= 0 && $kerf <= 0.25, "Kerf: 0 to 0.25 mm");
+assert(driver_angle >= -180 && driver_angle <= 1260, "Driver angle: -180 to 1260 degrees");
 assert(contains(["all", "motion", "frame", "display", "coupon"], output), "Unknown output");
 
 function polar(d, a) = [d * cos(a), d * sin(a)];
@@ -174,29 +180,45 @@ module fit_test() {
   for (i = [0:3]) label(str(6.1 + 0.1 * i), [18 + 32 * i, 29], 3);
 }
 
+// The assembled view, base underside at z = 0: the driver (arm, then
+// locking disc) at the origin, the wheel block (wheel, hubs, dial) on its
+// pedestal at [c, 0], the pointer on spacers above it. While the pin is in
+// a slot, the slot points from the wheel's centre at the pin; for the rest
+// of the turn the wheel waits, locked, half a station either side.
+a = driver_angle;
+turns = floor((a + 180) / 360);
+local = a - 360 * turns;
+wheel_turn = (abs(local) <= 90 - alpha ? let(p = polar(r, local)) atan2(p[1], p[0] - c) % 360 - 180 : local > 0 ? -alpha : alpha)
+  - 360 / n * turns;
+function stack(x, z, k) = [for (i = [0:k - 1]) [x, 0, z + i * t]];
+feet = [for (x = [-r - 8, c + rim + 8], y = [-rim - 8, rim + 8]) [x, y]];
+
 if (output == "all" || output == "motion") {
-  part("Driver arm", qty = 2) arm();
-  part("Locking disc", qty = 2) locking_disc();
-  part("Geneva wheel", qty = 2) wheel();
-  part("Grip ring", qty = 5) ring(16, 6 + bearing_clearance);
-  part("Output hub", qty = 4) difference() {
+  part("Driver arm", qty = 2, at = stack(0, 2 * t + 0.5, 2), rotate = [0, 0, a]) arm();
+  part("Locking disc", qty = 2, at = stack(0, 4 * t + 0.5, 2), rotate = [0, 0, a]) locking_disc();
+  part("Geneva wheel", qty = 2, at = stack(c, 4 * t + 1, 2), rotate = [0, 0, wheel_turn]) wheel();
+  // The grip turns with the driver, opposite the pin
+  part("Grip ring", qty = 5, at = [for (i = [0:4]) concat(polar(grip_offset, a + 180), [6 * t + 1.5 + i * t])], rotate = [0, 0, a])
+    ring(16, 6 + bearing_clearance);
+  part("Output hub", qty = 4, at = stack(c, 6 * t + 1, 4), rotate = [0, 0, wheel_turn]) difference() {
     circle(d = 28);
     register();
   }
 }
 if (output == "all" || output == "frame") {
-  part("Base", qty = 2) base();
+  part("Base", qty = 2, at = stack(0, 0, 2)) base();
   // Takes the M4 shaft only, so the output sleeve stands on it
-  part("Output pedestal", qty = 2) ring(20, 4.5);
-  part("Foot ring", qty = 12) ring(18, 12);
-  part("Foot cap", qty = 4) ring(18, 4.5);
+  part("Output pedestal", qty = 2, at = stack(c, 2 * t, 2)) ring(20, 4.5);
+  part("Foot ring", qty = 12, at = [for (f = feet, i = [0:2]) concat(f, [-3 * t + i * t])]) ring(18, 12);
+  part("Foot cap", qty = 4, at = [for (f = feet) concat(f, [-4 * t])]) ring(18, 4.5);
 }
 if (output == "all" || output == "display") {
-  part("Station dial") dial();
-  part("Pointer") pointer();
-  part("Pointer spacer", qty = 2) ring(12, 4.5);
+  part("Station dial", at = [c, 0, 10 * t + 1], rotate = [0, 0, wheel_turn]) dial();
+  part("Pointer", at = [c, 0, 13 * t + 2.5]) pointer();
+  part("Pointer spacer", qty = 2, at = stack(c, 11 * t + 2.5, 2)) ring(12, 4.5);
 }
-if (output == "all" || output == "coupon") part("Fit test") fit_test();
+// The fit test lies on the table beside the base
+if (output == "all" || output == "coupon") part("Fit test", at = [c + rim + 30, -rim, -4 * t]) fit_test();
 
 echo(str("Index: ", n, " stations, ", 360 / n, " degrees a step, waits ", 100 * (0.5 + 1 / n), "% of each turn; pin on a ", round(r * 10) / 10, " mm radius"));
 

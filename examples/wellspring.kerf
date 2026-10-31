@@ -1,0 +1,401 @@
+// Wellspring: a saqiya, the animal-driven water wheel al-Jazari drew in the
+// 13th century. Turn the ox round its walk and the draw-bar turns a peg wheel
+// above the gear pit; its dowel pegs drive a lantern pinion at right angles,
+// and the wheel on the same axle lifts a ring of pots out of the well and
+// tips them into the trough at the top.
+
+/* [Mechanism] */
+// Pegs on the horizontal crown wheel; the lantern has 8 staves, so this sets the ratio
+crown_pegs = 24; // [20:1:28]
+// Pots around the water wheel
+pots = 10; // [8:1:12]
+
+/* [Fit] */
+// Added to the 6 mm holes the brass bushes are glued into
+bush_fit = 0.1; // [0:0.05:0.3]
+// Added to the 6 mm holes the dowel pegs and staves are glued into
+dowel_fit = 0.05; // [-0.1:0.05:0.2]
+// Added to the slots the tabs fit into
+tab_fit = 0.15; // [0:0.05:0.3]
+
+/* [Export] */
+// All parts, or one group at a time
+output = "all"; // [all:All parts, base:Base, deck and posts, gearing:Tower, crown, draw-bar and lantern, wheel:Wheel and pots, well:Well walls and trough, ox:Ox, coupon:Fit test]
+
+/* [Assembly] */
+// Draw-bar angle in the assembled view, counterclockwise from the axle
+draw_bar_angle = 195; // [0:5:360]
+
+/* [Material] */
+// Sheet thickness
+$thickness = 3; // [2.8:0.1:3.2]
+// Beam width
+$kerf = 0.15; // [0:0.01:0.25]
+
+/* [Hidden] */
+$material = "plywood";
+$sheet = [600, 400];
+$gap = 5;
+$fn = 96;
+t = $thickness;
+// Peg gearing: 6 mm dowels at an 18 mm pitch on both gears, three dowel
+// widths, which leaves room for each peg to enter and leave between staves
+pitch = 18;
+staves = 8;
+Rc = pitch * crown_pegs / (2 * PI);
+rl = pitch * staves / (2 * PI);
+ratio = crown_pegs / staves;
+// The pegs reach 11 mm past the lantern's top staves
+engage = 11;
+// Heights from the underside of the base. The axle sits so the pots clear
+// the well floor, the walkway just above the bearings.
+zL = 100;
+Rw = 75;
+plate_r = rl + 7;
+zc = zL + rl + 9;
+peg_tip = zL + rl - engage;
+deck_z = zL + 12;
+tower_n = floor((zc - 4.2 - 2 * t) / t);
+// Enough collars to lift the draw-bar clear of the ox's hump
+collar_n = ceil((deck_z + t + 1 + 53 - zc - 2 * t) / t);
+zd = zc + 2 * t + collar_n * t;
+// The walkway ring, the ox's path and the wheel's inner face
+Ri = Rc + 32;
+Ro = Ri + 64;
+L = Ri + 32;
+wx = Ro + 2;
+// Along the axle: the lantern's plates, its bearing and the well uprights
+lx_in = Rc - 12.5;
+lx_out = Rc + 4.5;
+lbx = lx_out + 2 * t + 4.2;
+wix = wx - 4.2 - 2 * t;
+wox = wx + 4 * t + 4.2;
+// The well's long walls, and the trough inside the ring of pots
+Yw = 70;
+wall_h = 40;
+trough_y = [-12, 22];
+trough_z = zL + 38;
+trough_x = wx + 2 * t + 0.5;
+post_x = trough_x + 86;
+base_x = [-(Ro + 8), trough_x + 108];
+assert(crown_pegs == floor(crown_pegs) && crown_pegs >= 20 && crown_pegs <= 28, "Crown pegs: 20 to 28");
+assert(pots == floor(pots) && pots >= 8 && pots <= 12, "Pots: 8 to 12");
+assert(bush_fit >= 0 && bush_fit <= 0.3, "Bush fit: 0 to 0.3 mm");
+assert(dowel_fit >= -0.1 && dowel_fit <= 0.2, "Dowel fit: -0.1 to 0.2 mm");
+assert(tab_fit >= 0 && tab_fit <= 0.3, "Tab fit: 0 to 0.3 mm");
+assert(t >= 2.8 && t <= 3.2, "Thickness: 2.8 to 3.2 mm");
+assert($kerf >= 0 && $kerf <= 0.25, "Kerf: 0 to 0.25 mm");
+assert(draw_bar_angle >= 0 && draw_bar_angle <= 360, "Draw-bar angle: 0 to 360 degrees");
+assert(contains(["all", "base", "gearing", "wheel", "well", "ox", "coupon"], output), "Unknown output");
+
+function polar(r, a) = [r * cos(a), r * sin(a)];
+function r2(x) = round(x * 100) / 100;
+module label(s, p, size = 4) {
+  score() translate(p) text(s, size = size, halign = "center", valign = "center");
+}
+module bush() {
+  circle(d = 6 + bush_fit);
+}
+module dowel() {
+  circle(d = 6 + dowel_fit);
+}
+module annulus(od, id) {
+  difference() {
+    circle(d = od);
+    circle(d = id);
+  }
+}
+// A slot of length len along x for a tab n sheets thick, centred on y = 0
+module slot(x0, len, n = 1) {
+  translate([x0, -(n * t + tab_fit) / 2]) rect([len, n * t + tab_fit]);
+}
+// Tabs under a standing part, through both base layers, at these x ranges
+module tabs(ranges, depth = 2 * t) {
+  for (r = ranges) translate([r[0], -depth]) rect([r[1] - r[0], depth + 0.01]);
+}
+// Windows between six spokes, from radius r0 to r1
+module windows(r0, r1, spoke = 10) {
+  difference() {
+    circle(r = r1);
+    circle(r = r0);
+    for (a = [0:60:120]) rotate(a) rect([2 * r1 + 2, spoke], center = true);
+  }
+}
+
+// Drawn in place, seen from above: the walkway posts, the bearings and the
+// well walls stand in slots through both layers; water ripples in the well
+module base() {
+  difference() {
+    translate([base_x[0], -(Ro + 8)]) rect([base_x[1] - base_x[0], 2 * (Ro + 8)], r = 10);
+    for (a = [60:60:300]) rotate(a) {
+      slot(Ri + 12, 10);
+      slot(Ro - 22, 10);
+    }
+    for (y = [-16, 6]) translate([lbx - tab_fit / 2, y]) rect([2 * t + tab_fit, 10]);
+    for (x = [wix, wox], y = [-66, 50]) translate([x - tab_fit / 2, y]) rect([2 * t + tab_fit, 16]);
+    translate([wox - tab_fit / 2, 0]) rect([2 * t + tab_fit, 12]);
+    for (s = [-1, 1]) translate([wx - 4.2 + 6, s * (Yw + t / 2)]) slot(0, 8.4 + 4 * t - 12);
+    translate([post_x - tab_fit / 2, -6]) rect([2 * t + tab_fit, 22]);
+  }
+  score() for (i = [0:5]) polyline([for (y = [-Yw + 4:4:Yw - 4]) [wx - 2 + 3.2 * i + 1.2 * sin(y * 12), y]]);
+}
+
+// The ring the ox walks on, with the post slots and the name at the front
+module deck() {
+  difference() {
+    annulus(2 * Ro, 2 * Ri);
+    for (a = [60:60:300]) rotate(a) {
+      slot(Ri + 12, 10);
+      slot(Ro - 22, 10);
+    }
+  }
+  score() outline() circle(r = L - 12);
+  score() outline() circle(r = L + 12);
+  engrave() translate([0, -(Ri + 22)]) text("WELLSPRING", size = 10, halign = "center", valign = "center");
+  label(str("SAQIYA AFTER AL-JAZARI  /  ", crown_pegs, " : ", staves), [0, -(Ri + 50)], 4);
+}
+
+// A radial post under the walkway: x is the distance from the shaft
+module post() {
+  h = deck_z - 2 * t;
+  difference() {
+    translate([Ri + 8, 0]) rect([Ro - Ri - 16, h]);
+    translate([Ri + 20, 16]) rect([Ro - Ri - 40, h - 32], r = 8);
+  }
+  tabs([[Ri + 12, Ri + 22], [Ro - 22, Ro - 12]]);
+  translate([0, h - 0.01]) tabs([[Ri + 12, Ri + 22], [Ro - 22, Ro - 12]], -t - 0.01);
+}
+
+// The horizontal peg wheel: pegs at the pitch radius, six spokes. Peg 0
+// sits on +x, under the lantern when the draw-bar points that way.
+module crown() {
+  difference() {
+    circle(r = Rc + 9);
+    circle(d = 4.4);
+    for (i = [0:crown_pegs - 1]) translate(polar(Rc, 360 * i / crown_pegs)) dowel();
+    windows(22, Rc - 10);
+  }
+  score() outline() circle(r = Rc);
+}
+
+// From the shaft out past the ox; the ox's yoke post fits the slot
+module draw_bar() {
+  difference() {
+    hull() {
+      circle(r = 13);
+      translate([L + 6, 0]) circle(r = 10);
+    }
+    circle(d = 4.4);
+    translate([L, 0]) rect([2 * t + tab_fit, 10 + tab_fit], center = true);
+  }
+  score() line([18, 0], [L - 10, 0]);
+}
+
+// One of the lantern's two end plates: 8 stave holes on the pitch circle
+module lantern_plate() {
+  difference() {
+    circle(r = plate_r);
+    circle(d = 4.4);
+    for (j = [0:staves - 1]) translate(polar(rl, 22.5 + 360 * j / staves)) dowel();
+  }
+}
+
+// Bearing plates stand across the axle: x along the axle's side (world y),
+// y up from the top of the base, the bush at the axle height
+module lantern_bearing() {
+  difference() {
+    union() {
+      translate([-18, 0]) rect([36, zL - 2 * t]);
+      translate([0, zL - 2 * t]) circle(r = 18);
+    }
+    translate([0, zL - 2 * t]) bush();
+  }
+  tabs([[-16, -6], [6, 16]]);
+}
+
+module well_upright(outer) {
+  top = outer ? trough_z - 2 * t : deck_z - 2 * t;
+  span = outer ? trough_y : [-16, 16];
+  difference() {
+    union() {
+      translate([-(Yw + t), 0]) rect([2 * (Yw + t), wall_h]);
+      translate([span[0], 0]) rect([span[1] - span[0], top]);
+    }
+    translate([0, zL - 2 * t]) bush();
+    for (s = [-1, 1]) translate([s * 38, wall_h / 2 - 2]) rect([28, wall_h - 16], center = true);
+  }
+  tabs(concat([[-66, -50], [50, 66]], outer ? [[0, 12]] : []));
+  label(outer ? "OUTER" : "INNER", [(span[0] + span[1]) / 2, 10], 4);
+}
+
+module well_wall() {
+  len = 8.4 + 4 * t;
+  rect([len, wall_h]);
+  tabs([[6, len - 6]]);
+}
+
+module trough_post() {
+  h = trough_z - 2 * t;
+  difference() {
+    translate([trough_y[0], 0]) rect([trough_y[1] - trough_y[0], h]);
+    translate([trough_y[0] + 8, 14]) rect([trough_y[1] - trough_y[0] - 16, h - 34], r = 6);
+  }
+  tabs([[-6, 16]]);
+}
+
+// The wheel, seen from the trough side, where the pots are glued
+module wheel() {
+  difference() {
+    circle(r = Rw);
+    circle(d = 4.4);
+    windows(20, Rw - 14);
+  }
+  for (i = [0:pots - 1]) score() translate(polar(Rw - 1, 360 * i / pots)) rotate(360 * i / pots - 90) outline() pot_shape();
+}
+
+// A pot, its mouth at +x. On the wheel it leads the way round, so it fills
+// at the bottom, rises upright and pours over the top.
+function pot_half() = [[-16, 4], [-13, 8], [-6, 10], [2, 9.2], [8, 6], [11, 4.5], [14, 4.5], [15, 6], [16, 6]];
+module pot_shape() {
+  polygon(concat(pot_half(), [for (p = reverse(pot_half())) [p[0], -p[1]]]));
+}
+module pot() {
+  pot_shape();
+  score() {
+    line([-9, -9.4], [-9, 9.4]);
+    line([4, -8.2], [4, 8.2]);
+    line([14, -4.5], [14, 4.5]);
+  }
+}
+
+// The ox, facing +x with the yoke post at x = 0 and its hooves at y = 0; the
+// post reaches up through the draw-bar
+ox_top = zd + 2 * t - (deck_z + t + 1);
+module ox() {
+  // A humped ox: tail, hind legs, belly, forelegs, dewlap, head and horn, hump
+  offset(r = -0.8) offset(delta = 0.8) polygon([[-44, 43], [-47, 41], [-49, 36], [-50, 26], [-50.5, 18], [-52, 14],
+    [-49, 13], [-48, 18], [-47.5, 28], [-46, 33], [-45, 27], [-43, 20], [-41, 13], [-41, 3], [-42, 0], [-35, 0],
+    [-35.5, 4], [-36, 13], [-33.5, 19], [-32, 14], [-31, 4], [-32, 0], [-25, 0], [-25.5, 5], [-25, 15],
+    [-22, 20], [-12, 18], [0, 17.5], [10, 18.5], [13, 15], [13.5, 4], [12.5, 0], [19.5, 0], [19.5, 5], [20, 14],
+    [21.5, 16], [23, 14], [23.5, 4], [22.5, 0], [29.5, 0], [29.5, 5], [30, 16], [33, 21], [37, 22], [41, 26],
+    [45, 28], [52, 28], [55.5, 30], [56.5, 34], [55, 37], [50, 42], [47, 45], [49, 50], [52, 54], [50, 54.5],
+    [46, 50], [43, 46.5], [40, 45], [30, 45], [12, 46], [7, 50.5], [2, 52], [-4, 50], [-8, 46], [-20, 43],
+    [-34, 42.5]]);
+  translate([-5, 45]) rect([10, ox_top - 45]);
+  score() {
+    // Eye, ear, nostril and mouth
+    translate([49, 38]) outline() circle(d = 2.6);
+    polyline([[44, 45], [39, 43], [42, 42.5]]);
+    line([54.5, 33.5], [55.5, 33]);
+    line([52, 29.5], [55, 30.5]);
+    // The breast strap from the yoke, and a saddle cloth with a zigzag hem
+    polyline([[5, 47], [20, 34], [34, 24]]);
+    polyline([[-10, 45], [-11, 26], [-29, 27], [-31, 42.5]]);
+    polyline([for (i = [0:9]) [-29 + 2 * i, 25 + 2 * (i % 2)]]);
+    // Cloven hooves and the knees
+    for (x = [-41.5, -31.5, 13, 23]) {
+      line([x, 3.5], [x + 6.5, 3.5]);
+      line([x + 3.2, 0], [x + 3.2, 3.5]);
+    }
+    for (p = [[-38, 13], [-28, 13], [16.5, 10], [26.5, 10]]) line(p - [2, 0], p + [2, 0]);
+  }
+}
+
+module coupon() {
+  difference() {
+    rect([150, 50], r = 3);
+    for (i = [0:3]) translate([15 + 22 * i, 16]) circle(d = 5.9 + bush_fit + 0.1 * i);
+    for (i = [0:2]) translate([105 + 18 * i, 16]) circle(d = 5.9 + dowel_fit + 0.1 * i);
+    translate([15, 38]) circle(d = 4.4);
+    translate([40, 32]) rect([t + tab_fit, 12]);
+    translate([60, 32]) rect([2 * t + tab_fit, 12]);
+  }
+  for (i = [0:3]) label(str(r2(5.9 + bush_fit + 0.1 * i)), [15 + 22 * i, 6], 3);
+  for (i = [0:2]) label(str(r2(5.9 + dowel_fit + 0.1 * i)), [105 + 18 * i, 6], 3);
+  label("BUSH", [48, 45], 3);
+  label("DOWEL", [123, 30], 3);
+}
+
+// Where the parts go in the assembled view. The lantern does not follow the
+// exact ratio, peg gearing never does: step up from 10 degrees behind it to
+// the first angle where no peg overlaps a stave, then bisect back to where
+// the driving peg just touches its stave. Staves at mesh angle a sit at
+// y = rl sin a, z = rl cos a about the axle; pegs hang from the crown.
+theta = draw_bar_angle;
+function peg_gap(a) = min([1e9, for (i = [0:crown_pegs - 1])
+  let(ph = theta + 360 * i / crown_pegs, px = Rc * cos(ph), py = Rc * sin(ph))
+  if (px > 0 && abs(py) < rl + 9) for (j = [0:staves - 1])
+    let(b = a + 360 * j / staves, sy = rl * sin(b), sz = rl * cos(b),
+      dz = abs(min(max(sz, peg_tip - zL), zc - zL) - sz))
+    if (dz < 3) sqrt(max(0, lx_in - px, px - lx_out) ^ 2 + max(0, abs(py - sy) - sqrt(9 - dz * dz)) ^ 2) - 3]);
+function first_free(a, k = 0) = peg_gap(a) >= 0 || k > 60 ? a : first_free(a + 0.5, k + 1);
+function contact(lo, hi, k = 0) = k >= 40 ? hi : let(m = (lo + hi) / 2) peg_gap(m) >= 0 ? contact(lo, m, k + 1) : contact(m, hi, k + 1);
+mesh_a = let(f = first_free(ratio * theta + 180 / staves - 10)) contact(f - 0.5, f);
+// The lantern and wheel turn this far about the axle, clockwise seen from
+// the trough end as the draw-bar goes counterclockwise
+beta = 67.5 - mesh_a;
+// A plate standing across the axle (thickness along +x), and one on the
+// axle turned with it
+across = [90, 0, 90];
+function on_axle(b) = [90, -b, 90];
+// A point at radius r along the draw-bar, height z
+function round_at(r, z) = [r * cos(theta), r * sin(theta), z];
+
+if (output == "all" || output == "base") {
+  part("Base", qty = 2, at = [[0, 0, 0], [0, 0, t]]) base();
+  part("Walkway", at = [0, 0, deck_z]) deck();
+  part("Walkway post", qty = 5, at = [for (a = [60:60:300]) [-t / 2 * sin(a), t / 2 * cos(a), 2 * t]],
+    rotate = [for (a = [60:60:300]) [90, 0, a]]) post();
+}
+if (output == "all" || output == "gearing") {
+  part("Tower disc", qty = tower_n, at = [for (i = [0:tower_n - 1]) [0, 0, 2 * t + i * t]]) difference() {
+    circle(d = 24);
+    bush();
+  }
+  part("Crown wheel", qty = 2, at = [[0, 0, zc], [0, 0, zc + t]], rotate = [0, 0, theta]) crown();
+  part("Shaft collar", qty = collar_n, at = [for (i = [0:collar_n - 1]) [0, 0, zc + 2 * t + i * t]]) annulus(26, 4.4);
+  part("Draw-bar", qty = 2, at = [[0, 0, zd], [0, 0, zd + t]], rotate = [0, 0, theta]) draw_bar();
+  part("Lantern plate", qty = 4, at = [for (x = [lx_in - 2 * t, lx_in - t, lx_out, lx_out + t]) [x, 0, zL]],
+    rotate = on_axle(beta)) lantern_plate();
+  part("Lantern bearing", qty = 2, at = [[lbx, 0, 2 * t], [lbx + t, 0, 2 * t]], rotate = across) lantern_bearing();
+}
+if (output == "all" || output == "wheel") {
+  part("Water wheel", qty = 2, at = [[wx, 0, zL], [wx + t, 0, zL]], rotate = on_axle(beta)) wheel();
+  part("Wheel hub", qty = 2, at = [[wx + 2 * t, 0, zL], [wx + 3 * t, 0, zL]], rotate = on_axle(beta)) annulus(30, 4.4);
+  // Each pot in two layers on the wheel's outer face, turned with the wheel
+  part("Pot", qty = 2 * pots,
+    at = [for (i = [0:pots - 1], k = [0, 1]) let(g = 360 * i / pots + beta) [wx + 2 * t + k * t, (Rw - 1) * cos(g), zL + (Rw - 1) * sin(g)]],
+    rotate = [for (i = [0:pots - 1], k = [0, 1]) on_axle(beta + 360 * i / pots - 90)]) pot();
+}
+if (output == "all" || output == "well") {
+  part("Inner upright", qty = 2, at = [[wix, 0, 2 * t], [wix + t, 0, 2 * t]], rotate = across) well_upright(false);
+  part("Outer upright", qty = 2, at = [[wox, 0, 2 * t], [wox + t, 0, 2 * t]], rotate = across) well_upright(true);
+  part("Well wall", qty = 2, at = [[wx - 4.2, Yw + t, 2 * t], [wx - 4.2, -Yw, 2 * t]], rotate = [90, 0, 0]) well_wall();
+  part("Trough floor", at = [trough_x, 0, trough_z]) translate([0, trough_y[0]]) rect([100, trough_y[1] - trough_y[0]]);
+  part("Trough side", qty = 2, at = [[trough_x, trough_y[1], trough_z + t], [trough_x, trough_y[0] + t, trough_z + t]],
+    rotate = [90, 0, 0]) rect([100, 14]);
+  part("Trough end", at = [trough_x, 0, trough_z + t], rotate = across)
+    translate([trough_y[0] + t, 0]) rect([trough_y[1] - trough_y[0] - 2 * t, 14]);
+  part("Trough post", qty = 2, at = [[post_x, 0, 2 * t], [post_x + t, 0, 2 * t]], rotate = across) trough_post();
+}
+if (output == "all" || output == "ox") part("Ox", qty = 2, at = [round_at(L - t, deck_z + t + 1), round_at(L, deck_z + t + 1)],
+    rotate = [90, 0, theta + 90]) ox();
+// The fit test lies on the table in front of the model
+if (output == "all" || output == "coupon") part("Fit test", at = [base_x[0], -(Ro + 8) - 70, 0]) coupon();
+
+echo(str("Wellspring: ", crown_pegs, " pegs to ", staves, " staves, so the wheel turns ", ratio, " times for each round of the ox; pitch radii ", r2(Rc), " and ", r2(rl), " mm at ", pitch, " mm pitch; axle ", zL, " mm up; base ", r2(base_x[1] - base_x[0]), " x ", r2(2 * Ro + 16), " mm"));
+
+// Assembly: glue the two base layers and stand the five posts in their
+// slots under the walkway. Glue the tower discs into a post, a 6 mm brass
+// tube bush (4 mm bore) in its top and bottom four discs. Glue the crown
+// wheel's two layers with the 26 mm dowel pegs pointing down, then the
+// collars and the draw-bar on top, and clamp it between nuts on a 175 mm M4
+// threaded rod that turns in the tower, washers under the lower nut. Glue
+// each pair of lantern plates and the eight 29 mm dowel staves between them
+// round a brass spacer. On a 150 mm M4 rod: nut, lantern, nut and washer,
+// the lantern bearing, the inner upright, washer and nut, the wheel and hub,
+// nut and washer, the outer upright, washer and nut, a bush in every
+// bearing. Glue the pots on the wheel's outer face, mouths leading, the
+// well walls between the uprights, the trough on the outer upright and its
+// post, and the ox's two layers with its post up through the draw-bar's
+// slot; its hooves clear the walkway by 1 mm.

@@ -19,6 +19,13 @@ box_height = 90; // [80:5:120]
 // Added to the 18 mm bores the dial hubs turn in
 rotor_clearance = 0.5; // [0.4:0.1:0.6]
 
+/* [Assembly] */
+// How far the fence is slid back in the assembled view; 10 mm frees the
+// lid, and only with the right code
+fence_slide = 10; // [0:0.5:10]
+// How high the lid is lifted out
+lid_lift = 45; // [0:1:80]
+
 /* [Export] */
 // All parts, or one group at a time
 output = "all"; // [all:All parts, enclosure:Box, lid:Lid and its fittings, rotors:Dials and gate wheels, fence:Fence and knob, coupon:Fit test]
@@ -48,6 +55,8 @@ assert($kerf >= 0 && $kerf <= 0.25, "Kerf: 0 to 0.25 mm");
 assert(H >= 80 && H <= 120, "Box height: 80 to 120 mm");
 assert(rotor_clearance >= 0.4 && rotor_clearance <= 0.6, "Rotor clearance: 0.4 to 0.6 mm");
 for (k = codes) assert(k >= 0 && k <= 9 && floor(k) == k, "Code digits: whole numbers 0 to 9");
+assert(fence_slide >= 0 && fence_slide <= 10, "Fence slide: 0 to 10 mm");
+assert(lid_lift >= 0 && lid_lift <= 80, "Lid lift: 0 to 80 mm");
 assert(contains(["all", "enclosure", "lid", "rotors", "fence", "coupon"], output), "Unknown output");
 
 function polar(r, a) = [r * cos(a), r * sin(a)];
@@ -183,36 +192,55 @@ module coupon() {
   for (i = [0:2]) label(str(6.2 + i * 0.2), [25 + 35 * i, 59], 3);
 }
 
+// The assembled view, front at y = 0 and the base on the table. The front
+// and rear walls stand on the base; everything under the lid hangs from it
+// and lifts out with it. The rotors are turned to the code, the fence slid
+// back with its knob.
+guide_x = [35, 225];
+tongue_x = [45, 195];
+upright = [90, 0, 0];
+along = [0, 0, 90];
+function wall_at(y) = [0, y, t];
+function on_lid(x, y, z) = [x, y, z + lid_lift];
+function code_turn(i) = [0, 0, 36 * codes[i]];
+cleats = [for (j = [0:3], k = [0:1]) [j % 2 == 0 ? t : W - t - 12, j < 2 ? 3 * t + k * t : D - 2 * t - k * t, t]];
+
 if (output == "all" || output == "enclosure") {
-  part("Base") base();
-  part("Front wall") wall(true, false);
-  part("Front inner wall") wall(true, true);
-  part("Rear wall") wall(false, false);
-  part("Rear inner wall") wall(false, true);
-  part("Side wall", qty = 2) rect([D - 4 * t, H]);
-  part("Corner cleat", qty = 8) rect([12, H - 8 * t]);
-  part("Floor cleat", qty = 4) rect([100, 12]);
-  part("Lid ledge", qty = 4) rect([100, 12]);
+  part("Base", at = [0, 0, 0]) base();
+  part("Front wall", at = wall_at(t), rotate = upright) wall(true, false);
+  part("Front inner wall", at = wall_at(2 * t), rotate = upright) wall(true, true);
+  part("Rear wall", at = wall_at(D), rotate = upright) wall(false, false);
+  part("Rear inner wall", at = wall_at(D - t), rotate = upright) wall(false, true);
+  part("Side wall", qty = 2, at = [[0, 2 * t, t], [W - t, 2 * t, t]], rotate = [90, 0, 90]) rect([D - 4 * t, H]);
+  // Pairs of strips in the four corners, against the inner walls
+  part("Corner cleat", qty = 8, at = cleats, rotate = upright) rect([12, H - 8 * t]);
+  part("Floor cleat", qty = 4, at = [[t + 12, 40, t], [W - t, 40, t], [80, 2 * t, t], [80, D - 2 * t - 12, t]],
+      rotate = [along, along, [0, 0, 0], [0, 0, 0]])
+    rect([100, 12]);
+  part("Lid ledge", qty = 4, at = [for (x = [t + 12, W - t], k = [0:1]) [x, 50, H - 2 * t + k * t]], rotate = along) rect([100, 12]);
 }
 if (output == "all" || output == "lid") {
-  part("Lid") lid();
-  part("Bearing pad", qty = 6) annulus(32, 18 + rotor_clearance);
-  part("Rear tongue", qty = 2) rect([20, 22]);
-  part("Tongue spacer", qty = 4) rect([20, 12]);
+  part("Lid", at = on_lid(0, 0, H)) lid();
+  part("Bearing pad", qty = 6, at = [for (x = dial_x, k = [0:1]) on_lid(x, 75, H - 2 * t + k * t)]) annulus(32, 18 + rotor_clearance);
+  part("Rear tongue", qty = 2, at = [for (x = tongue_x) on_lid(x, D - t - 22.5, H - 3 * t)]) rect([20, 22]);
+  part("Tongue spacer", qty = 4, at = [for (x = tongue_x, k = [0:1]) on_lid(x, D - t - 22.5, H - 2 * t + k * t)]) rect([20, 12]);
 }
 if (output == "all" || output == "rotors") {
-  for (i = [0:2]) part(str("Gate wheel ", i + 1, ", code ", codes[i])) gate(codes[i]);
-  part("Dial", qty = 3) dial();
-  part("Hub disc", qty = 9) hub();
+  for (i = [0:2])
+    part(str("Gate wheel ", i + 1, ", code ", codes[i]), at = on_lid(dial_x[i], 75, H - 3 * t - 0.5), rotate = code_turn(i)) gate(codes[i]);
+  part("Dial", qty = 3, at = [for (x = dial_x) on_lid(x, 75, H + t)], rotate = [for (i = [0:2]) code_turn(i)]) dial();
+  part("Hub disc", qty = 9, at = [for (x = dial_x, k = [0:2]) on_lid(x, 75, H - 2 * t - 0.5 + k * t)], rotate = [for (i = [0:2], k = [0:2]) code_turn(i)])
+    hub();
 }
 if (output == "all" || output == "fence") {
-  part("Fence") fence();
-  part("Fence spacer", qty = 4) annulus(14, 6.2);
-  part("Fence keeper", qty = 2) annulus(16, 3.4);
-  part("Knob stem", qty = 3) annulus(8, 4.4);
-  part("Knob") annulus(24, 4.4);
+  part("Fence", at = on_lid(0, fence_slide, H - 3 * t)) fence();
+  part("Fence spacer", qty = 4, at = [for (x = guide_x, k = [0:1]) on_lid(x, 29, H - 2 * t + k * t)]) annulus(14, 6.2);
+  part("Fence keeper", qty = 2, at = [for (x = guide_x) on_lid(x, 29, H - 4 * t - 0.4)]) annulus(16, 3.4);
+  part("Knob stem", qty = 3, at = [for (k = [0:2]) on_lid(130, 20 + fence_slide, H - 2 * t + 1 + k * t)]) annulus(8, 4.4);
+  part("Knob", at = on_lid(130, 20 + fence_slide, H + t + 1)) annulus(24, 4.4);
 }
-if (output == "all" || output == "coupon") part("Fit test") coupon();
+// The fit test lies on the table beside the box
+if (output == "all" || output == "coupon") part("Fit test", at = [W + 20, 0, 0]) coupon();
 
 echo(str("Vault: code ", code_1, "-", code_2, "-", code_3, ", ", W, " x ", D, " x ", H + t, " mm; fence guide sleeves ", 3 * t + 0.4, " mm long"));
 

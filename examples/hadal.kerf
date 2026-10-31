@@ -150,12 +150,15 @@ module fit_test() {
 }
 
 if (output == "fit") fit_test();
+// Assembled: the spine stands in the two cradles on the plinth, the ribs
+// across it in their slots
+across = [90, 0, 90];
 if (output == "sculpture") {
-  part("Spine") spine();
-  for (i = [0:8]) part(str("Rib ", i + 1)) rib(i);
-  part("Cradle A") cradle(0);
-  part("Cradle B") cradle(1);
-  part("Plinth") plinth();
+  part("Spine", at = [0, t / 2, 0], rotate = [90, 0, 0]) spine();
+  for (i = [0:8]) part(str("Rib ", i + 1), at = [xs[i] * s - t / 2, 0, zs[i] * s], rotate = across) rib(i);
+  part("Cradle A", at = [cradle_x[0] * s - t / 2, 0, 0], rotate = across) cradle(0);
+  part("Cradle B", at = [cradle_x[1] * s - t / 2, 0, 0], rotate = across) cradle(1);
+  part("Plinth", at = [0, 0, -t]) plinth();
 }
 
 // Assembly: glue cradles A and B into the plinth, lower the spine into

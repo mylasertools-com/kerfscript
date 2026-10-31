@@ -1,0 +1,199 @@
+// Echo: a pantograph for copying a drawing larger. Four arms make a hinged
+// parallelogram anchored to the board; trace the original with the stylus and
+// the pencil draws it again, 1.5 to 4 times the size. Move the stylus and the
+// pencil to the holes engraved with the same ratio. To copy smaller, swap them.
+
+/* [Scale] */
+// The ratio the board marks are drawn for; every arm has holes for all five
+ratio = 2.5; // [1.5:1.5x, 2:2x, 2.5:2.5x, 3:3x, 4:4x]
+
+/* [Fit] */
+// Added to the 6 mm holes the brass sleeves of the joints turn in
+pivot_clearance = 0.3; // [0.2:0.05:0.4]
+// Holes for the pencil and the 8 mm dowel stylus; the pencil should drop freely
+pencil_hole = 8.2; // [7.8:0.1:8.6]
+
+/* [Assembly] */
+// Where the stylus is in the assembled view, across the original's square
+// from left to right
+stylus_x = 0.5; // [0:0.05:1]
+// And from front to back
+stylus_y = 0.8; // [0:0.05:1]
+
+/* [Export] */
+// All parts, or one group at a time
+output = "all"; // [all:All parts, arms:Arms and link, board:Base board and anchor, small:Feet and collars, coupon:Fit test]
+
+/* [Material] */
+// Sheet thickness
+$thickness = 3; // [2.8:0.1:3.2]
+// Beam width
+$kerf = 0.15; // [0:0.01:0.25]
+
+/* [Hidden] */
+$material = "plywood";
+$sheet = [600, 400];
+$gap = 5;
+$fn = 96;
+t = $thickness;
+// Anchor arm and stylus arm, joint to joint; link, and the pencil arm from
+// the elbow to the joint with the stylus arm
+a = 240;
+n = 72;
+// Arm width
+w = 24;
+hole = 6 + pivot_clearance;
+ratios = [1.5, 2, 2.5, 3, 4];
+// Base board, and the anchor on it
+board = [560, 380];
+anchor = [40, 115];
+// The original's square for each ratio, [ratio, centre x, centre y, side]:
+// the largest found where the parallelogram never closes past 30 degrees,
+// every joint stays on the board and the copy clears the original
+zones = [[1.5, 230, 112, 64], [2, 180, 115, 82], [2.5, 152, 119, 86], [3, 138, 122, 80], [4, 132, 120, 58]];
+assert(contains(ratios, ratio), "Ratio: 1.5, 2, 2.5, 3 or 4");
+assert(pivot_clearance >= 0.2 && pivot_clearance <= 0.4, "Pivot clearance: 0.2 to 0.4 mm");
+assert(pencil_hole >= 7.8 && pencil_hole <= 8.6, "Pencil hole: 7.8 to 8.6 mm");
+assert(t >= 2.8 && t <= 3.2, "Thickness: 2.8 to 3.2 mm");
+assert($kerf >= 0 && $kerf <= 0.25, "Kerf: 0 to 0.25 mm");
+assert(stylus_x >= 0 && stylus_x <= 1 && stylus_y >= 0 && stylus_y <= 1, "Stylus position: 0 to 1 each way");
+assert(contains(["all", "arms", "board", "small", "coupon"], output), "Unknown output");
+
+// With the link n long, the anchor O, the elbow B, the joints C and X make a
+// parallelogram. Put the pencil k n from B and the stylus a / k from X:
+// then stylus = O + (pencil - O) / k, on the line from the anchor to the
+// pencil and k times nearer, at every angle of the arms.
+function pencil_at(k) = k * n;
+function stylus_at(k) = a / k;
+function ratio_name(k) = str(k, "x");
+zone = zones[search(ratio, ratios)];
+copy_side = ratio * zone[3];
+copy_centre = anchor + ([zone[1], zone[2]] - anchor) * ratio;
+
+// The assembled view, z up from the top of the board. The stylus arm (a / k
+// from X to the stylus) and the link (n) are two links from the anchor to
+// the stylus; their angles give the whole parallelogram.
+stylus = [zone[1], zone[2]] + ([stylus_x, stylus_y] - [0.5, 0.5]) * zone[3];
+ik = let(p = a / ratio, d = stylus - anchor, r = norm(d), phi = acos((r * r - p * p - n * n) / (2 * p * n)),
+  ua = atan2(d[1], d[0]) - atan2(-n * sin(phi), p + n * cos(phi))) [ua, ua - phi];
+u = [cos(ik[0]), sin(ik[0])];
+v = [cos(ik[1]), sin(ik[1])];
+elbow = anchor + a * u;
+joint_x = anchor + n * v;
+joint_c = elbow + n * v;
+pencil = elbow + ratio * n * v;
+// The anchor arm and stylus arm run on the glide feet, the link and the
+// pencil arm above them, over the M6 washers
+low = 2 * t;
+high = 3 * t + 0.5;
+function at(p, z) = concat(p, [z]);
+
+module label(s, p, size = 3.5) {
+  score() translate(p) text(s, size = size, halign = "center", valign = "center");
+}
+module annulus(od, id) {
+  difference() {
+    circle(d = od);
+    circle(d = id);
+  }
+}
+
+// An arm along x from x0 to x1, joint holes at joints, pencil or stylus holes
+// at rows with their ratio engraved beside each
+module arm(x0, x1, joints, rows = [], name = "", name_at = 0) {
+  difference() {
+    hull() {
+      translate([x0, 0]) circle(d = w);
+      translate([x1, 0]) circle(d = w);
+    }
+    for (x = joints) translate([x, 0]) circle(d = hole);
+    for (r = rows) translate([r[1], 0]) circle(d = pencil_hole);
+  }
+  for (r = rows) label(ratio_name(r[0]), [r[1], 8.6]);
+  if (name != "") label(name, [name_at, 0], 4.5);
+}
+
+module anchor_arm() {
+  arm(0, a, [0, a]);
+  label("ECHO", [a / 2, 0], 11);
+  label("ANCHOR", [a / 2 + 54, 0], 4);
+}
+module pencil_arm() arm(0, pencil_at(4) + 12, [0, n], [for (k = ratios) [k, pencil_at(k)]], "PENCIL", (pencil_at(3) + pencil_at(4)) / 2);
+module stylus_arm() arm(0, a, [0, a], [for (k = ratios) [k, stylus_at(k)]], "STYLUS", (stylus_at(1.5) + a) / 2);
+module link() arm(0, n, [0, n], [], "LINK", n / 2);
+
+// L marks just outside the corners of a square of side s centred at c
+module corners(c, s) {
+  score() for (i = [-1, 1], j = [-1, 1]) let(p = c + [i, j] * (s / 2 + 2)) {
+    line(p, p + [-8 * i, 0]);
+    line(p, p + [0, -8 * j]);
+  }
+}
+
+// The board is drawn as seen from above. The anchor nut sits in a hex hole
+// through the board and the lower anchor block; the marks show where to tape
+// the original and the copy paper for the chosen ratio.
+module base_board() {
+  difference() {
+    rect(board, r = 10);
+    translate(anchor) circle(d = 8.2, $fn = 6);
+  }
+  corners([zone[1], zone[2]], zone[3]);
+  label("ORIGINAL", [zone[1], zone[2] + zone[3] / 2 + 9], 4);
+  corners(copy_centre, copy_side);
+  label(str("COPY ", ratio_name(ratio)), [copy_centre.x, copy_centre.y + copy_side / 2 + 9], 4);
+  label("ECHO", [440, 338], 24);
+  label("PANTOGRAPH  1.5x TO 4x", [440, 314], 6);
+}
+
+module coupon() {
+  difference() {
+    rect([130, 42], r = 3);
+    for (i = [0:2]) translate([15 + 20 * i, 14]) circle(d = 6.2 + 0.1 * i);
+    for (i = [0:2]) translate([75 + 20 * i, 14]) circle(d = 8.1 + 0.1 * i);
+    translate([15, 32]) circle(d = 4.4);
+    translate([40, 32]) circle(d = 8.2, $fn = 6);
+  }
+  for (i = [0:2]) label(str(6.2 + 0.1 * i), [15 + 20 * i, 4], 3);
+  for (i = [0:2]) label(str(8.1 + 0.1 * i), [75 + 20 * i, 4], 3);
+}
+
+if (output == "all" || output == "arms") {
+  part("Anchor arm", at = at(anchor, low), rotate = [0, 0, ik[0]]) anchor_arm();
+  part("Pencil arm", at = at(elbow, high), rotate = [0, 0, ik[1]]) pencil_arm();
+  part("Stylus arm", at = at(joint_x, low), rotate = [0, 0, ik[0]]) stylus_arm();
+  part("Link", at = at(anchor, high), rotate = [0, 0, ik[1]]) link();
+}
+if (output == "all" || output == "board") {
+  part("Base board", at = [0, 0, -t]) base_board();
+  part("Nut block", at = at(anchor, 0)) difference() {
+    circle(d = 44);
+    circle(d = 8.2, $fn = 6);
+  }
+  part("Anchor block", at = at(anchor, t)) difference() {
+    circle(d = 44);
+    circle(d = 4.4);
+  }
+}
+if (output == "all" || output == "small") {
+  // Two under each of the three joints that move over the paper
+  part("Glide foot", qty = 6, at = [for (q = [elbow, joint_c, joint_x], k = [0:1]) at(q, k * t)]) annulus(20, 10);
+  // Glued to the stylus dowel so its tip just reaches the paper
+  part("Stylus collar", qty = 2, at = [for (k = [0:1]) at(stylus, 3 * t + k * t)]) annulus(14, pencil_hole - 0.2);
+  part("Pencil guide", qty = 3, at = [for (k = [0:2]) at(pencil, 4 * t + 0.5 + k * t)]) annulus(14, pencil_hole);
+}
+// The fit test lies on the table beside the board
+if (output == "all" || output == "coupon") part("Fit test", at = [board[0] + 20, 0, -t]) coupon();
+
+echo(str("Echo: ", ratio_name(ratio), " copy; stylus ", round(stylus_at(ratio) * 10) / 10, " mm from the link joint, pencil ", pencil_at(ratio), " mm from the elbow; original up to ", zone[3], " mm square, copy ", copy_side, " mm"));
+
+// Assembly, z up from the top of the base board: glue the nut block and the
+// anchor block on the board over the hex hole, with an M4 nut in the hole.
+// The four joints are M4 bolts on 6 mm brass sleeves 2t + 0.7 long, with an
+// M6 washer between the arms: anchor arm under the link at the anchor (the
+// bolt from above into the nut), anchor arm under the pencil arm at the
+// elbow, stylus arm under the pencil arm and under the link at the other
+// two. Glue two glide feet under the anchor arm at the elbow and under the
+// stylus arm at both its joints; the bolt heads sit inside them. Glue the
+// stylus collars on an 8 mm dowel with a rounded tip, so the tip just
+// touches the paper, and stack the pencil guides over the pencil hole.

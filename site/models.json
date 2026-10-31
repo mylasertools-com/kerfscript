@@ -112,6 +112,71 @@
     "tags": ["joinery", "parts", "mechanism"]
   },
   {
+    "file": "lambda",
+    "title": "Lambda Chebyshev walker",
+    "tags": ["math", "parts", "mechanism"]
+  },
+  {
+    "file": "crawl",
+    "title": "Crawl spider walker",
+    "tags": ["math", "parts", "mechanism"]
+  },
+  {
+    "file": "inversor",
+    "title": "Inversor straight-line linkage",
+    "tags": ["math", "score", "mechanism"]
+  },
+  {
+    "file": "echo",
+    "title": "Echo pantograph",
+    "tags": ["math", "parts", "mechanism"]
+  },
+  {
+    "file": "weave",
+    "title": "Weave pintograph",
+    "tags": ["curves", "parts", "mechanism"]
+  },
+  {
+    "file": "tempo",
+    "title": "Tempo anchor escapement",
+    "tags": ["math", "parts", "mechanism"]
+  },
+  {
+    "file": "hours",
+    "title": "Hours wooden gear clock",
+    "tags": ["math", "parts", "mechanism"]
+  },
+  {
+    "file": "tally",
+    "title": "Tally odometer counter",
+    "tags": ["joinery", "parts", "mechanism"]
+  },
+  {
+    "file": "cascade",
+    "title": "Cascade binary marble adder",
+    "tags": ["math", "parts", "mechanism"]
+  },
+  {
+    "file": "helix",
+    "title": "Helix Archimedes screw marble lift",
+    "tags": ["math", "parts", "mechanism"]
+  },
+  {
+    "file": "peck",
+    "title": "Peck pecking hens",
+    "tags": ["random", "parts", "mechanism"]
+  },
+  {
+    "file": "dabble",
+    "title": "Dabble duck automaton",
+    "tags": ["curves", "parts", "mechanism"]
+  },
+  {
+    "file": "wellspring",
+    "title": "Wellspring saqiya water wheel",
+    "tags": ["math", "parts", "mechanism"]
+  },
+  {
     "file": "fracture",
     "title": "Fracture recursive relief",
     "tags": ["recursion", "layers", "presets"]

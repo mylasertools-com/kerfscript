@@ -1,0 +1,433 @@
+// Dabble: a hand-cranked duck automaton on an open cam box. Three cams on a
+// square shaft lift three dowel pushrods through the deck: as you turn the
+// crank the duck dips its head to the engraved pond while its tail tips up,
+// lifts its head again, then raises its wings. The pushrods are only lifted;
+// the duck's own weight keeps them on the cams, so turn it slowly.
+
+/* [Motion] */
+// How far the neck cam drops the head pushrod; more lift, a deeper dip
+neck_lift = 12; // [10:1:12]
+// How far the wing cam lifts the wing pushrod
+wing_lift = 10; // [8:1:10]
+// How far the tail cam lifts the tail pushrod
+tail_lift = 8; // [6:1:8]
+
+/* [Fit] */
+// Total play for the parts that turn or slide
+clearance = 0.4; // [0.2:0.1:0.6]
+// Added to the square holes for the 6 mm shaft
+shaft_fit = 0.15; // [0.05:0.05:0.3]
+// Added to the holes the 6 mm dowel pushrods slide in
+dowel_fit = 0.4; // [0.2:0.1:0.6]
+
+/* [Assembly] */
+// Crank angle in the assembled view: 0 to 190 the head dips, 190 to 350 the
+// wings rise and fall
+crank_angle = 95; // [0:5:360]
+
+/* [Export] */
+// All parts, or one group at a time
+output = "all"; // [all:All parts, box:Box, rotor:Cams and shaft parts, followers:Follower discs, duck:Duck, crank:Crank, coupon:Fit test]
+
+/* [Material] */
+// Sheet thickness
+$thickness = 3; // [2.8:0.1:3.2]
+// Beam width
+$kerf = 0.15; // [0:0.01:0.25]
+
+/* [Hidden] */
+$material = "plywood";
+$sheet = [600, 400];
+$gap = 5;
+$fn = 96;
+t = $thickness;
+// The box: length along the shaft, depth, and how far the walls sit in from
+// the ends of the base and deck
+BL = 210;
+BW = 90;
+W0 = 6;
+// Cams: smallest radius, and the follower disc that rides on them
+rb = 25;
+disc = 34;
+lmax = max(neck_lift, wing_lift, tail_lift);
+// Heights from the bottom of the base: shaft, guide rail, top of the deck
+z_s = 2 * t + rb + lmax + 8;
+rail_z = z_s + rb + lmax + 2 * t + 3;
+z_d = rail_z + 2 * t + 22 + 2 * t;
+// The duck is drawn side on, facing +x, with y = 0 on the deck; x0 is where
+// its origin sits along the box. Pivots of the neck, wings and tail, and how
+// far from each pivot its pushrod bears.
+x0 = 92;
+pn = [28, 16];
+rn = 11;
+pw = [10, 32];
+rw = 18;
+pt = [-36, 26];
+rt = 14;
+boss = 4;
+// Pushrods bear midway along the little arc their boss or pin sweeps
+un = pn[0] + rn * (1 + cos(asin(neck_lift / 2 / rn))) / 2;
+uw = pw[0] - rw * (1 + cos(asin(wing_lift / 2 / rw))) / 2;
+ut = pt[0] - rt * (1 + cos(asin(tail_lift / 2 / rt))) / 2;
+// Cam timing in crank degrees: the head goes down, rests, comes up; then
+// the wings rise and fall
+dip = [80, 30, 80];
+flap_at = 190;
+flap = [80, 0, 80];
+// Spacer rings fill the shaft between the journals and the cams
+gaps = [x0 + ut - 1.5 * t - W0 - 2 * t, uw - ut - 3 * t, un - uw - 3 * t, BL - W0 - 2 * t - x0 - un - 1.5 * t];
+rings = sum([for (g = gaps) floor((g - 0.4) / t)]);
+assert(neck_lift >= 10 && neck_lift <= 12, "Neck lift: 10 to 12 mm");
+assert(wing_lift >= 8 && wing_lift <= 10, "Wing lift: 8 to 10 mm");
+assert(tail_lift >= 6 && tail_lift <= 8, "Tail lift: 6 to 8 mm");
+assert(clearance >= 0.2 && clearance <= 0.6, "Clearance: 0.2 to 0.6 mm");
+assert(shaft_fit >= 0.05 && shaft_fit <= 0.3, "Shaft fit: 0.05 to 0.3 mm");
+assert(dowel_fit >= 0.2 && dowel_fit <= 0.6, "Dowel fit: 0.2 to 0.6 mm");
+assert(t >= 2.8 && t <= 3.2, "Thickness: 2.8 to 3.2 mm");
+assert($kerf >= 0 && $kerf <= 0.25, "Kerf: 0 to 0.25 mm");
+assert(crank_angle >= 0 && crank_angle <= 360, "Crank angle: 0 to 360 degrees");
+assert(contains(["all", "box", "rotor", "followers", "duck", "crank", "coupon"], output), "Unknown output");
+
+function polar(r, a) = [r * cos(a), r * sin(a)];
+function wrap(a) = ((a % 360) + 360) % 360;
+// A smooth bump of height L: rise over p[0] degrees, stay up p[1], fall
+// over p[2]; d is its slope in mm per radian
+function bump(a, L, p) = let(x = wrap(a))
+  x < p[0] ? L / 2 * (1 - cos(180 * x / p[0])) : x < p[0] + p[1] ? L : x < p[0] + p[1] + p[2] ? L / 2 * (1 + cos(180 * (x - p[0] - p[1]) / p[2])) : 0;
+function d_bump(a, L, p) = let(x = wrap(a))
+  x < p[0] ? L / 2 * 180 / p[0] * sin(180 * x / p[0]) : x < p[0] + p[1] ? 0 : x < p[0] + p[1] + p[2] ? -L / 2 * 180 / p[2] * sin(180 * (x - p[0] - p[1]) / p[2]) : 0;
+// Pushrod lift for cam k (0 neck, 1 wings, 2 tail) at crank angle a
+function lift(k, a) = k == 0 ? neck_lift - bump(a, neck_lift, dip) : k == 1 ? bump(a - flap_at, wing_lift, flap) : bump(a, tail_lift, dip);
+function d_lift(k, a) = k == 0 ? -d_bump(a, neck_lift, dip) : k == 1 ? d_bump(a - flap_at, wing_lift, flap) : d_bump(a, tail_lift, dip);
+// The cam is the envelope of the flat follower's face: at crank angle a the
+// face is rb + lift above the shaft, and it touches the cam d_lift to one side
+function cam_point(k, q) = let(a = 90 - q, h = rb + lift(k, a), dh = -d_lift(k, a))
+  h * [cos(q), sin(q)] + dh * [-sin(q), cos(q)];
+
+module label(s, p, size = 4, a = 0) {
+  score() translate(p) rotate(a) text(s, size = size, halign = "center", valign = "center");
+}
+module square_bore() {
+  rect([6 + shaft_fit, 6 + shaft_fit], center = true);
+}
+module ring(od, id) {
+  difference() {
+    circle(d = od);
+    circle(d = id);
+  }
+}
+module capsule(a, b, r1, r2) {
+  hull() {
+    translate(a) circle(r = r1);
+    translate(b) circle(r = r2);
+  }
+}
+
+// ---- The box ----
+
+module base() {
+  difference() {
+    translate([0, -BW / 2]) rect([BL, BW], r = 4);
+    for (x = [W0 + t, BL - W0 - t], y = [-30, 30]) translate([x, y]) rect([2 * t + 0.2, 14.2], center = true);
+  }
+}
+
+// Drawn across the box: x is depth, y height from the bottom of the base
+module end_wall() {
+  difference() {
+    union() {
+      translate([-BW / 2, 2 * t]) rect([BW, z_d - 4 * t]);
+      for (x = [-30, 30]) translate([x - 7, 0]) rect([14, z_d]);
+    }
+    translate([0, z_s]) circle(d = 18 + clearance);
+    translate([0, rail_z + t]) rect([12.2, 2 * t + 0.2], center = true);
+    // Windows, so the cams show from the ends too
+    translate([-32, 2 * t + 8]) rect([64, z_s - 2 * t - 22], r = 6);
+    translate([-32, z_s + 14]) rect([64, rail_z - z_s - 20], r = 6);
+  }
+}
+
+// The lower guide for the pushrods, between the walls
+module rail() {
+  difference() {
+    union() {
+      translate([W0 + 2 * t, -15]) rect([BL - 2 * W0 - 4 * t, 30], r = 3);
+      translate([W0, -6]) rect([BL - 2 * W0, 12]);
+    }
+    for (u = [un, uw, ut]) translate([x0 + u, 0]) circle(d = 6 + dowel_fit);
+  }
+}
+
+// The deck the duck floats on: pushrod holes, the slots for the duck's tabs
+// and the walls, and the pond the beak dips into
+module deck() {
+  difference() {
+    translate([0, -BW / 2]) rect([BL, BW], r = 4);
+    for (x = [W0 + t, BL - W0 - t], y = [-30, 30]) translate([x, y]) rect([2 * t + 0.2, 14.2], center = true);
+    for (u = [un, uw, ut]) translate([x0 + u, 0]) circle(d = 6 + dowel_fit);
+    for (u = [-38, 4], s = [-1, 1]) translate([x0 + u - 0.1, s > 0 ? 1.5 * t - 0.1 : -3.5 * t - 0.1]) rect([14.2, 2 * t + 0.2]);
+  }
+  score() for (i = [1:3]) translate([x0 + 101, 0]) outline() ellipse([4.5 * i, 6.5 * i]);
+  label("DABBLE", [BL / 2, -35], 12);
+  label("TURN SLOWLY", [42, -35], 4);
+}
+
+// ---- The rotor ----
+
+module cam(k, name) {
+  difference() {
+    polygon([for (q = [0:2:358]) cam_point(k, q)]);
+    square_bore();
+  }
+  // Timing mark: on the shaft, every cam's mark points the same way
+  score() line([0, 6], [0, 15]);
+  label(name, [0, -15], 4);
+}
+
+module crank() {
+  difference() {
+    hull() {
+      circle(r = 16);
+      translate([0, 30]) circle(r = 10);
+    }
+    square_bore();
+    translate([0, 30]) circle(d = 4.5);
+  }
+}
+
+// ---- The duck, side on, at rest: head up, wings and tail down ----
+
+module body() {
+  hull() {
+    translate([28, 22]) circle(r = 22);
+    translate([-15, 24]) circle(r = 24);
+    translate([-50, 28]) circle(r = 14);
+    translate([-54, 0]) rect([82, 1]);
+  }
+}
+
+// The neck turns on a brass tube at pn; its boss rests on the pushrod
+module neck() {
+  fu = asin(neck_lift / 2 / rn);
+  union() {
+    translate(pn) circle(r = 6);
+    translate(pn + polar(rn, fu)) circle(r = boss);
+    capsule(pn, pn + [5, 18], 6, 6.5);
+    capsule(pn + [5, 18], pn + [9, 36], 6.5, 6);
+    capsule(pn + [9, 36], pn + [10, 50], 6, 6.5);
+    capsule(pn + [10, 50], pn + [15, 62], 6.5, 12);
+    offset(r = 1) offset(delta = -1) polygon([pn + [20, 70], pn + [40, 62], pn + [39, 58], pn + [24, 55]]);
+  }
+}
+module neck_marks() {
+  score() {
+    translate(pn + [19, 66]) outline() circle(d = 3.6);
+    line(pn + [26, 60], pn + [39.5, 60]);
+  }
+  score() translate(pn + [12, 44]) rotate(10) line([-7, 0], [7, 0]);
+}
+
+// The tail turns on a tube at pt, its boss resting on the pushrod behind
+module tail() {
+  f0 = -asin(tail_lift / 2 / rt);
+  union() {
+    translate(pt) circle(r = 6);
+    translate(pt + [-rt * cos(f0), rt * sin(f0)]) circle(r = boss);
+    capsule(pt, pt + [-20, 8], 5, 5);
+    offset(r = 2) offset(delta = -2) polygon([pt + [-16, 3], pt + [-44, 12], pt + [-50, 22], pt + [-40, 21], pt + [-20, 15]]);
+  }
+}
+module tail_marks() {
+  score() for (i = [0:2]) line(pt + [-22, 9 + 2 * i], pt + [-44 + 2 * i, 14 + 3 * i]);
+}
+
+// Wings turn on the long tube at pw; the steel pin through both rides on
+// the middle pushrod
+module wing() {
+  difference() {
+    union() {
+      translate(pw) circle(r = 8);
+      offset(r = 3) offset(delta = -3) polygon([pw + [6, 4], pw + [-4, 11], pw + [-28, 13], pw + [-55, 10], pw + [-80, 3], pw + [-90, 0], pw + [-70, -6], pw + [-45, -10], pw + [-20, -12], pw + [0, -9]]);
+    }
+    translate(pw) circle(d = 6 + clearance);
+    translate(pw + [-rw * cos(asin(wing_lift / 2 / rw)), -wing_lift / 2]) circle(d = 4.2);
+  }
+  score() {
+    for (i = [0:3]) line(pw + [-30 - 4 * i, 8 - 4 * i], pw + [-84 + 3 * i, 1 - 2 * i]);
+    for (i = [0:3]) translate(pw + [-6 - 7 * i, 2]) arc(r = 5, start = 200, end = 340);
+    for (i = [0:2]) translate(pw + [-10 - 7 * i, -5]) arc(r = 5, start = 200, end = 340);
+  }
+}
+
+// The arc the wing pin moves along, with room around it
+module pin_slot(w) {
+  a0 = asin(wing_lift / 2 / rw) + 4;
+  for (a = [-a0:2:a0 - 2]) hull() {
+    translate(pw + [-rw * cos(a), rw * sin(a)]) circle(d = w);
+    translate(pw + [-rw * cos(a + 2), rw * sin(a + 2)]) circle(d = w);
+  }
+}
+
+module side() {
+  difference() {
+    union() {
+      body();
+      for (u = [-38, 4]) translate([u, -2 * t]) rect([14, 2 * t + 1]);
+    }
+    for (p = [pn, pw, pt]) translate(p) circle(d = 6.3);
+    pin_slot(4 + 2 * clearance);
+  }
+  score() {
+    translate([30, 22]) arc(r = 16, start = 200, end = 280);
+    for (i = [0:4], j = [0:1]) translate([-46 + 9 * i + 4.5 * j, 12 + 7 * j]) arc(r = 5, start = 200, end = 340);
+  }
+}
+
+// What the neck, tail, wing pin and pushrods sweep through, with room to spare
+module cavity() {
+  offset(r = 1.5) {
+    for (a = [0:-6:-70]) rotate(a, center = pn) neck();
+    for (a = [0:6:36]) rotate(-a, center = pt) tail();
+  }
+  pin_slot(7);
+  for (c = [[un, pn[1] + neck_lift / 2 - boss], [uw, pw[1] + wing_lift / 2 - 2], [ut, pt[1] + tail_lift / 2 - boss]]) translate([c[0] - 4.5, -1]) rect([9, c[1] + 2]);
+}
+
+// Glued between the two sides, three layers thick
+module core() {
+  difference() {
+    body();
+    cavity();
+    translate(pw) circle(d = 6.3);
+    // Only the part between the tail and the neck is worth gluing in
+    translate([ut + 4.5 - 30, -1]) rect([30, 60]);
+    translate([40, -1]) rect([30, 60]);
+  }
+}
+
+// The assembled view, z up from the bottom of the base, the shaft along x
+// at y = 0. Parts on the shaft stand across it and turn with the crank.
+a = crank_angle;
+function on_shaft(x) = [x, 0, z_s];
+shaft_turn = [90, -a, 90];
+across = [90, 0, 90];
+wall_x = [W0, W0 + t, BL - W0 - 2 * t, BL - W0 - t];
+// Pushrod lifts and the turns they give the neck (head down is negative),
+// wings and tail (tip up is negative), each about its pivot
+s_n = lift(0, a);
+s_w = lift(1, a);
+s_t = lift(2, a);
+neck_turn = asin((s_n - neck_lift / 2) / rn) - asin(neck_lift / 2 / rn);
+wing_turn = -asin((s_w - wing_lift / 2) / rw) - asin(wing_lift / 2 / rw);
+tail_turn = -asin((s_t - tail_lift / 2) / rt) - asin(tail_lift / 2 / rt);
+cam_x = [x0 + un, x0 + uw, x0 + ut];
+ring_x = let(starts = [W0 + 2 * t, cam_x[2] + 1.5 * t, cam_x[1] + 1.5 * t, cam_x[0] + 1.5 * t])
+  [for (g = [0:3]) for (k = [0:floor((gaps[g] - 0.4) / t) - 1]) starts[g] + k * t];
+// Duck layers are drawn side on: facing front, back face at y, or mirrored
+// and facing back, front face at y. A piece turned b about its pivot q
+// moves its origin to q - rotate(b) q.
+function swung(q, b) = q - [q.x * cos(b) - q.y * sin(b), q.x * sin(b) + q.y * cos(b)];
+function front_at(y, q = [0, 0], b = 0) = let(o = swung(q, b)) [x0 + o.x, y, z_d + o.y];
+function back_at(y, q = [0, 0], b = 0) = let(o = swung([-q.x, q.y], -b)) [x0 - o.x, y, z_d + o.y];
+function front_turn(b = 0) = [90, -b, 0];
+function back_turn(b = 0) = [90, b, 180];
+
+// ---- Parts ----
+
+if (output == "all" || output == "box") {
+  part("Base", qty = 2, at = [[0, 0, 0], [0, 0, t]]) base();
+  part("End wall", qty = 4, at = [for (x = wall_x) [x, 0, 0]], rotate = across) end_wall();
+  part("Guide rail", qty = 2, at = [[0, 0, rail_z], [0, 0, rail_z + t]]) rail();
+  part("Deck", qty = 2, at = [[0, 0, z_d - 2 * t], [0, 0, z_d - t]]) deck();
+}
+if (output == "all" || output == "rotor") {
+  part("Neck cam", qty = 3, at = [for (k = [0:2]) on_shaft(cam_x[0] + (k - 1.5) * t)], rotate = shaft_turn) cam(0, "NECK");
+  part("Wing cam", qty = 3, at = [for (k = [0:2]) on_shaft(cam_x[1] + (k - 1.5) * t)], rotate = shaft_turn) cam(1, "WING");
+  part("Tail cam", qty = 3, at = [for (k = [0:2]) on_shaft(cam_x[2] + (k - 1.5) * t)], rotate = shaft_turn) cam(2, "TAIL");
+  part("Journal", qty = 4, at = [for (x = wall_x) on_shaft(x)], rotate = shaft_turn) difference() {
+    circle(d = 18);
+    square_bore();
+  }
+  part("Thrust washer", qty = 2, at = [on_shaft(W0 - t), on_shaft(BL - W0)], rotate = across) ring(26, 9.2);
+  part("Shaft collar", qty = 2, at = [on_shaft(BL - W0 + t), on_shaft(BL - W0 + 2 * t)], rotate = shaft_turn) difference() {
+    circle(d = 18);
+    square_bore();
+  }
+  part("Spacer ring", qty = rings, at = [for (x = ring_x) on_shaft(x)], rotate = across) ring(14, 9.2);
+}
+// Two on each pushrod, riding on its cam
+if (output == "all" || output == "followers")
+  part("Follower disc", qty = 6, at = [for (k = [0:2], j = [0:1]) [cam_x[k], 0, z_s + rb + [s_n, s_w, s_t][k] + j * t]])
+    ring(disc, 6.2);
+if (output == "all" || output == "duck") {
+  part("Left side", qty = 2, at = [front_at(-1.5 * t), front_at(-2.5 * t)], rotate = front_turn()) side();
+  part("Right side", qty = 2, at = [back_at(1.5 * t), back_at(2.5 * t)], rotate = back_turn()) mirror([1, 0]) side();
+  part("Body core", qty = 3, at = [for (k = [1:3]) front_at(-1.5 * t + k * t)], rotate = front_turn()) core();
+  part("Neck front", at = front_at(0, pn, neck_turn), rotate = front_turn(neck_turn)) difference() {
+    union() {
+      neck();
+      neck_marks();
+    }
+    translate(pn) circle(d = 6 + clearance);
+  }
+  part("Neck back", at = back_at(0, pn, neck_turn), rotate = back_turn(neck_turn)) mirror([1, 0]) difference() {
+    union() {
+      neck();
+      neck_marks();
+    }
+    translate(pn) circle(d = 6 + clearance);
+  }
+  part("Tail front", at = front_at(0, pt, tail_turn), rotate = front_turn(tail_turn)) difference() {
+    union() {
+      tail();
+      tail_marks();
+    }
+    translate(pt) circle(d = 6 + clearance);
+  }
+  part("Tail back", at = back_at(0, pt, tail_turn), rotate = back_turn(tail_turn)) mirror([1, 0]) difference() {
+    union() {
+      tail();
+      tail_marks();
+    }
+    translate(pt) circle(d = 6 + clearance);
+  }
+  part("Left wing", at = front_at(-3.5 * t - 0.8, pw, wing_turn), rotate = front_turn(wing_turn)) wing();
+  part("Right wing", at = back_at(3.5 * t + 0.8, pw, wing_turn), rotate = back_turn(wing_turn)) mirror([1, 0]) wing();
+}
+if (output == "all" || output == "crank") {
+  part("Crank", qty = 3, at = [for (k = [0:2]) on_shaft(W0 - 4 * t + k * t)], rotate = shaft_turn) crank();
+  // The grips turn on the handle bolt, 30 mm out on the crank
+  part("Handle", qty = 6, at = [for (k = [1:6]) [W0 - 4 * t - k * t, -30 * sin(a), z_s + 30 * cos(a)]], rotate = shaft_turn)
+    ring(18, 4.5);
+}
+// The fit test lies on the table beside the box
+if (output == "all" || output == "coupon") part("Fit test", at = [BL + 20, -BW / 2, 0]) {
+  difference() {
+    rect([120, 52], r = 3);
+    for (j = [0:3]) translate([14 + 18 * j, 14]) rect([6.05 + 0.1 * j, 6.05 + 0.1 * j], center = true);
+    translate([96, 16]) circle(d = 18 + clearance);
+    for (j = [0:2]) translate([14 + 18 * j, 38]) circle(d = 6.2 + 0.2 * j);
+    translate([68, 38]) circle(d = 6.3);
+    translate([96, 38]) rect([2 * t + 0.2, 14.2], center = true);
+  }
+  for (j = [0:3]) label(str(6.05 + 0.1 * j), [14 + 18 * j, 5], 3);
+  for (j = [0:2]) label(str(6.2 + 0.2 * j), [14 + 18 * j, 47], 3);
+  label("TUBE", [68, 47], 3);
+}
+
+echo(str("Dabble: head dips ", round(2 * asin(neck_lift / 2 / rn)), " degrees, wings lift ", round(2 * asin(wing_lift / 2 / rw)), ", tail ", round(2 * asin(tail_lift / 2 / rt)), "; box ", BL, " x ", BW, " x ", z_d, " mm; shaft ", round(BL - 2 * W0 + 7 * t + 4), " mm, ", rings, " spacer rings; dowels ", round(z_d + pn[1] - boss - neck_lift / 2 - z_s - rb), ", ", round(z_d + pw[1] - 2 - wing_lift / 2 - z_s - rb), " and ", round(z_d + pt[1] - boss - tail_lift / 2 - z_s - rb), " mm"));
+
+// Assembly: glue the laminations (base, deck, guide rail, each end wall,
+// side and follower 2, core and each cam 3, crank 3, handle 6). Stand the
+// walls in the base with the rail between them and glue the deck on. Thread
+// the 6 mm square steel shaft: crank, thrust washer, journal, rings, tail cam,
+// rings, wing cam, rings, neck cam, rings, journal, washer, collar; every
+// cam's mark the same way and its name away from the crank, glued under its
+// pushrod. Glue each 6 mm dowel through two follower discs, flush beneath,
+// and drop it through rail and deck. The duck: core between the sides, 21 mm
+// lengths of 6 mm brass tube glued through the neck and tail pivots, the neck
+// and tail turning on them with an M4 washer each side; a 29 mm tube through
+// the wing pivot carries the wings, held by an M4 bolt, washers and nut. Glue
+// a 30 mm length of 4 mm steel rod through both wings to rest on the middle
+// pushrod, then glue the sides' tabs into the deck. An M4 bolt and nut carry
+// the handle on the crank.

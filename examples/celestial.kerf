@@ -15,6 +15,11 @@ marker_size = 12; // [10:1:14]
 // Added to the 8 mm holes the gears and crank turn on
 bearing_clearance = 0.15; // [0.1:0.05:0.2]
 
+/* [Assembly] */
+// Crank angle in the assembled view; the outer orbit takes two turns to go
+// round once
+crank_angle = 432; // [0:6:720]
+
 /* [Export] */
 // All parts, or one group at a time
 output = "all"; // [all:All parts, gears:Gears, frame:Base pedestals and feet, markers:Planets and sun, crank:Crank and handle, coupon:Fit test]
@@ -43,6 +48,7 @@ assert(marker_size >= 10 && marker_size <= 14, "Marker size: 10 to 14 mm");
 assert(bearing_clearance >= 0.1 && bearing_clearance <= 0.2, "Bearing clearance: 0.1 to 0.2 mm");
 assert(t >= 2.8 && t <= 3.2, "Thickness: 2.8 to 3.2 mm");
 assert($kerf >= 0 && $kerf <= 0.25, "Kerf: 0 to 0.25 mm");
+assert(crank_angle >= 0 && crank_angle <= 720, "Crank angle: 0 to 720 degrees");
 assert(contains(["all", "gears", "frame", "markers", "crank", "coupon"], output), "Unknown output");
 
 function polar(r, a) = [r * cos(a), r * sin(a)];
@@ -160,27 +166,42 @@ module handle() {
   }
 }
 
+// The assembled view, base underside at z = 0: the orbit gears on the left
+// journal and the drive gears on the right, at z0, z0 + pitch and z0 + 2
+// pitch, the crank above them and the sun on its rod. Each orbit gear turns
+// the other way from the crank, by the teeth of its pair.
+a = crank_angle;
+teeth = [60, 45, 30];
+function level_z(i) = z0 + i * pitch;
+function orbit_turn(i) = -a * (90 - teeth[i]) / teeth[i];
+function layers(x, z, n) = [for (k = [0:n - 1]) [x, 0, z + k * t]];
+corners = [for (x = [-27 * m, spacing + 27 * m], y = [-27 * m, 27 * m]) [x, y]];
+
 // Bottom to top: the outer orbit has the largest gear and the smallest drive
 levels = ["Lower", "Middle", "Upper"];
 if (output == "all" || output == "gears") for (i = [0:2]) {
-  z = [60, 45, 30][i];
-  part(str(levels[i], " orbit gear"), qty = 2) orbit_gear(z);
-  part(str(levels[i], " drive gear"), qty = 2) drive_gear(90 - z);
+  z = teeth[i];
+  part(str(levels[i], " orbit gear"), qty = 2, at = layers(0, level_z(i), 2), rotate = [0, 0, orbit_turn(i)]) orbit_gear(z);
+  part(str(levels[i], " drive gear"), qty = 2, at = layers(spacing, level_z(i), 2), rotate = [0, 0, a]) drive_gear(90 - z);
 }
 if (output == "all" || output == "frame") {
-  part("Base", qty = 2) base();
-  part("Foot", qty = 12) foot();
-  part("Journal pedestal", qty = 4) pedestal();
+  part("Base", qty = 2, at = layers(0, 0, 2)) base();
+  part("Foot", qty = 12, at = [for (c = corners, k = [0:2]) concat(c, [-3 * t + k * t])]) foot();
+  part("Journal pedestal", qty = 4, at = [for (x = [0, spacing], k = [0:1]) [x, 0, 2 * t + k * t]]) pedestal();
 }
 if (output == "all" || output == "markers") {
-  part("Planet", qty = 9) marker();
-  part("Sun", qty = 2) sun();
+  // Three layers on each orbit gear, 12 mm in from its pitch circle
+  part("Planet", qty = 9, at = [for (i = [0:2], k = [0:2]) concat(polar(teeth[i] * m / 2 - 12, orbit_turn(i)), [level_z(i) + 2 * t + k * t])],
+      rotate = [for (i = [0:2], k = [0:2]) [0, 0, orbit_turn(i)]])
+    marker();
+  part("Sun", qty = 2, at = layers(0, 85, 2)) sun();
 }
 if (output == "all" || output == "crank") {
-  part("Crank", qty = 2) crank();
-  part("Handle", qty = 5) handle();
+  part("Crank", qty = 2, at = layers(spacing, 75, 2), rotate = [0, 0, a]) crank();
+  part("Handle", qty = 5, at = [for (k = [0:4]) concat([spacing, 0] + polar(40, 90 + a), [82 + k * t])], rotate = [0, 0, a]) handle();
 }
-if (output == "all" || output == "coupon") part("Fit test") {
+// The fit test lies on the table beside the base
+if (output == "all" || output == "coupon") part("Fit test", at = [spacing + 27 * m + 30, -27 * m, -3 * t]) {
   difference() {
     rect([110, 48], r = 3);
     for (i = [0:3]) translate([15 + 25 * i, 15]) circle(d = 8.1 + 0.1 * i);

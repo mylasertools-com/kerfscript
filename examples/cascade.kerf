@@ -1,0 +1,278 @@
+// Cascade: a marble computer that adds in binary. A column of rockers on a
+// leaning board holds a number, one bit each: 1, 2, 4, 8 and 16 from the top.
+// A marble that meets a 0 sets it to 1 and drops into the return channel; one
+// that meets a 1 sets it back to 0 and rolls on to the next bit, the carry.
+// Drop a marble into the slot marked 4 to add 4; lift the bar behind to reset.
+
+/* [Counter] */
+// Number of bits; the board gets taller with each one
+bits = 5; // [3:1:6]
+// What the channels are sized for
+marble = 16; // [16:16 mm glass marbles, 12.7:12.7 mm steel balls]
+// How far the board leans back from upright, in degrees
+lean = 20; // [16:1:24]
+
+/* [Fit] */
+// Hole the brass bush of each rocker turns in, in the board
+bush_bore = 6.3; // [6.1:0.1:6.5]
+
+/* [Assembly] */
+// The number the rockers hold in the assembled view, 0 to 2^bits - 1
+value = 13; // [0:1:63]
+
+/* [Export] */
+// All parts, or one group at a time
+output = "all"; // [all:All parts, board:Board and stand, rockers:Rockers and reset, rails:Rails, tray:Return tray, coupon:Fit test]
+
+/* [Material] */
+// Sheet thickness
+$thickness = 3; // [2.8:0.1:3.2]
+// Beam width
+$kerf = 0.15; // [0:0.01:0.25]
+
+/* [Hidden] */
+$material = "plywood";
+$sheet = [600, 400];
+$gap = 5;
+$fn = 96;
+t = $thickness;
+D = marble;
+n = bits;
+// Board coordinates, seen from the front: x = 0 down the column of pivots,
+// y = 0 at the bottom edge. Bit k (value 2^k) pivots at pivot(k), the
+// lowest bit at the top.
+pitch = 78;
+low_pivot = 40;
+function pivot(k) = [0, low_pivot + (n - 1 - k) * pitch];
+top = pivot(0)[1];
+board_x = [-104, 80];
+board_h = top + 124;
+// Rocker: tips 20 degrees either way. The apex sits 17 mm above the pivot,
+// so whichever way it leans the marble lands on the raised side; each side
+// slopes 30 degrees down to a cup 20 mm out, then rises 14 degrees to the tip.
+tip = 20;
+apex = 17;
+cup_x = 20;
+end_x = 34;
+// The underside is a V that lies flat on the stop below in either position
+keel = 10;
+cup_y = apex - cup_x * tan(30);
+end_y = cup_y + (end_x - cup_x) * tan(14);
+under_y = -keel + end_x * tan(tip);
+// Top of the stop under each rocker
+stop_y = -keel * cos(tip);
+// Channels: one marble wide with 1 mm to spare each side, 6 mm walls
+half = D / 2 + 1;
+wall = 6;
+// The throat above each rocker that centres the marble on the pivot line
+throat = [30.5, 42.5];
+// Chutes slope 12 degrees down from the left edge to the throat
+function chute_y(x) = throat[1] + (-half - x) * tan(12);
+// The return channel's left wall, just clear of the rocker tips
+ret_x = 36;
+ret_w = D + 2;
+// Feet: cross-halved with the board 60 mm up from its bottom edge, which
+// stands 45 mm above the table
+feet_x = [-92, 66];
+lap = 60;
+rise = 45;
+// The reset bar's two guide bolts and its travel
+guide_x = 43;
+guides = [pivot(n - 1)[1] + 30, pivot(1)[1] + 30];
+stroke = 12;
+lever = 25;
+tray_w = feet_x[1] - feet_x[0] - 2 * t;
+assert(n >= 3 && n <= 6 && floor(n) == n, "Bits: whole numbers 3 to 6");
+assert(D == 16 || D == 12.7, "Marble: 16 or 12.7 mm");
+assert(lean >= 16 && lean <= 24, "Lean: 16 to 24 degrees");
+assert(value >= 0 && value < pow(2, n) && floor(value) == value, "Value: whole numbers 0 to 2^bits - 1");
+assert(bush_bore >= 6.1 && bush_bore <= 6.5, "Bush bore: 6.1 to 6.5 mm");
+assert(t >= 2.8 && t <= 3.2, "Thickness: 2.8 to 3.2 mm");
+assert($kerf >= 0 && $kerf <= 0.25, "Kerf: 0 to 0.25 mm");
+assert(contains(["all", "board", "rockers", "rails", "tray", "coupon"], output), "Unknown output");
+
+module hole(p, d = 4.4) {
+  translate(p) circle(d = d);
+}
+module label(s, p, size = 5) {
+  engrave() translate(p) text(s, size = size, halign = "center", valign = "center");
+}
+
+// Pivot at the origin, level. Rounded corners so the marble rolls off the
+// tips cleanly.
+module rocker(face = false) {
+  difference() {
+    offset(r = 2) offset(r = -2) polygon([[-end_x, end_y], [-cup_x, cup_y], [0, apex], [cup_x, cup_y], [end_x, end_y], [end_x, under_y], [0, -keel], [-end_x, under_y]]);
+    hole([0, 0]);
+  }
+  // Whichever end is down shows the bit
+  if (face) {
+    label("0", [-24.5, 2.4], 6);
+    label("1", [24.5, 2.4], 6);
+  }
+}
+
+// Drawn about its own pivot: the floor of the chute into this bit, from the
+// board's left edge to the throat, and the throat's left wall
+module chute_rail() {
+  x0 = board_x[0];
+  x1 = -half - wall;
+  drop = 7 / cos(12);
+  polygon([[x0, chute_y(x0)], [-half, throat[1]], [-half, throat[0]], [x1, throat[0]], [x1, chute_y(x1) - drop], [x0, chute_y(x0) - drop]]);
+}
+
+// Drawn about its own pivot: the stop the rocker rests on, a slope that
+// sends a marble off the right tip into the return channel, the channel's
+// left wall down to the next bit, and the right wall of the next throat.
+// Its underside clears the next rocker and a marble riding in its cup.
+module stop_rail(last = false) {
+  slope = stop_y - 1.5 - (ret_x - 15) * tan(30);
+  // The V's point swings below the stop's top as the rocker passes level
+  notch = keel * sin(tip) + 1.6;
+  below = -pitch + throat[0];
+  if (last)
+    polygon([[-15, stop_y], [-notch, stop_y], [-notch, stop_y - 1.5], [notch, stop_y - 1.5], [notch, stop_y], [15, stop_y], [15, stop_y - 1.5], [ret_x, slope], [ret_x, -low_pivot], [ret_x - wall, -low_pivot], [ret_x - wall, slope - 7], [half, stop_y - 6.1], [-15, stop_y - 6.1]]);
+  else
+    polygon([[-15, stop_y], [-notch, stop_y], [-notch, stop_y - 1.5], [notch, stop_y - 1.5], [notch, stop_y], [15, stop_y], [15, stop_y - 1.5], [ret_x, slope], [ret_x, -pitch + 21], [ret_x - wall, -pitch + 21], [21, below], [half, below], [half, stop_y - 6.1], [-15, stop_y - 6.1]]);
+}
+
+// Drawn about the top pivot: the right wall of the first throat and a roof
+// over the first chute, opening into a funnel at the left edge
+module hopper() {
+  x0 = board_x[0];
+  polygon([[half, throat[0]], [half + wall, throat[0]], [half + wall, chute_y(half + wall) + 40], [x0, chute_y(x0) + 58], [x0, chute_y(x0) + 50], [x0 + 30, chute_y(x0 + 30) + 32], [half, chute_y(half) + 32]]);
+}
+
+module board(face = false) {
+  difference() {
+    translate([board_x[0], 0]) rect([board_x[1] - board_x[0], board_h], r = 4);
+    for (k = [0:n - 1]) hole(pivot(k), bush_bore);
+    // Countersunk from the front, flush with the floor of the return channel
+    for (y = guides) hole([guide_x, y]);
+    for (x = feet_x) translate([x - t - 0.125, -1]) rect([2 * t + 0.25, lap / 2 + 1.25]);
+  }
+  if (face) {
+    for (k = [0:n - 1]) label(str(pow(2, k)), [-86, pivot(k)[1] + chute_y(board_x[0]) + 16], 9);
+    label("CASCADE", [50, top + 84], 9);
+    label("BINARY MARBLE ADDER", [50, top + 72], 3.6);
+    label("LOW END = 1", [50, top + 64], 3.6);
+  }
+}
+
+module lever() {
+  difference() {
+    hull() {
+      translate([-lever, 0]) circle(r = 5);
+      translate([lever, 0]) circle(r = 5);
+    }
+    hole([0, 0]);
+  }
+}
+
+// Drawn where it hangs behind the board, at rest. A tab under the right end
+// of every lever lifts any rocker that shows 1 back to 0.
+module reset_bar(face = false) {
+  difference() {
+    union() {
+      translate([33, 15]) rect([20, board_h - 7]);
+      for (k = [0:n - 1]) translate([19, pivot(k)[1] - 20.5]) rect([15, 6]);
+      translate([23, board_h + 6]) rect([40, 26], r = 4);
+    }
+    for (y = guides) hull() {
+      hole([guide_x, y - stroke], 6.4);
+      hole([guide_x, y], 6.4);
+    }
+    hole([43, board_h + 25], 10);
+  }
+  if (face) label("RESET", [43, board_h + 13], 6);
+}
+
+// Side view, the table at v = 0 and the board's back face rising from
+// (0, rise) at the lean angle. The slot from the top takes the board.
+function back_at(s) = [s * sin(lean), rise + s * cos(lean)];
+module foot() {
+  n_ = [-cos(lean), sin(lean)];
+  a = back_at(lap);
+  difference() {
+    polygon([[-55, 0], [150, 0], [150, 10], a, a + 2 * t * n_, [-55, 18]]);
+    let(e = 0.125, p = back_at(lap / 2) - e * n_, q = back_at(lap + 20) - e * n_, w = (2 * t + 2 * e) * n_)
+      polygon([p, q, q + w, p + w]);
+  }
+}
+
+module coupon() {
+  difference() {
+    rect([120, 44], r = 3);
+    for (i = [0:3]) hole([14 + 18 * i, 30], 6.1 + 0.1 * i);
+    hole([86, 30]);
+    // The feet's slot in the board and the reset bar's guide slot
+    translate([104, 22]) rect([2 * t + 0.25, 16], center = true);
+    hull() {
+      hole([86, 10], 6.4);
+      hole([104, 10], 6.4);
+    }
+  }
+  engrave() translate([5, 15]) text("6.1  6.2  6.3  6.4", size = 3.5);
+}
+
+// Assembled view: the board's back face rises from y = 0, z = rise, leaning
+// back. A part drawn in board coordinates with its back face d mm in front of
+// the board's front face goes to board_at(p, d), turned by board_turn(a) for
+// a part also turned a degrees in the board's plane (a rocker's tilt).
+function board_at(p, d) = [p.x, -(2 * t + d) * cos(lean) + p.y * sin(lean), rise + (2 * t + d) * sin(lean) + p.y * cos(lean)];
+// Standing the part up (90 - lean about x) after turning it a about z, as
+// the x, y, z angles that rotate takes
+function board_turn(a = 0) = let(b = 90 - lean)
+  [atan2(sin(b) * cos(a), cos(b)), -asin(sin(b) * sin(a)), atan2(cos(b) * sin(a), cos(a))];
+// A 1 tips its rocker's right end down
+function tilt(k) = floor(value / pow(2, k)) % 2 == 1 ? -tip : tip;
+// The return tray stands between the feet, in front of the board's foot
+tray_at = [feet_x[0] + t, -62, 0];
+
+if (output == "all" || output == "board") {
+  part("Board face", at = board_at([0, 0], -t), rotate = board_turn()) board(true);
+  part("Board back", at = board_at([0, 0], -2 * t), rotate = board_turn()) board(false);
+  part("Stand foot", qty = 4, rotate = [90, 0, 90],
+    at = [for (x = feet_x, k = [0:1]) [x - t + k * t, 0, 0]]) foot();
+}
+if (output == "all" || output == "rockers") {
+  // Rockers 1 mm off the board on their washers, three layers each
+  part("Rocker face", qty = n, at = [for (k = [0:n - 1]) board_at(pivot(k), 1 + 2 * t)],
+    rotate = [for (k = [0:n - 1]) board_turn(tilt(k))]) rocker(true);
+  part("Rocker", qty = 2 * n, at = [for (k = [0:n - 1], j = [0:1]) board_at(pivot(k), 1 + j * t)],
+    rotate = [for (k = [0:n - 1], j = [0:1]) board_turn(tilt(k))]) rocker(false);
+  // Levers and bar 1 mm behind the board, two layers each
+  part("Reset lever", qty = 2 * n, at = [for (k = [0:n - 1], j = [0:1]) board_at(pivot(k), -3 * t - 1 - j * t)],
+    rotate = [for (k = [0:n - 1], j = [0:1]) board_turn(tilt(k))]) lever();
+  part("Reset bar face", at = board_at([0, 0], -3 * t - 1), rotate = board_turn()) reset_bar(true);
+  part("Reset bar", at = board_at([0, 0], -4 * t - 1), rotate = board_turn()) reset_bar(false);
+}
+if (output == "all" || output == "rails") {
+  // Three layers of every rail on the board's front face
+  part("Chute rail", qty = 3 * n, at = [for (k = [0:n - 1], j = [0:2]) board_at(pivot(k), j * t)], rotate = board_turn()) chute_rail();
+  part("Stop rail", qty = 3 * (n - 1), at = [for (k = [0:n - 2], j = [0:2]) board_at(pivot(k), j * t)], rotate = board_turn()) stop_rail();
+  part("Last stop rail", qty = 3, at = [for (j = [0:2]) board_at(pivot(n - 1), j * t)], rotate = board_turn()) stop_rail(true);
+  part("Hopper", qty = 3, at = [for (j = [0:2]) board_at(pivot(0), j * t)], rotate = board_turn()) hopper();
+  part("Return wall", qty = 3, at = [for (j = [0:2]) board_at([0, 0], j * t)], rotate = board_turn())
+    translate([ret_x + ret_w, 0]) rect([wall, top + 30]);
+}
+if (output == "all" || output == "tray") {
+  part("Tray floor", at = tray_at) rect([tray_w, 80]);
+  part("Tray side", qty = 2, rotate = [90, 0, 90], at = [tray_at + [0, 0, t], tray_at + [tray_w - t, 0, t]]) rect([80, 25]);
+  part("Tray end", qty = 2, rotate = [90, 0, 0], at = [tray_at + [t, 3, t], tray_at + [t, 80, t]]) rect([tray_w - 2 * t, 25]);
+}
+if (output == "all" || output == "coupon") part("Fit test", at = [110, -110, 0]) coupon();
+
+echo(str("Cascade: ", n, " bits, counts 0 to ", pow(2, n) - 1, "; board ", board_x[1] - board_x[0], " x ", board_h, " mm leaning ", lean, " degrees; rockers tip ", tip, " degrees, cups ", cup_x, " mm out"));
+
+// Assembly, front view: glue the two board layers. Glue every rail as three
+// layers on the front, each piece where it is drawn (chute and stop rails at
+// each pivot). Glue each rocker face on two plain layers. Each rocker turns
+// with its pivot: an M4 x 30 bolt through the rocker, an M6 washer, a 6 mm
+// brass tube 2t + 2 long through the board's bush hole, a washer, two glued
+// reset levers level across the back and a nyloc nut, tight enough to clamp
+// the tube, not the board. Hang the reset bar (two glued layers) on two
+// countersunk M4 bolts with 6 mm brass sleeves 2t + 1.4 long through its
+// slots, a washer each side and a nut. Slide the board into the feet (two
+// plies each) and stand the return tray box between them. Use 16 mm glass
+// marbles or 12.7 mm steel balls, one at a time.

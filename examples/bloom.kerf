@@ -19,6 +19,11 @@ guide_clearance = 0.4; // [0.3:0.05:0.5]
 // Added to the 6 mm holes that turn on sleeves
 bearing_clearance = 0.3; // [0.2:0.05:0.4]
 
+/* [Assembly] */
+// Drive ring angle in the assembled view, from the opening angle (open) to
+// the closing angle (closed)
+ring_angle = 35; // [15:1:55]
+
 /* [Export] */
 // All parts, or one group at a time
 output = "all"; // [all:All parts, frame:Base hub and feet, motion:Ring couplers and petals, spacers:Spacers, coupon:Fit test]
@@ -64,6 +69,7 @@ assert(guide_clearance >= 0.3 && guide_clearance <= 0.5, "Guide clearance: 0.3 t
 assert(bearing_clearance >= 0.2 && bearing_clearance <= 0.4, "Bearing clearance: 0.2 to 0.4 mm");
 assert(t >= 2.8 && t <= 3.2, "Thickness: 2.8 to 3.2 mm");
 assert($kerf >= 0 && $kerf <= 0.25, "Kerf: 0 to 0.25 mm");
+assert(ring_angle >= 15 && ring_angle <= 55, "Ring angle: 15 to 55 degrees");
 assert(contains(["all", "frame", "motion", "spacers", "coupon"], output), "Unknown output");
 
 module label(s, xy, size = 4) {
@@ -172,25 +178,40 @@ module fit_test() {
   for (j = [0:2]) label(str(6.2 + 0.2 * j), [25 + 50 * j, 57], 3);
 }
 
+// The assembled view, z = 0 on top of the base: the feet below it, the hub
+// and the drive ring, the retainer and grip, then on each ring pin a spacer
+// and the coupler, and each petal on its two pins in its slot
+turn = max(opening_angle, min(closing_angle, ring_angle));
+reach = petal_radius(turn);
+function guide(k) = 360 * k / n;
+function ring_pin(k) = polar(pivot_radius, guide(k) + turn);
+function foot_at(k, z) = concat(polar(65, guide(k + 0.5)), [z]);
+
 if (output == "all" || output == "frame") {
-  part("Base", qty = 2) base();
-  part("Hub") washer(50, 4.4);
-  part("Retainer") washer(62, 4.4);
-  part("Foot cap", qty = n) washer(18, 4.4);
-  part("Foot ring", qty = 5 * n) washer(18, 10);
+  part("Base", qty = 2, at = [[0, 0, -2 * t], [0, 0, -t]]) base();
+  part("Hub", at = [0, 0, 0.4]) washer(50, 4.4);
+  part("Retainer", at = [0, 0, t + 0.4]) washer(62, 4.4);
+  // A foot between each pair of petals: the cap under the base, then five rings
+  part("Foot cap", qty = n, at = [for (k = [0:n - 1]) foot_at(k, -3 * t)]) washer(18, 4.4);
+  part("Foot ring", qty = 5 * n, at = [for (k = [0:n - 1], j = [0:4]) foot_at(k, -4 * t - j * t)]) washer(18, 10);
 }
 if (output == "all" || output == "motion") {
-  part("Drive ring") drive_ring();
-  part("Coupler", qty = n) coupler();
-  part("Petal", qty = n) petal();
-  part("Grip ring", qty = 5) washer(16, bush);
+  part("Drive ring", at = [0, 0, 0.2], rotate = [0, 0, turn]) drive_ring();
+  part("Coupler", qty = n, at = [for (k = [0:n - 1]) concat(ring_pin(k), [2 * t + 1])],
+      rotate = [for (k = [0:n - 1]) let(v = polar(reach, guide(k)) - ring_pin(k)) [0, 0, atan2(v[1], v[0])]])
+    coupler();
+  part("Petal", qty = n, at = [for (k = [0:n - 1]) concat(polar(reach, guide(k)), [3 * t + 1.5])], rotate = [for (k = [0:n - 1]) [0, 0, guide(k)]])
+    petal();
+  part("Grip ring", qty = 5, at = [for (j = [0:4]) concat(polar(43, 90 + turn), [t + 0.4 + j * t])]) washer(16, bush);
 }
 if (output == "all" || output == "spacers") {
-  part("Ring pivot spacer", qty = n) washer(12, bush);
-  part("Inner pin spacer", qty = 2 * n) washer(12, bush);
-  part("Outer pin spacer", qty = 3 * n) washer(12, bush);
+  part("Ring pivot spacer", qty = n, at = [for (k = [0:n - 1]) concat(ring_pin(k), [t + 0.2])]) washer(12, bush);
+  part("Inner pin spacer", qty = 2 * n, at = [for (k = [0:n - 1], j = [0:1]) concat(polar(reach, guide(k)), [j * t])]) washer(12, bush);
+  part("Outer pin spacer", qty = 3 * n, at = [for (k = [0:n - 1], j = [0:2]) concat(polar(reach + pin_spacing, guide(k)), [j * t])])
+    washer(12, bush);
 }
-if (output == "all" || output == "coupon") part("Fit test") fit_test();
+// The fit test lies on the table beside the flower
+if (output == "all" || output == "coupon") part("Fit test", at = [110, -40, -8 * t]) fit_test();
 
 echo(str("Bloom: ", n, " petals travel ", round((open - closed) * 10) / 10, " mm; the tips span ", round(2 * (closed + leaf_length)), " mm closed and ", round(2 * (open + leaf_length)), " mm open"));
 

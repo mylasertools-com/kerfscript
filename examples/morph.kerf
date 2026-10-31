@@ -174,11 +174,15 @@ module fit_test() {
   part("Fit test, hub") spacer();
 }
 
+// Assembled: the bottom cover, then each layer with its spacers above it
+pitch = (1 + S) * t;
+function layer_z(i) = t + i * pitch;
 if (output == "all" || output == "layers")
-  for (i = [0:N - 1]) if (output == "all" || floor(i / 2) == batch - 1) part(str("Layer ", i + 1)) slab(i);
-if (output == "single" && batch <= N) part(str("Layer ", batch)) slab(batch - 1);
-if ((output == "all" || output == "spacers") && S > 0) part("Spacer", qty = (N - 1) * S) spacer();
-if (output == "all" || output == "base") part("Bottom cover") foot();
+  for (i = [0:N - 1]) if (output == "all" || floor(i / 2) == batch - 1) part(str("Layer ", i + 1), at = [0, 0, layer_z(i)]) slab(i);
+if (output == "single" && batch <= N) part(str("Layer ", batch), at = [0, 0, layer_z(batch - 1)]) slab(batch - 1);
+if ((output == "all" || output == "spacers") && S > 0)
+  part("Spacer", qty = (N - 1) * S, at = [for (g = [0:N - 2], j = [0:S - 1]) [0, 0, layer_z(g) + t + j * t]]) spacer();
+if (output == "all" || output == "base") part("Bottom cover", at = [0, 0, 0]) foot();
 if (output == "fit") fit_test();
 
 // Assembly: cut the fit test first and set dowel_clearance from it. Stack

@@ -11,6 +11,10 @@ pen_offset = 22; // [18:1:24]
 // Total play between the two gears, at the pitch circle
 backlash = 0.3; // [0.2:0.05:0.5]
 
+/* [Assembly] */
+// Carrier angle in the assembled view; the drawing closes after three turns
+carrier_angle = 0; // [0:5:1080]
+
 /* [Output] */
 // All parts, one group at a time, or a stencil for cutting the paper
 output = "all"; // [all:All parts, gears:Gears, frame:Base standoffs and feet, drive:Carrier and handle, holder:Pencil sleeve, coupon:Fit test, paper:Paper template]
@@ -150,23 +154,35 @@ module paper_template() {
   }
 }
 
+// The assembled view, base bottom at z = 0. The carrier turns the rolling
+// gear round inside the ring, and it spins the other way as it goes.
+c_turn = carrier_angle;
+spin = (1 - nr / np) * c_turn;
+gear_at = polar(a, c_turn);
+function at(p, z) = concat(p, [z]);
+function layers(p, z, n) = [for (k = [0:n - 1]) at(p, z + k * t)];
+// Standoffs and feet: a stack under each of the three mounting holes
+function stacks(z, n) = [for (j = [0:2], k = [0:n - 1]) at(polar(mount, 30 + 120 * j), z + k * t)];
+
 if (output == "all" || output == "gears") {
-  part("Ring gear", qty = 2) ring();
-  part("Rolling gear", qty = 2) planet();
+  part("Ring gear", qty = 2, at = layers([0, 0], 6 * t, 2)) ring();
+  part("Rolling gear", qty = 2, at = layers(gear_at, 6 * t + 0.15, 2), rotate = [0, 0, spin]) planet();
 }
 if (output == "all" || output == "frame") {
-  part("Base", qty = 2) base();
-  part("Ring standoff", qty = 12) washer(16, 4.5);
-  part("Pedestal", qty = 9) washer(22, 6.2);
-  part("Foot", qty = 15) washer(18, 12);
+  part("Base", qty = 2, at = layers([0, 0], 0, 2)) base();
+  part("Ring standoff", qty = 12, at = stacks(2 * t, 4)) washer(16, 4.5);
+  part("Pedestal", qty = 9, at = layers([0, 0], 2 * t, 9)) washer(22, 6.2);
+  part("Foot", qty = 15, at = stacks(-5 * t, 5)) washer(18, 12);
 }
 if (output == "all" || output == "drive") {
-  part("Carrier", qty = 2) carrier();
-  part("Planet spacer", qty = 3) washer(14, 6.2);
-  part("Handle", qty = 5) washer(18, 6 + bearing_clearance);
+  part("Carrier", qty = 2, at = layers([0, 0], 11 * t + 0.35, 2), rotate = [0, 0, c_turn]) carrier();
+  part("Planet spacer", qty = 3, at = layers(gear_at, 8 * t + 0.35, 3)) washer(14, 6.2);
+  part("Handle", qty = 5, at = layers(polar(35, 180 + c_turn), 13 * t + 0.85, 5)) washer(18, 6 + bearing_clearance);
 }
-if (output == "all" || output == "holder") part("Pencil sleeve", qty = 3) washer(14, 8.4);
-if (output == "all" || output == "coupon") part("Fit test") {
+if (output == "all" || output == "holder")
+  part("Pencil sleeve", qty = 3, at = layers(pen(c_turn), 3 * t + 0.15, 3)) washer(14, 8.4);
+// The fit test lies on the table beside the base
+if (output == "all" || output == "coupon") part("Fit test", at = [outer + 20, -outer, -5 * t]) {
   difference() {
     rect([130, 45], r = 3);
     for (i = [0:3]) translate([15 + 25 * i, 15]) circle(d = 6.1 + i * 0.1);

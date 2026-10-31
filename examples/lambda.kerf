@@ -1,0 +1,290 @@
+// Lambda: a four-legged walker on Chebyshev's lambda linkage. One square
+// shaft turns four eccentrics a quarter turn apart; each drives a lambda whose
+// far end runs dead level for more than half a turn, then lifts and swings
+// back. The legs hang from those ends on flat soles, so the body glides along
+// level as you turn the handle anticlockwise, seen from the handle side.
+
+/* [Walker] */
+// Length of each sole; longer soles stand steadier
+sole_length = 60; // [50:5:70]
+// Space between the two side frames, inside
+frame_gap = 92; // [84:4:108]
+
+/* [Fit] */
+// Added to the 6 mm holes the brass bushes turn in
+pivot_clearance = 0.3; // [0.2:0.05:0.4]
+// Added to the 6 mm square holes for the shaft
+shaft_fit = 0.15; // [0.05:0.05:0.3]
+// Total play of the journals in the frames and the couplers on their eccentrics
+turn_clearance = 0.4; // [0.3:0.1:0.6]
+// Added to the tab slots in the frames
+slot_fit = 0.1; // [0:0.05:0.2]
+
+/* [Assembly] */
+// Shaft angle in the assembled view; only moves the parts
+crank_angle = 0; // [0:5:360]
+
+/* [Export] */
+// All parts, or one group at a time
+output = "all"; // [all:All parts, frame:Frames and end plates, linkage:Eccentrics couplers and rockers, legs:Legs, accessories:Collars spacers and handle, coupon:Fit test]
+
+/* [Material] */
+// Sheet thickness
+$thickness = 3; // [2.8:0.1:3.2]
+// Beam width
+$kerf = 0.15; // [0:0.01:0.25]
+
+/* [Hidden] */
+$material = "plywood";
+$sheet = [600, 400];
+$gap = 5;
+$fn = 120;
+t = $thickness;
+// Chebyshev's proportions: crank 1, frame 2, rocker 2.5, coupler 2.5 to
+// the rocker and as far again to the foot point P
+r = 15;
+L = 2.5 * r;
+// Side view, x forward, y up, floor at y = 0: the shaft A and the rocker
+// pivot D sit level, H above the floor
+H = 55;
+A = [0, H];
+D = [2 * r, H];
+// The eccentric that stands in for the crank, and the coupler's ring round it
+ecc = 23;
+ring = ecc + turn_clearance / 2 + 7;
+// Each leg hangs from P down to the floor; the shin passes in front of the
+// shaft, the thigh reaches back far enough to hang the leg plumb
+drop = H + 4 * r;
+shin = [12, 26];
+thigh = 44;
+// Frame outline and where the end plates stand
+rear = -56;
+front = ceil(4.36 * r + sole_length / 2 + 6);
+x0 = rear - 6;
+x1 = front + t + 6;
+y0 = 36;
+y1 = 140;
+tabs = [[42, 58], [110, 130]];
+bush = 6 + pivot_clearance;
+assert(sole_length >= 50 && sole_length <= 70, "Sole length: 50 to 70 mm");
+assert(frame_gap >= 84 && frame_gap <= 108, "Frame gap: 84 to 108 mm");
+assert(pivot_clearance >= 0.2 && pivot_clearance <= 0.4, "Pivot clearance: 0.2 to 0.4 mm");
+assert(shaft_fit >= 0.05 && shaft_fit <= 0.3, "Shaft fit: 0.05 to 0.3 mm");
+assert(turn_clearance >= 0.3 && turn_clearance <= 0.6, "Turn clearance: 0.3 to 0.6 mm");
+assert(slot_fit >= 0 && slot_fit <= 0.2, "Slot fit: 0 to 0.2 mm");
+assert(t >= 2.8 && t <= 3.2, "Thickness: 2.8 to 3.2 mm");
+assert($kerf >= 0 && $kerf <= 0.25, "Kerf: 0 to 0.25 mm");
+assert(crank_angle >= 0 && crank_angle <= 360, "Crank angle: 0 to 360 degrees");
+assert(contains(["all", "frame", "linkage", "legs", "accessories", "coupon"], output), "Unknown output");
+
+function polar(rad, a) = [rad * cos(a), rad * sin(a)];
+// Where circles round p (radius rad) and q (radius rad2) cross; sgn picks the side
+function meet(p, rad, q, rad2, sgn) = let(v = q - p, d = norm(v), a = (rad * rad - rad2 * rad2 + d * d) / (2 * d), h = sqrt(max(0, rad * rad - a * a)))
+  p + v * a / d + [-v[1], v[0]] * h / d * sgn;
+// Crank pin B, rocker joint C and foot point P at crank angle a, relative to A
+function joints(a) = let(B = polar(r, a), C = meet(B, L, D - A, L, 1)) [B, C, 2 * C - B];
+path = [for (a = [0:2:358]) joints(a)[2]];
+low = min([for (p = path) p[1]]);
+flat = [for (p = path) if (p[1] - low < 0.2) p[0]];
+high = max([for (p = path) p[1]]);
+
+// Assembled view: x forward, y to the left, z up, the shaft along y. The
+// side-view parts stand up with rotate = [90, -a, 0]: their x stays x, their
+// y becomes z, a turns them like the shaft, and their thickness runs towards
+// -y from the y given. s counts out from a frame face, outside or inside.
+out_face = frame_gap / 2 + 2 * t;
+in_face = frame_gap / 2;
+// Each lambda: side (-1 right, 1 left), outside the frame or inside, and how
+// far its eccentric is turned on the shaft
+legs = [[-1, true, 0], [-1, false, 180], [1, true, 90], [1, false, 270]];
+// Where the layers start, in s
+layer = [["collar", 0.5], ["rocker", 4], ["ring D", 0.5], ["ring C", 7.5], ["eccentric", 8 + t], ["ring P", 17.5], ["leg", 12 + 3 * t], ["handle", 17 + 5 * t]];
+function s_of(name) = layer[search(name, [for (l = layer) l[0]])][1];
+// World y of the face a part from s to s + t hangs from (its largest y), on
+// lambda k's side
+function face(k, s) = let(l = legs[k], near = l[1] ? out_face + s : in_face - s, far = l[1] ? near + t : near - t)
+  l[0] > 0 ? max(near, far) : -min(near, far);
+function turn(k) = crank_angle + legs[k][2];
+function world(k) = [for (p = joints(turn(k))) A + p];
+function at_side(p, y) = [p[0], y, p[1]];
+function upright(a = 0) = [90, -a, 0];
+function heading(p, q) = atan2(q[1] - p[1], q[0] - p[0]);
+handle_turn = crank_angle + 200;
+grip = A + polar(35, handle_turn);
+
+module square_bore() {
+  rect([6 + shaft_fit, 6 + shaft_fit], center = true);
+}
+
+module label(s, p, size = 4) {
+  score() translate(p) text(s, size = size, halign = "center", valign = "center");
+}
+
+// The right frame as seen from outside; the left one is its mirror image
+module frame_body() {
+  difference() {
+    translate([x0, y0]) rect([x1 - x0, y1 - y0], r = 8);
+    translate(A) circle(d = 18 + turn_clearance);
+    translate(D) circle(d = bush);
+    translate([-38, 80]) rect([126, 26], r = 8);
+    for (x = [rear, front], y = tabs) translate([x - slot_fit / 2, y[0]]) rect([t + slot_fit, y[1] - y[0]]);
+  }
+  // The path every point of a leg follows, drawn where the leg pivot P runs
+  score() polyline([for (p = path) A + p], closed = true);
+}
+
+module frame_text(m) {
+  label("FOOT PATH", [m * 2 * r, H + 4 * r - 6], 3.5);
+}
+
+// Seen from the front: tabs at both ends go through the frames
+module end_plate() {
+  difference() {
+    translate([-frame_gap / 2, y0]) rect([frame_gap, y1 - y0]);
+    translate([8 - frame_gap / 2, 62]) rect([frame_gap - 16, 42], r = 6);
+  }
+  for (s = [-1, 1], y = tabs) translate([s > 0 ? frame_gap / 2 : -frame_gap / 2 - 2 * t, y[0]]) rect([2 * t, y[1] - y[0]]);
+}
+
+// Bore on the shaft at the origin, the crank pin B on +x
+module eccentric() {
+  difference() {
+    translate([r, 0]) circle(r = ecc);
+    square_bore();
+  }
+  score() line([5, 0], [r + ecc - 4, 0]);
+}
+
+// B at the origin, C and P along +x
+module coupler() {
+  difference() {
+    hull() {
+      circle(r = ring);
+      translate([2 * L, 0]) circle(r = 8);
+    }
+    circle(d = 2 * ecc + turn_clearance);
+    translate([L, 0]) circle(d = bush);
+    translate([2 * L, 0]) circle(d = bush);
+  }
+  score() line([ring + 2, 0], [L - 9, 0]);
+  label("C", [L, 10], 4);
+  label("P", [2 * L - 13, 0], 4);
+}
+
+module rocker() {
+  difference() {
+    hull() {
+      circle(r = 7);
+      translate([L, 0]) circle(r = 7);
+    }
+    circle(d = bush);
+    translate([L, 0]) circle(d = bush);
+  }
+}
+
+// The pivot P at the origin, the sole on the floor at y = -drop
+module leg() {
+  difference() {
+    offset(r = 4) offset(delta = -4) offset(r = -6) offset(delta = 6) union() {
+      circle(r = 9);
+      polygon([[-thigh, -50], [shin[1], -50], [shin[1], -4], [12, 9], [-12, 9], [-thigh, -28]]);
+      translate([shin[0], -drop + 6]) rect([shin[1] - shin[0], drop - 56]);
+      translate([-sole_length / 2, -drop]) rect([sole_length, 8], r = 3);
+    }
+    circle(d = bush);
+  }
+  score() line([-sole_length / 2 + 4, -drop + 4], [sole_length / 2 - 4, -drop + 4]);
+}
+
+module disc(d, hole) {
+  difference() {
+    circle(d = d);
+    circle(d = hole);
+  }
+}
+
+module handle() {
+  difference() {
+    hull() {
+      circle(r = 10);
+      translate([35, 0]) circle(r = 8);
+    }
+    square_bore();
+    translate([35, 0]) circle(d = 4.4);
+  }
+}
+
+module coupon() {
+  difference() {
+    rect([150, 58], r = 3);
+    for (i = [0:3]) translate([15 + 22 * i, 15]) circle(d = 6.1 + 0.1 * i);
+    for (i = [0:2]) translate([105 + 17 * i, 15]) rect([6.05 + 0.1 * i, 6.05 + 0.1 * i], center = true);
+    translate([20, 42]) circle(d = 18 + turn_clearance);
+    translate([50, 34]) rect([t + slot_fit, 16]);
+    translate([70, 34]) rect([2 * t + slot_fit, 16]);
+  }
+  for (i = [0:3]) label(str(6.1 + 0.1 * i), [15 + 22 * i, 5], 3);
+  for (i = [0:2]) label(str(6.05 + 0.1 * i), [105 + 17 * i, 5], 3);
+}
+
+if (output == "all" || output == "frame") {
+  part("Right frame", qty = 2, at = [[0, -in_face - t, 0], [0, -in_face, 0]], rotate = upright()) {
+    frame_body();
+    frame_text(1);
+    label("TURN ANTICLOCKWISE", [2 * r, y0 + 8], 3.5);
+  }
+  part("Left frame", qty = 2, at = [[0, in_face + t, 0], [0, in_face, 0]], rotate = [90, 0, 180]) {
+    mirror([1, 0]) frame_body();
+    frame_text(-1);
+  }
+  part("Front plate", at = [front, 0, 0], rotate = [90, 0, 90]) {
+    end_plate();
+    label("LAMBDA", [0, 122], 14);
+    label("CHEBYSHEV WALKER", [0, 49], 5);
+  }
+  part("Rear plate", at = [rear, 0, 0], rotate = [90, 0, 90]) end_plate();
+  // Two plies in each frame
+  part("Journal", qty = 4, at = [for (y = [-in_face - t, -in_face, in_face + t, out_face]) [0, y, H]], rotate = upright(crank_angle)) difference() {
+    circle(d = 18);
+    square_bore();
+  }
+}
+if (output == "all" || output == "linkage") {
+  // Two plies for each lambda
+  part("Eccentric", qty = 8, at = [for (k = [0:3], i = [0:1]) [0, face(k, s_of("eccentric") + i * t), H]],
+       rotate = [for (k = [0:3], i = [0:1]) upright(turn(k))]) eccentric();
+  part("Coupler", qty = 8, at = [for (k = [0:3], i = [0:1]) at_side(world(k)[0], face(k, s_of("eccentric") + i * t))],
+       rotate = [for (k = [0:3], i = [0:1]) let(w = world(k)) upright(heading(w[0], w[2]))]) coupler();
+  part("Rocker", qty = 4, at = [for (k = [0:3]) at_side(D, face(k, s_of("rocker")))],
+       rotate = [for (k = [0:3]) upright(heading(D, world(k)[1]))]) rocker();
+}
+if (output == "all" || output == "legs") part("Leg", qty = 8, at = [for (k = [0:3], i = [0:1]) at_side(world(k)[2], face(k, s_of("leg") + i * t))], rotate = upright()) leg();
+if (output == "all" || output == "accessories") {
+  part("Thrust collar", qty = 4, at = [for (k = [0:3]) [0, face(k, s_of("collar")), H]], rotate = [for (k = [0:3]) upright(turn(k))]) difference() {
+    circle(d = 26);
+    square_bore();
+  }
+  // At each D, C and P, between the layers
+  part("Spacer ring", qty = 12, at = [for (k = [0:3], j = [0:2]) at_side([D, world(k)[1], world(k)[2]][j], face(k, s_of(["ring D", "ring C", "ring P"][j])))],
+       rotate = upright()) disc(12, bush);
+  // On the right end of the shaft, outside the right leg
+  part("Handle", qty = 2, at = [for (i = [0:1]) [0, face(0, s_of("handle") + i * t), H]], rotate = upright(handle_turn)) handle();
+  part("Handle grip", qty = 5, at = [for (i = [0:4]) at_side(grip, face(0, s_of("handle") + 2 * t + 0.5 + i * t))], rotate = upright()) disc(18, bush);
+}
+if (output == "all" || output == "coupon") part("Fit test", at = [-50, 100, 0]) coupon();
+
+echo(str("Lambda: feet move ", round(max(flat) - min(flat)), " mm level to 0.2 mm for ", len(flat) * 2, " degrees of each turn and lift ", round((high - low) * 10) / 10, " mm; square shaft ", frame_gap + 14 * t + 25, " mm, body ", x1 - x0, " mm long"));
+
+// Assembly, with s the distance out from a frame face (outside or inside):
+// glue each frame from two plies, the eccentrics, couplers and legs in pairs,
+// the handle from two. Slot the end plates into the frames, front plate
+// forward. Each frame carries two journals in its round hole and a thrust
+// collar on each face, all on the 6 mm square steel shaft. A 6 mm brass bush
+// on an M4 bolt at D carries a rocker on each side of the frame, s 4 to 7,
+// a spacer ring under each. The eccentrics sit at s 8 + t to 8 + 3t: right
+// inside half a turn from right outside, left outside a quarter turn on from
+// right outside, left inside half a turn from that. Each coupler rides on its
+// eccentric and is bolted to its rocker at C over a spacer ring. The legs
+// hang at s 12 + 3t to 12 + 5t from P, on an M4 bolt, brass bush and spacer
+// ring. The handle goes on the right end of the shaft at s 17 + 5t, its grip
+// discs on a bush. Thin washers take up the last millimetre in each gap.

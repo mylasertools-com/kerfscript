@@ -1,0 +1,383 @@
+// Helix: an Archimedes screw marble lift. Turn the crank and a screw of 120
+// stacked plates, each a step round from the last on a square bar, pushes
+// 16 mm marbles up a trough of dowels. At the top they drop onto a chute and
+// roll back down a zig-zag track behind the screw to a ramp that feeds the
+// screw again near the bottom.
+
+/* [Screw] */
+// Plates the flight tooth spans: two leaves a longer pocket, three is stronger
+flight = 2; // [2:Two plates, 3:Three plates]
+// Crank handle radius
+crank_radius = 35; // [30:5:40]
+
+/* [Fit] */
+// Added to the 10 mm square bar in every star-shaped hole
+bar_clearance = 0.2; // [0.1:0.05:0.3]
+// Added to the 20 mm journals in the end plate bearings
+bearing_clearance = 0.4; // [0.3:0.1:0.6]
+
+/* [Assembly] */
+// Crank angle in the assembled view, anticlockwise seen from the crank; one
+// turn lifts every marble one pitch
+crank_angle = 90; // [0:15:360]
+
+/* [Export] */
+// All parts, or one group at a time
+output = "all"; // [all:All parts, screw:Screw and crank, frame:Board base and end plates, track:Track chutes and ramp, coupon:Fit test]
+
+/* [Material] */
+// Sheet thickness
+$thickness = 3; // [2.8:0.1:3.2]
+// Beam width
+$kerf = 0.15; // [0:0.01:0.25]
+
+/* [Hidden] */
+$material = "plywood";
+$sheet = [600, 400];
+$gap = 5;
+$fn = 96;
+t = $thickness;
+D = 16;
+assert(flight == 2 || flight == 3, "Flight: 2 or 3 plates");
+assert(crank_radius >= 30 && crank_radius <= 40, "Crank radius: 30 to 40 mm");
+assert(bar_clearance >= 0.1 && bar_clearance <= 0.3, "Bar clearance: 0.1 to 0.3 mm");
+assert(bearing_clearance >= 0.3 && bearing_clearance <= 0.6, "Bearing clearance: 0.3 to 0.6 mm");
+assert(crank_angle >= 0 && crank_angle <= 360, "Crank angle: 0 to 360 degrees");
+assert(t >= 2.8 && t <= 3.2, "Thickness: 2.8 to 3.2 mm");
+assert($kerf >= 0 && $kerf <= 0.25, "Kerf: 0 to 0.25 mm");
+assert(contains(["all", "screw", "frame", "track", "coupon"], output), "Unknown output");
+
+// The screw: plates 3 mm apart, each turned 30 degrees on from the last, so
+// the flight climbs a 36 mm pitch in 12 plates. Tip radius 27.5, core 12.
+plates = 120;
+step = 30;
+pitch = 12 * t;
+tip = 27.5;
+core = 12;
+// Four 6 mm dowels on a 34 mm radius, at these angles from the bottom of
+// the screw towards the front. The marble rides between the first two;
+// the others only keep it in.
+rod_r = 34;
+rods = [0, 20, 45, 70];
+
+// Assembly coordinates: x along the base, y towards the board, z up. The
+// screw axis rises at 45 degrees from s = 0, the inner face of the lower end
+// plate, 70 mm above the table. s is measured along the axis.
+tilt = 45;
+z0 = 70;
+ct = cos(tilt);
+st = sin(tilt);
+avec = [ct, 0, st];
+// Down the face of the end plates, and up it
+dvec = [st, 0, -ct];
+vvec = [-st, 0, ct];
+function ax(s) = [s * ct, 0, z0 + s * st];
+// D below the axis along the end plate, Y towards the board
+function pt(s, Dn, Y) = ax(s) + dvec * Dn + [0, Y, 0];
+// Along the axis: collars and screw, the end plates and the exit gap
+s_screw = 0.5 + t;
+s_top = s_screw + plates * t;
+s_upper = s_top + t + 0.5;
+// The two trough dowels stop at the exit rib; past it the marble falls
+s_exit = s_upper - 33;
+// The board's front face, and where the track runs in front of it
+board_y = 58;
+track_y = 34;
+
+// Rotations as 3 x 3 matrices, turned into rotate = [x, y, z]
+function mm(A, B) = [for (i = [0:2]) [for (j = [0:2]) A[i][0] * B[0][j] + A[i][1] * B[1][j] + A[i][2] * B[2][j]]];
+function rz(r) = [[cos(r), -sin(r), 0], [sin(r), cos(r), 0], [0, 0, 1]];
+function euler(m) = [atan2(m[2][1], m[2][2]), -asin(m[2][0]), atan2(m[1][0], m[0][0])];
+// Parts square to the screw: drawn x towards the board, y up the end plate,
+// thickness up the axis. The lower end's parts face down the axis instead,
+// so their engraved side shows.
+up_axis = [[0, vvec[0], avec[0]], [1, 0, 0], [0, vvec[2], avec[2]]];
+down_axis = [[0, vvec[0], -avec[0]], [-1, 0, 0], [0, vvec[2], -avec[2]]];
+// A feature drawn along +x lands at angle a round the screw, measured from
+// the bottom towards the front, the way the screw turns
+function turned_up(a) = euler(mm(up_axis, rz(-90 - a)));
+function turned_down(a) = euler(mm(down_axis, rz(a - 90)));
+theta = crank_angle;
+// The ramp beside the trough: parallel to the axis, sloping 20 degrees down
+// to the lowest dowel and just clear of the flight
+kappa = 20;
+ramp_d = 29 / cos(kappa);
+ramp_e = [-sin(kappa) * st, cos(kappa), sin(kappa) * ct];
+ramp_n = [-cos(kappa) * st, -sin(kappa), cos(kappa) * ct];
+ramp_frame = [[avec[0], ramp_e[0], ramp_n[0]], [0, ramp_e[1], ramp_n[1]], [avec[2], ramp_e[2], ramp_n[2]]];
+function ramp_l(Y) = Y / cos(kappa);
+
+// Chutes: floors level along x and sloping 1 in 10 across. The exit chute
+// catches the marble under the top of the screw; the intake chute takes it
+// off the track to the ramp.
+beta = atan(0.1);
+function ze(y) = 262 - 0.1 * (y + 15);
+function zi(y) = 120 + 0.1 * (y - 31);
+hole_x = 271;
+hole_y = 47.5;
+// Track: three legs at a 0.085 slope. At each turn a marble on the lower
+// leg passes 2 mm under the floor of the one above.
+slope = 0.085;
+sigma = atan(slope);
+drop = t + D + 2;
+l1 = ze(hole_y) - t / cos(beta) - D - 1;
+function top1(x) = l1 + slope * (x - hole_x);
+function top2(x) = top1(40) - drop - slope * (x - 40);
+function top3(x) = top2(270) - drop + slope * (x - 270);
+// [left end, right end, top at the left, rising to the right]. Each leg
+// stops 17 mm short of the end wall below, room for a marble to drop past.
+// The last stops over the intake's front wall, so a marble rolls off its
+// end into the chute and the back wall stops it.
+legs = [[40, 284, top1(40), 1], [19, 268, top2(19), -1], [89, 288, top3(89), 1]];
+
+module ring(d, inner) {
+  difference() {
+    circle(d = d);
+    circle(d = inner, $fn = 48);
+  }
+}
+
+// Twelve-pointed hole: three squares 30 degrees apart, so a plate fits the
+// square bar in any of twelve positions 30 degrees apart
+module star_hole() {
+  for (a = [0, 30, 60]) rotate(a) rect(10 + bar_clearance, center = true);
+}
+
+// One plate of the screw, its tooth along +x
+module screw_plate() {
+  g = flight * step;
+  difference() {
+    union() {
+      circle(r = core);
+      offset(r = 2) offset(delta = -2) polygon(concat(
+        [for (i = [0:12]) let(a = -g / 2 + g * i / 12) [tip * cos(a), tip * sin(a)]],
+        [for (i = [12:-1:0]) let(a = -g / 2 + g * i / 12) [9 * cos(a), 9 * sin(a)]]));
+    }
+    star_hole();
+  }
+  score() line([core + 2, 0], [tip - 3, 0]);
+}
+
+module round_part(d) {
+  difference() {
+    circle(d = d);
+    star_hole();
+  }
+}
+
+// Drawn in the down-axis frame; the arrow shows the way to turn it
+module crank() {
+  difference() {
+    hull() {
+      circle(r = 11);
+      translate([crank_radius, 0]) circle(r = 9);
+    }
+    star_hole();
+    translate([crank_radius, 0]) circle(d = 4.4, $fn = 32);
+  }
+  score() {
+    translate([13, -3.5]) text("TURN", size = 4);
+    line([crank_radius - 4, -6], [crank_radius - 4, 6]);
+    line([crank_radius - 4, 6], [crank_radius - 6, 3]);
+    line([crank_radius - 4, 6], [crank_radius - 2, 3]);
+  }
+}
+
+// x towards the board, y up the plate, the axis at the origin
+function rod_uv(a) = [-rod_r * sin(a), -rod_r * cos(a)];
+module end_plate() {
+  difference() {
+    union() {
+      hull() {
+        circle(r = 17);
+        for (a = rods) translate(rod_uv(a)) circle(r = 7);
+        translate([0, -38]) rect([board_y, 52]);
+      }
+      for (v = [[-34, -20], [-6, 8]]) translate([board_y - 1, v[0]]) rect([t + 1, v[1] - v[0]]);
+    }
+    circle(d = 20 + bearing_clearance);
+    for (a = rods) translate(rod_uv(a)) circle(d = 6.2, $fn = 32);
+  }
+}
+
+// Holds the ends of the trough dowels. Its edge stays clear of the marble
+// over the trough and of the flight elsewhere.
+module exit_rib() {
+  function arc(r, a0, a1) = [for (i = [0:16]) let(a = lerp(a0, a1, i / 16)) [-r * sin(a), -r * cos(a)]];
+  difference() {
+    polygon(concat(arc(41, -15, 82), arc(29.5, 82, 30), arc(33.5, 30, -15)));
+    for (a = rods) translate(rod_uv(a)) circle(d = 6.2, $fn = 32);
+  }
+}
+
+// x along the axis from s = 30, y up the slope from the axis' plane. Wide
+// at the bottom, where a tab reaches the board; narrow beside the intake.
+// A marble landing on it rolls down until the flight below catches it.
+module ramp() {
+  // The back edge stops where its lower corner meets the board
+  lb = (board_y - t * sin(kappa)) / cos(kappa);
+  le = (board_y + t - 0.05 - t * sin(kappa)) / cos(kappa);
+  polygon([[0, ramp_l(3.5)], [70, ramp_l(3.5)], [70, ramp_l(29.5)], [32, ramp_l(29.5)], [32, lb],
+    [28, lb], [28, le], [14, le], [14, lb], [0, lb]]);
+}
+
+// A track floor, length along the slope, 24 wide from the rail to the board
+module leg_floor(L) {
+  rect([L, board_y - track_y]);
+  for (x = [12, L / 2 - 10, L - 32]) translate([x, board_y - track_y - 1]) rect([20, t + 1]);
+}
+
+// Chute side wall, drawn in y and z where it stands: on the floor line z(y)
+// from y0 to the board, h tall, with a tab into the board
+module chute_wall(z, y0, h, chamfer = 0) {
+  polygon(concat([for (y = [y0, board_y]) [y, z(y)]],
+    [[board_y, z(board_y) + 3], [board_y + t, z(board_y) + 3], [board_y + t, z(board_y) + 9.5], [board_y, z(board_y) + 9.5]],
+    chamfer > 0 ? [[board_y, z(board_y) + h], [y0 + chamfer, z(y0 + chamfer) + h], [y0, z(y0) + h - chamfer]]
+      : [[board_y, z(board_y) + h], [y0, z(y0) + h]]));
+}
+
+// A chute floor, x from x0 to x1, l up its slope; the tab reaches y = 61
+module chute_floor(x0, x1, L, le, tab0, tab1) {
+  translate([x0, 0]) rect([x1 - x0, L]);
+  translate([tab0, L - 1]) rect([tab1 - tab0, le - L + 1]);
+}
+
+// End wall of a leg, standing across the channel on the floor at zb
+module end_wall(zb, zt) {
+  polygon([[track_y, zb], [board_y, zb], [board_y, zb + 3], [board_y + t, zb + 3], [board_y + t, zt - 3], [board_y, zt - 3], [board_y, zt], [track_y, zt]]);
+}
+
+// Slots, in the board's x and z, for a tab drawn in a turned frame
+module slot_in(p, a, x0, x1, y0, y1, c = 0.12) {
+  translate([p[0], p[2]]) rotate(a) translate([x0 - c, y0 - c]) rect([x1 - x0 + 2 * c, y1 - y0 + 2 * c]);
+}
+
+function leg_theta(g) = -g[3] * sigma;
+function leg_origin(g) = [g[0] - t * sin(leg_theta(g)), track_y, g[2] - t * cos(leg_theta(g))];
+function leg_len(g) = (g[1] - g[0]) / cos(sigma);
+function leg_top(i, x) = i == 0 ? top1(x) : i == 1 ? top2(x) : top3(x);
+
+// The backboard, drawn in x and z, with every slot that holds the frame
+module board() {
+  difference() {
+    union() {
+      translate([-20, t]) rect([312, 348 - t], r = 6);
+      for (x = [-10, 120, 250]) translate([x, 0]) rect([30, t + 0.5]);
+    }
+    // End plates, both plies
+    for (s0 = [-2 * t, s_upper]) for (v = [[-34, -20], [-6, 8]]) slot_in(ax(s0), tilt, 0, 2 * t, v[0], v[1]);
+    // The ramp's tab passes the board at 20 degrees
+    let(dmin = ramp_d - ((board_y + t - 0.05 - t * sin(kappa)) / cos(kappa)) * sin(kappa), dmax = ramp_d - board_y * tan(kappa) + t / cos(kappa))
+      slot_in(ax(44), tilt, 0, 14, -dmax, -dmin);
+    // Track floors and the end walls on them
+    for (i = [0:2]) let(g = legs[i], L = leg_len(g)) for (x = [12, L / 2 - 10, L - 32])
+      slot_in(leg_origin(g), -leg_theta(g), x, x + 20, 0, t);
+    for (w = [[284 - t, top1(284), 13], [19, top2(19), top1(40) + 18 - top2(19)], [288 - t, top3(288), top2(270) + 18 - top3(288)]])
+      slot_in([w[0], 0, w[1]], 0, 0, t, 3, w[2] - 3);
+    // Chute floors and walls
+    slot_in([262, 0, ze(board_y + t) - t / cos(beta)], 0, 0, 18, 0, ze(board_y) - ze(board_y + t) + t / cos(beta), 0.15);
+    slot_in([68, 0, zi(board_y) - t / cos(beta)], 0, 0, 16, 0, zi(board_y + t) - zi(board_y) + t / cos(beta), 0.15);
+    for (x = [255, 287 - t]) slot_in([x, 0, ze(board_y) + 3], 0, 0, t, 0, 6.5);
+    for (x = [63, 89 - t]) slot_in([x, 0, zi(board_y) + 3], 0, 0, t, 0, 6.5);
+  }
+  engrave() translate([86, 290]) text("HELIX", size = 34, halign = "center");
+  score() translate([86, 272]) text("ARCHIMEDES SCREW MARBLE LIFT", size = 6, halign = "center");
+}
+
+module base() {
+  difference() {
+    translate([-75, -75]) rect([380, 150], r = 6);
+    for (x = [-10, 120, 250]) translate([x - 0.12, board_y - 0.12]) rect([30.24, t + 0.24]);
+  }
+  score() translate([-60, -64]) text("16 MM MARBLES  /  TURN THE CRANK ANTICLOCKWISE", size = 5);
+}
+
+module coupon() {
+  difference() {
+    rect([150, 60], r = 3);
+    for (i = [0:2]) translate([20 + 25 * i, 42]) for (a = [0, 30, 60]) rotate(a) rect(10.1 + 0.1 * i, center = true);
+    for (i = [0:3]) translate([18 + 30 * i, 16]) circle(d = 20.3 + 0.1 * i);
+    for (i = [0:2]) translate([97 + 12 * i, 44]) circle(d = 6.1 + 0.1 * i, $fn = 32);
+    translate([138, 40]) rect([t + 0.24, 14], center = true);
+  }
+  score() {
+    translate([33, 52]) text("BAR +0.1 +0.2 +0.3", size = 3, halign = "center");
+    translate([109, 52]) text("6.1 6.2 6.3", size = 3, halign = "center");
+    translate([63, 2]) text("20.3   20.4   20.5   20.6", size = 3, halign = "center");
+  }
+}
+
+// Placements of the parts that turn with the crank, at angle theta
+ramp_at = ax(30) + dvec * (ramp_d + t * cos(kappa)) + [0, t * sin(kappa), 0];
+// Outside face of the lower outer collar; the crank plies go on below it
+crank_s = -3 * t - 0.5;
+handle = dvec * (crank_radius * cos(theta)) + [0, -crank_radius * sin(theta), 0];
+
+if (output == "all" || output == "screw") {
+  part("Screw plate", qty = plates, at = [for (j = [0:plates - 1]) ax(s_screw + j * t)],
+    rotate = [for (j = [0:plates - 1]) turned_up(theta - step * j)]) screw_plate();
+  // Two in each bearing; the lower pair face down the axis
+  part("Journal", qty = 4, at = [ax(0), ax(-t), ax(s_upper), ax(s_upper + t)],
+    rotate = [turned_down(theta), turned_down(theta), turned_up(theta), turned_up(theta)]) round_part(20);
+  // Inside and outside each end plate
+  part("Collar", qty = 4, at = [ax(0.5), ax(-2 * t - 0.5), ax(s_top), ax(s_upper + 2 * t + 0.5)],
+    rotate = [turned_up(theta), turned_down(theta), turned_up(theta), turned_up(theta)]) round_part(32);
+  part("Crank", qty = 2, at = [ax(crank_s), ax(crank_s - t)], rotate = turned_down(theta)) crank();
+  // On a 6 mm sleeve over the handle bolt, below the crank and a washer
+  part("Grip ring", qty = 4, at = [for (k = [0:3]) ax(crank_s - 2 * t - 0.8 - k * t) + handle], rotate = turned_down(theta)) ring(18, 6.4);
+}
+if (output == "all" || output == "frame") {
+  part("Board", at = [0, board_y + t, 0], rotate = [90, 0, 0]) board();
+  part("Base", at = [0, 0, 0]) base();
+  part("Lower end plate", qty = 2, at = [ax(0), ax(-t)], rotate = euler(down_axis)) mirror([1, 0]) end_plate();
+  part("Upper end plate", qty = 2, at = [ax(s_upper), ax(s_upper + t)], rotate = euler(up_axis)) end_plate();
+  part("Exit rib", at = ax(s_exit - t), rotate = euler(up_axis)) exit_rib();
+}
+if (output == "all" || output == "track") {
+  for (i = [0:2]) let(g = legs[i], L = leg_len(g)) {
+    part(str("Track floor ", i + 1), at = leg_origin(g), rotate = [0, leg_theta(g), 0]) leg_floor(L);
+    // Rails stop at the end walls
+    let(x0 = i == 1 ? g[0] + t : g[0], x1 = i == 1 ? g[1] : g[1] - t)
+      part(str("Track rail ", i + 1), at = [x0, track_y + t, leg_top(i, x0)], rotate = [90, leg_theta(g), 0])
+        rect([(x1 - x0) / cos(sigma), 10]);
+  }
+  part("End wall 1", at = [284 - t, 0, 0], rotate = [90, 0, 90]) end_wall(top1(284), top1(284) + 13);
+  part("End wall 2", at = [19, 0, 0], rotate = [90, 0, 90]) end_wall(top2(19), top1(40) + 18);
+  part("End wall 3", at = [288 - t, 0, 0], rotate = [90, 0, 90]) end_wall(top3(288), top2(270) + 18);
+  // The exit chute runs from in front of the trough to the board; the
+  // marble rolls back and drops through the hole onto the first leg
+  let(L = (board_y + 18) / cos(beta), le = (board_y + t - 0.1 + 18) / cos(beta))
+    part("Exit floor", at = [0, -18 - t * sin(beta), ze(-18) - t * cos(beta)], rotate = [-beta, 0, 0])
+      difference() {
+        chute_floor(255, 287, L, le, 262, 280);
+        translate([hole_x, (hole_y + 18) / cos(beta)]) circle(d = 20);
+      }
+  part("Exit wall", qty = 2, at = [[255, 0, 0], [287 - t, 0, 0]], rotate = [90, 0, 90]) chute_wall(function(y) ze(y), -18, 10, 6);
+  part("Exit front wall", at = [0, -15, 0], rotate = [90, 0, 0]) translate([255 + t, ze(-18)]) rect([32 - 2 * t, 10]);
+  let(L = (board_y - 31 - t * sin(beta)) / cos(beta), le = (board_y + t - 0.4 - 31) / cos(beta))
+    part("Intake floor", at = [0, 31 + t * sin(beta), zi(31) - t * cos(beta)], rotate = [beta, 0, 0])
+      chute_floor(63, 89, L, le, 68, 84);
+  part("Intake wall", at = [89 - t, 0, 0], rotate = [90, 0, 90]) chute_wall(function(y) zi(y), 31, 12);
+  // Tall enough to catch a marble flying off the last leg
+  part("Intake back wall", at = [63, 0, 0], rotate = [90, 0, 90]) chute_wall(function(y) zi(y), 31, top3(89) + 18 - zi(31));
+  part("Ramp", at = ramp_at, rotate = euler(ramp_frame)) ramp();
+}
+// The fit test lies on the table beside the base
+if (output == "all" || output == "coupon") part("Fit test", at = [330, -60, 0]) coupon();
+
+echo(str("Helix: ", plates, " plates on a 10 mm square bar, ", pitch, " mm pitch, ", plates / 12, " turns; lifts ",
+  round(((s_exit - 55) * st) * 10) / 10, " mm; track legs at ", round(sigma * 10) / 10, " degrees"));
+
+// Assembly: thread the screw plates onto a 10 mm square bar (aluminium or
+// hardwood, 395 mm), each turned one point of its star (30 degrees) on from
+// the last, always the same way, and glue them; the scored lines spiral
+// round. Glue a collar at each end of the stack. Glue each pair of end
+// plates, slide them on, then glue two journals into each bearing (free to
+// turn in it), a collar outside each, and the two crank plies outside the
+// lower collar. Push four 6 mm dowels through both end plates; the two
+// lowest end in the exit rib, 33 mm short of the upper plate. Glue the end
+// plates, chutes, track floors, end walls and ramp into the board, the board
+// into the base, and the rails and walls onto the floors. The grip is four
+// rings on a 6 mm brass sleeve, on an M4 x 25 bolt through the crank with a
+// washer each side and a nyloc nut. Turn the crank anticlockwise as you face
+// it, and drop 16 mm glass marbles into the intake chute.

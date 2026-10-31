@@ -122,16 +122,19 @@ module fit_test() {
   }
 }
 
-if (output == "all" || output == "ribs_a") for (i = [0:3]) part(str("Rib ", i + 1)) rib(i);
-if (output == "all" || output == "ribs_b") for (i = [4:7]) part(str("Rib ", i + 1)) rib(i);
-if (output == "all" || output == "ribs_c") for (i = [8:11]) part(str("Rib ", i + 1)) rib(i);
-if (output == "all" || output == "ribs_d") for (i = [12:15]) part(str("Rib ", i + 1)) rib(i);
-if (output == "all" || output == "rib_e") part("Rib 17") rib(16);
+// Assembled: the rails stand in the base, the ribs across them at their
+// stations
+module placed_rib(i) part(str("Rib ", i + 1), at = [0, station(i) + t / 2, 0], rotate = [90, 0, 0]) rib(i);
+if (output == "all" || output == "ribs_a") for (i = [0:3]) placed_rib(i);
+if (output == "all" || output == "ribs_b") for (i = [4:7]) placed_rib(i);
+if (output == "all" || output == "ribs_c") for (i = [8:11]) placed_rib(i);
+if (output == "all" || output == "ribs_d") for (i = [12:15]) placed_rib(i);
+if (output == "all" || output == "rib_e") placed_rib(16);
 if (output == "all" || output == "rails") {
-  part("Rail L") rail("L");
-  part("Rail R") rail("R");
+  part("Rail L", at = [-rail_x - t / 2, 0, 0], rotate = [90, 0, 90]) rail("L");
+  part("Rail R", at = [rail_x - t / 2, 0, 0], rotate = [90, 0, 90]) rail("R");
 }
-if (output == "all" || output == "base") part("Base") base();
+if (output == "all" || output == "base") part("Base", at = [0, 0, -t]) base();
 if (output == "fit") fit_test();
 
 // Assembly: glue rail L and rail R into the base, numbers running from the

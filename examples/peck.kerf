@@ -1,0 +1,274 @@
+// Peck: the folk toy of hens pecking grain on a round paddle. Each hen's head
+// rocks on a bolt through her body, and a string from her neck runs down
+// through the paddle to a weight hanging below. Hold the handle and swing the
+// paddle in small circles: the weight swings round, pulls each string in turn
+// and the hens peck one after another, their tails bobbing up behind.
+
+/* [Toy] */
+// Number of hens round the paddle
+hens = 6; // [3:1:8]
+// Diameter of the round paddle in mm; the hens stand at the same distance from its rim
+paddle_diameter = 240; // [220:10:300]
+
+/* [Fit] */
+// Added to the M3 bolt for the hole each head rocks on
+neck_clearance = 0.5; // [0.3:0.1:0.7]
+
+/* [Assembly] */
+// Where the swing pulls in the assembled view, in degrees round the paddle:
+// the hen nearest it pecks and the weight swings out the other way
+swing = 165; // [0:5:360]
+// How far the weight swings out, in mm
+swing_reach = 30; // [0:1:45]
+
+/* [Export] */
+// All parts, or one group at a time
+output = "all"; // [all:All parts, paddle:Paddle, hens:Hens, weight:Weight, coupon:Fit test]
+
+/* [Material] */
+// Sheet thickness
+$thickness = 3; // [2.8:0.1:3.2]
+// Beam width
+$kerf = 0.15; // [0:0.01:0.25]
+
+/* [Hidden] */
+$material = "plywood";
+$sheet = [600, 400];
+$gap = 5;
+$fn = 96;
+t = $thickness;
+n = hens;
+D = paddle_diameter;
+assert(n == floor(n) && n >= 3 && n <= 8, "Hens: 3 to 8");
+assert(D >= 220 && D <= 300, "Paddle diameter: 220 to 300 mm");
+assert(neck_clearance >= 0.3 && neck_clearance <= 0.7, "Neck clearance: 0.3 to 0.7 mm");
+assert(t >= 2.8 && t <= 3.2, "Thickness: 2.8 to 3.2 mm");
+assert($kerf >= 0 && $kerf <= 0.25, "Kerf: 0 to 0.25 mm");
+assert(swing >= 0 && swing <= 360, "Swing: 0 to 360 degrees");
+assert(swing_reach >= 0 && swing_reach <= 45, "Swing reach: 0 to 45 mm");
+assert(contains(["all", "paddle", "hens", "weight", "coupon"], output), "Unknown output");
+
+function polar(r, a) = [r * cos(a), r * sin(a)];
+
+// A hen is drawn from her right side, facing +x, with y up from the paddle
+// top. Her head rocks on the bolt at P, straight above the origin.
+P = [0, 18];
+// The head and neck, drawn up. The beak is the lowest point when she pecks.
+neck_pts = [[0, 18], [13.9, 16.1], [16.5, 21], [21, 28], [23, 30], [24.5, 33], [28, 35.5], [33, 38], [28, 40], [27, 43], [24, 46.5], [23, 49], [21, 48], [19.5, 50.5], [17.5, 49], [15.5, 50], [15, 46.5], [13.5, 42], [10, 36], [5, 29], [0, 24]];
+// The arm back through the body and the tail, the counterweight. With the
+// head up the tail's lowest corner rests on the paddle: that is the stop.
+tail_pts = [[0, 18], [2, 23], [-20, 26], [-27, 26], [-29, 29], [-33, 36], [-38, 41], [-43, 43], [-46, 40], [-45, 35], [-50, 37], [-53, 31], [-50, 26], [-54, 20], [-51, 14], [-52, 8], [-48, 3], [-44, 0]];
+beak = [33, 38];
+// The string ties through the neck at A and drops through the paddle at H
+A = P + polar(11, 15);
+H = [7, 0];
+// The fixed body stays inside this radius round P and the tail plates
+// outside the larger one, so they never meet however the head rocks
+body_r = 27;
+tail_r = 28.5;
+// The head tips down until the beak touches the paddle
+reach = norm(beak - P);
+tip = atan2(beak.y - P.y, beak.x - P.x) + asin(P.y / reach);
+// Where the beak lands, ahead of the hen's origin
+peck_x = sqrt(reach * reach - P.y * P.y);
+// Hens stand facing the centre, their origins on this circle; the handle
+// points down the page, between two hens
+ring = D / 2 - 60;
+function hen_angle(i) = 90 + 180 / n + 360 * i / n;
+// Below the paddle: from its underside down to the string plate, with the
+// heads up and the weight hanging still, and the holes the strings end in
+drop = 110;
+plate_r = 8;
+// String length from the neck to the plate, and its travel, head up to down
+function rotp(p, a) = P + [[cos(a), -sin(a)], [sin(a), cos(a)]] * (p - P);
+above_up = norm(A - H);
+above_down = norm(rotp(A, -tip) - H);
+below = norm([ring - H.x - plate_r, drop]);
+string = above_up + 2 * t + below;
+
+// The assembled view, paddle top at z = 0. The far string pulls its head
+// right down and the weight hangs as low as that lets it; each other head
+// tips until its string is just long enough, or stays up on a slack string.
+function s_of(a) = norm(rotp(A, a) - H);
+function bisect(s, lo, hi, k = 0) = let(mid = (lo + hi) / 2)
+  k == 40 ? mid : s_of(mid) > s ? bisect(s, lo, mid, k + 1) : bisect(s, mid, hi, k + 1);
+function head_for(s) = s >= above_up ? 0 : bisect(s, -tip, 0);
+longest = below + above_up - above_down;
+knot = polar(swing_reach, swing + 180);
+flat = [for (i = [0:n - 1]) norm(knot + polar(plate_r, hen_angle(i)) - polar(ring - H.x, hen_angle(i)))];
+hang = min([for (d = flat) sqrt(longest * longest - d * d)]);
+heads = [for (d = flat) head_for(above_up - max(0, sqrt(d * d + hang * hang) - below))];
+plate_top = -2 * t - hang;
+// A point in hen i's frame (x forward, y to her left, z up) on the paddle.
+// Her layers stand up through P's plane; a head turned h about P moves its
+// origin to rotp([0, 0], h).
+function on_hen(i, q) = let(a = hen_angle(i) + 180)
+  concat(polar(ring, hen_angle(i)), [0]) + [q.x * cos(a) - q.y * sin(a), q.x * sin(a) + q.y * cos(a), q.z];
+function turned(h, y) = let(o = rotp([0, 0], h)) [o.x, y, o.y];
+function mirrored(h, y) = let(o = rotp([0, 0], h)) [-o.x, y, o.y];
+function facing(i, h = 0) = [90, -h, hen_angle(i) + 180];
+function left_facing(i, h = 0) = [90, -h, hen_angle(i)];
+
+// The body: a round hen on short legs, with a tab for the paddle slot
+module body_shape() {
+  intersection() {
+    union() {
+      translate([-6, 20]) ellipse([20, 13.5]);
+      polygon([[-13, 0], [1, 0], [4, 10], [-16, 10]]);
+    }
+    translate(P) circle(r = body_r);
+  }
+}
+module tab() {
+  translate([-13, -2 * t]) rect([12, 2 * t + 0.01]);
+}
+
+module body_half() {
+  difference() {
+    union() {
+      body_shape();
+      tab();
+    }
+    translate(P) circle(d = 3.2);
+  }
+  // Wing, feathers and toes on the outside face
+  score() {
+    hull() {
+      translate([-1, 24]) circle(r = 6);
+      translate([-21, 25]) circle(r = 1);
+    }
+    for (k = [0:2]) line([-17 + 3 * k, 25 - 2 * k], [-5, 25 - 2 * k]);
+    line([-6, 0], [-6, 7]);
+  }
+}
+
+// The middle layer under the rocking parts: a wedge below P that the head
+// and the arm clear by a few degrees at both ends of their swing
+module spacer() {
+  difference() {
+    union() {
+      intersection() {
+        body_shape();
+        polygon([P, P + polar(80, 208), P + polar(80, 244), P + polar(80, 280)]);
+      }
+      tab();
+    }
+    translate(P) circle(r = 7.5);
+  }
+}
+
+module head() {
+  difference() {
+    union() {
+      translate(P) circle(r = 6);
+      polygon(neck_pts);
+      polygon(tail_pts);
+    }
+    translate(P) circle(d = 3 + neck_clearance);
+    translate(A) circle(d = 1.6);
+    // The eye
+    translate([22.5, 43]) circle(d = 2.2);
+  }
+}
+
+// Glued either side of the tail, all outside tail_r
+module tail_plate() {
+  difference() {
+    polygon(tail_pts);
+    translate(P) circle(r = tail_r);
+  }
+  score() for (a = [160, 176, 192]) line(P + polar(31, a), P + polar(56, a));
+}
+
+module paddle(top) {
+  difference() {
+    union() {
+      circle(d = D);
+      translate([-16, -D / 2 - 110]) rect([32, 120], r = 16);
+    }
+    for (i = [0:n - 1]) {
+      a = hen_angle(i);
+      // The hen's tab slot and her string hole
+      translate(polar(ring, a)) rotate(a + 180) translate([-13.1, -1.5 * t - 0.1]) rect([12.2, 3 * t + 0.2]);
+      translate(polar(ring - H.x, a)) circle(d = 4);
+    }
+    // Hang it up by the handle
+    translate([0, -D / 2 - 94]) circle(d = 8);
+  }
+  if (top) {
+    score() circle(d = D - 8);
+    score() translate([0, -D / 2 - 50]) rotate(-90) text("PECK", size = 12, halign = "center", valign = "center");
+    // Grain where each beak lands, and a little more in the middle
+    engrave() for (i = [0:n - 1]) {
+      a = hen_angle(i);
+      g = rands(0, 1, 18, i + 3);
+      for (k = [0:5]) translate(polar(ring - peck_x, a) + polar(1 + 6 * g[3 * k], 360 * g[3 * k + 1])) rotate(180 * g[3 * k + 2]) ellipse([1.5, 0.8]);
+    }
+    engrave() let(g = rands(0, 1, 30, 1)) for (k = [0:9]) translate(polar(3 + (ring - peck_x - 10) * g[3 * k], 360 * g[3 * k + 1])) rotate(180 * g[3 * k + 2]) ellipse([1.5, 0.8]);
+  }
+}
+
+module ring_disc(d, hole) {
+  difference() {
+    circle(d = d);
+    circle(d = hole);
+  }
+}
+
+if (output == "all" || output == "paddle") {
+  part("Paddle top", at = [0, 0, -t]) paddle(true);
+  part("Paddle base", at = [0, 0, -2 * t]) paddle(false);
+}
+if (output == "all" || output == "hens") {
+  hen = [0:n - 1];
+  part("Right body", qty = n, at = [for (i = hen) on_hen(i, [0, -t / 2, 0])], rotate = [for (i = hen) facing(i)]) body_half();
+  part("Left body", qty = n, at = [for (i = hen) on_hen(i, [0, t / 2, 0])], rotate = [for (i = hen) left_facing(i)])
+    mirror([1, 0]) body_half();
+  part("Body spacer", qty = n, at = [for (i = hen) on_hen(i, [0, t / 2, 0])], rotate = [for (i = hen) facing(i)]) spacer();
+  part("Head", qty = n, at = [for (i = hen) on_hen(i, turned(heads[i], t / 2))], rotate = [for (i = hen) facing(i, heads[i])])
+    head();
+  part("Right tail", qty = n, at = [for (i = hen) on_hen(i, turned(heads[i], -t / 2))],
+      rotate = [for (i = hen) facing(i, heads[i])])
+    tail_plate();
+  part("Left tail", qty = n, at = [for (i = hen) on_hen(i, mirrored(-heads[i], t / 2))],
+      rotate = [for (i = hen) left_facing(i, -heads[i])])
+    mirror([1, 0]) tail_plate();
+}
+if (output == "all" || output == "weight") {
+  part("Weight disc", qty = 7, at = [for (k = [1:7]) concat(knot, [plate_top - 2 * t - k * t])]) {
+    ring_disc(44, 4.4);
+    score() circle(d = 36);
+  }
+  // Leaves room under the plate for the knots
+  part("Knot ring", at = concat(knot, [plate_top - 2 * t])) ring_disc(44, 20);
+  part("String plate", at = concat(knot, [plate_top - t])) difference() {
+    circle(d = 26);
+    circle(d = 4.4);
+    for (i = [0:n - 1]) translate(polar(plate_r, hen_angle(i))) circle(d = 1.6);
+  }
+}
+// The fit test lies beside the weight, at its foot
+if (output == "all" || output == "coupon") part("Fit test", at = [D / 2 + 30, -D / 2, plate_top - 9 * t]) {
+  difference() {
+    rect([96, 40], r = 3);
+    translate([12, 28]) circle(d = 3.2);
+    translate([26, 28]) circle(d = 3 + neck_clearance);
+    translate([40, 28]) circle(d = 1.6);
+    translate([54, 28]) circle(d = 4);
+    translate([70, 22]) rect([12.2, 3 * t + 0.2]);
+  }
+  score() translate([5, 6]) text("3.2  NECK  1.6  4   TAB", size = 3.5);
+}
+
+echo(str("Peck: ", n, " hens, heads tip ", round(tip), " degrees to peck, ", round((above_up - above_down) * 10) / 10, " mm of string travel; tie each string ", round(string), " mm from neck to plate; weight ", drop, " mm below the paddle"));
+
+// Assembly: glue the paddle top onto the paddle base, holes and slots lined
+// up. Each hen is three layers: right body, then the spacer with the head
+// beside it, then left body. Bolt them through P with an M3 x 12 bolt and
+// nut, snug but not tight, sanding the head's faces until it rocks freely;
+// glue the spacer between the bodies, and a tail plate either side of the
+// tail. Glue the tab into its slot, the hen facing the middle. Tie a string
+// through each neck at A, pass it down its hole and through its hole in the
+// string plate, and knot it under the plate. Stack the weight discs, knot
+// ring and plate on an M4 x 35 bolt with a nut on top. Hang the weight with
+// every head up and adjust each knot until its string is just taut.

@@ -4,9 +4,11 @@
 # parts that export.mjs wrote, then renders a picture and exports a GLB:
 #   blender -b -P 3d/build.py -- slug [slug ...]
 # Writes public/3d/<slug>.glb and public/3d/<slug>.webp. SAMPLES sets the
-# render quality, NOGLB=1 / NORENDER=1 skip one of the two.
+# render quality, NOGLB=1 / NORENDER=1 skip one of the two. A recipe with a
+# "motion" puts one loop of the mechanism in the GLB as its animation; the
+# picture shows the recipe's own pose.
 
-import bpy, bmesh, json, math, os, sys, random
+import bpy, bmesh, json, math, os, struct, sys, random
 from mathutils import Matrix, Vector
 from bpy_extras.object_utils import world_to_camera_view
 
@@ -241,6 +243,65 @@ def build_part(p, k, rng):
     return root
 
 
+# Hardware pins are prisms from a to b (mm) with d across the corners, made
+# 1 m long and scaled to length, so an animation can stretch them.
+def pin_matrix(a, b, sides):
+    a, b = Vector(a), Vector(b)
+    v = b - a
+    twist = Matrix.Rotation(math.radians(45 if sides == 4 else 0), 4, "Z")
+    turn = Vector((0, 0, 1)).rotation_difference(v if v.length > 1e-9 else Vector((0, 0, 1))).to_matrix().to_4x4()
+    return Matrix.Translation((a + b) / 2 * MM) @ turn @ twist @ Matrix.Diagonal((1, 1, max(v.length * MM, 1e-6), 1))
+
+
+# Motion: the recipe function posed over one loop, u from 0 to 1. Every part,
+# pin and ball that moves gets a key on every frame.
+def recipe_out(motion, u):
+    out = motion["recipe"](**motion["pose"](u))
+    out = out if isinstance(out, tuple) else (out,)
+    pins = out[1] if len(out) > 1 else []
+    balls = [b for b in (out[2] if len(out) > 2 else []) if isinstance(b, (tuple, list)) and len(b) == 4]
+    return out[0], pins, balls
+
+
+def animate(motion, data, roots, pins, balls):
+    frames = motion.get("frames", 96)
+    sc = bpy.context.scene
+    sc.render.fps = motion.get("fps", 24)
+    sc.frame_start, sc.frame_end = 0, frames
+    tracks = [[] for _ in roots + pins + balls]
+    for f in range(frames + 1):
+        place, ps, bs = recipe_out(motion, f / frames)
+        mats = [place(data["parts"][k], data["parts"]) for k, _ in roots]
+        if len(ps) != len(pins) or len(bs) != len(balls):
+            raise ValueError(f"motion frame {f}: {len(ps)} pins and {len(bs)} balls, the picture has {len(pins)} and {len(balls)}")
+        mats += [pin_matrix(a, b, sides) for a, b, d, kind, sides in ps]
+        mats += [Matrix.Translation((x * MM, y * MM, z * MM)) for x, y, z, d in bs]
+        for track, m in zip(tracks, mats):
+            track.append(m)
+    prefs = bpy.context.preferences.edit
+    prefs.keyframe_new_interpolation_type = "LINEAR"
+    objs = [o for _, o in roots] + pins + balls
+    moving = 0
+    for o, track in zip(objs, tracks):
+        if any(m is None for m in track):
+            raise ValueError(f"motion: {o.name} is left out in some frames")
+        if all(max(abs(a - b) for ra, rb in zip(m, track[0]) for a, b in zip(ra, rb)) < 1e-7 for m in track):
+            continue
+        moving += 1
+        o.rotation_mode = "QUATERNION"
+        prev = None
+        for f, m in enumerate(track):
+            o.matrix_world = m
+            q = o.rotation_quaternion.copy()
+            if prev is not None and q.dot(prev) < 0:
+                q.negate()
+            o.rotation_quaternion = prev = q
+            for path in ("location", "rotation_quaternion", "scale"):
+                o.keyframe_insert(path, frame=f)
+    sc.frame_set(0)
+    print(f"animated {moving} of {len(objs)} objects over {frames} frames")
+
+
 # Scene
 
 def world(strength=None):
@@ -341,7 +402,31 @@ def stage(view):
     return floor
 
 
-def export_glb(slug, floor):
+def merge_animations(path, name="motion"):
+    """The exporter writes one animation per moving object; viewers play one
+    at a time, so put every channel in a single animation."""
+    with open(path, "rb") as f:
+        glb = f.read()
+    n = struct.unpack("<I", glb[12:16])[0]
+    doc = json.loads(glb[20:20 + n])
+    anims = doc.get("animations", [])
+    if len(anims) < 2:
+        return
+    merged = {"name": name, "channels": [], "samplers": []}
+    for a in anims:
+        base = len(merged["samplers"])
+        merged["samplers"] += a["samplers"]
+        merged["channels"] += [dict(c, sampler=c["sampler"] + base) for c in a["channels"]]
+    doc["animations"] = [merged]
+    js = json.dumps(doc, separators=(",", ":")).encode()
+    js += b" " * (-len(js) % 4)
+    rest = glb[20 + n:]
+    out = glb[:8] + struct.pack("<I", 12 + 8 + len(js) + len(rest)) + struct.pack("<I", len(js)) + b"JSON" + js + rest
+    with open(path, "wb") as f:
+        f.write(out)
+
+
+def export_glb(slug, floor, animated=False):
     os.makedirs(PUBLIC, exist_ok=True)
     floor.hide_set(True)
     bpy.ops.object.select_all(action="DESELECT")
@@ -357,7 +442,13 @@ def export_glb(slug, floor):
         export_draco_mesh_compression_enable=True,
         export_draco_mesh_compression_level=6,
     )
+    if animated:
+        kw.update(export_animations=True, export_animation_mode="SCENE", export_frame_range=True)
+    else:
+        kw.update(export_animations=False)
     bpy.ops.export_scene.gltf(**kw)
+    if animated:
+        merge_animations(kw["filepath"])
     floor.hide_set(False)
 
 
@@ -370,20 +461,21 @@ def build(slug):
     recipe = ASSEMBLIES.get(slug, flat)
     view = recipe.get("view", {}) if isinstance(recipe, dict) else {}
     place = recipe["place"] if isinstance(recipe, dict) else recipe
-    roots = []
+    roots, pin_objs, ball_objs = [], [], []
     for k, p in enumerate(data["parts"]):
         m = place(p, data["parts"])
         if m is None:
             continue
         root = build_part(p, k, rng)
         root.matrix_world = m
-        roots.append(root)
+        roots.append((k, root))
     for k, (x, y, z, d) in enumerate(recipe.get("balls", []) if isinstance(recipe, dict) else []):
         bpy.ops.mesh.primitive_uv_sphere_add(radius=d / 2 * MM, location=(x * MM, y * MM, z * MM), segments=48, ring_count=24)
         ball = bpy.context.active_object
         ball.name = f"ball{k}"
         bpy.ops.object.shade_smooth()
         ball.data.materials.append(HARDWARE["steel"]())
+        ball_objs.append(ball)
     for k, (x, y, z0, z1, d) in enumerate(recipe.get("rods", []) if isinstance(recipe, dict) else []):
         bpy.ops.mesh.primitive_cylinder_add(radius=d / 2 * MM, depth=(z1 - z0) * MM, location=(x * MM, y * MM, (z0 + z1) / 2 * MM), vertices=32)
         rod = bpy.context.active_object
@@ -393,16 +485,15 @@ def build(slug):
     # Pins: bolts, bushes, shafts and nuts, as prisms from a to b (mm) with
     # d across the corners. 4 sides makes a square bar d across the flats.
     for k, (a, b, d, kind, sides) in enumerate(recipe.get("pins", []) if isinstance(recipe, dict) else []):
-        a, b = Vector(a), Vector(b)
         r = d / 2 * (math.sqrt(2) if sides == 4 else 1)
-        bpy.ops.mesh.primitive_cylinder_add(radius=r * MM, depth=(b - a).length * MM, location=(a + b) / 2 * MM, vertices=sides)
+        bpy.ops.mesh.primitive_cylinder_add(radius=r * MM, depth=1, vertices=sides)
         pin = bpy.context.active_object
         pin.name = f"pin{k}"
-        twist = Matrix.Rotation(math.radians(45 if sides == 4 else 0), 4, "Z")
-        pin.matrix_world = Matrix.Translation((a + b) / 2 * MM) @ Vector((0, 0, 1)).rotation_difference(b - a).to_matrix().to_4x4() @ twist
+        pin.matrix_world = pin_matrix(a, b, sides)
         if sides > 8:
             bpy.ops.object.shade_smooth()
         pin.data.materials.append(HARDWARE[kind]())
+        pin_objs.append(pin)
     # Flats: a thin sheet (paper) with lines drawn on it
     for k, f in enumerate(recipe.get("flats", []) if isinstance(recipe, dict) else []):
         o = add(f"flat{k}", fill_mesh(f"flat{k}", f["rings"], f["z"], f["z"] + f.get("depth", 0.1)), [mat_plain(f"flat{k}", f["color"], 0.9)], None)
@@ -437,11 +528,14 @@ def build(slug):
             if o.type == "MESH" and o is not floor:
                 lit.objects.link(o)
         bpy.data.objects["scene_pinhole"].light_linking.receiver_collection = lit
-    if not os.environ.get("NOGLB"):
-        export_glb(slug, floor)
     if not os.environ.get("NORENDER"):
         bpy.context.scene.render.filepath = os.path.join(PUBLIC, f"{slug}.webp")
         bpy.ops.render.render(write_still=True)
+    motion = recipe.get("motion") if isinstance(recipe, dict) else None
+    if not os.environ.get("NOGLB"):
+        if motion:
+            animate(motion, data, roots, pin_objs, ball_objs)
+        export_glb(slug, floor, bool(motion))
     print("built", slug)
 
 
