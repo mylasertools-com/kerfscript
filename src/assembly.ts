@@ -132,7 +132,24 @@ export function besideAssembly(
       y += row + gap;
       row = 0;
     }
-    const matrix = [1, 0, 0, hi[0] + gap + x - x0, 0, 1, 0, lo[1] + y - y0, 0, 0, 1, lo[2], 0, 0, 0, 1];
+    const matrix = [
+      1,
+      0,
+      0,
+      hi[0] + gap + x - x0,
+      0,
+      1,
+      0,
+      lo[1] + y - y0,
+      0,
+      0,
+      1,
+      lo[2],
+      0,
+      0,
+      0,
+      1,
+    ];
     x += x1 - x0 + gap;
     row = Math.max(row, y1 - y0);
     return { ...p, matrix: matrix.map(clean) };
@@ -296,23 +313,30 @@ function stacked(
 
 export function collisions(
   parts: AssemblyPart[],
+  maxPairs = Infinity,
   eps = 0.05,
   pitch = 0.25,
   volume = 1,
-): [AssemblyPart, AssemblyPart][] {
+): { found: [AssemblyPart, AssemblyPart][]; complete: boolean } {
   const boxes = parts.map(worldBox);
   const inverses = parts.map((p) => invertRigid(p.matrix));
+  const order = parts.map((_, i) => i).sort((i, j) => boxes[i][0][0] - boxes[j][0][0]);
   const found: [AssemblyPart, AssemblyPart][] = [];
-  for (let a = 0; a < parts.length; a++)
-    for (let b = a + 1; b < parts.length; b++) {
+  let checked = 0;
+  for (let i = 0; i < order.length; i++)
+    for (let j = i + 1; j < order.length; j++) {
+      const a = order[i];
+      const b = order[j];
+      if (boxes[b][0][0] >= boxes[a][1][0] - eps) break;
       if (!overlaps(boxes[a], boxes[b], eps)) continue;
-      const A = parts[a];
-      const B = parts[b];
+      if (++checked > maxPairs) return { found, complete: false };
+      const [A, B] = a < b ? [parts[a], parts[b]] : [parts[b], parts[a]];
+      const [invA, invB] = a < b ? [inverses[a], inverses[b]] : [inverses[b], inverses[a]];
       const parallel = Math.hypot(...cross(normal(A.matrix), normal(B.matrix))) < 1e-9;
       const hit = parallel
-        ? stacked(A, B, inverses[a], eps, pitch, volume)
-        : crossing(A, B, inverses[a], inverses[b], eps, pitch, volume);
+        ? stacked(A, B, invA, eps, pitch, volume)
+        : crossing(A, B, invA, invB, eps, pitch, volume);
       if (hit) found.push([A, B]);
     }
-  return found;
+  return { found, complete: true };
 }

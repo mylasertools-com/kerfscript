@@ -147,6 +147,7 @@ export function render(source: string, options: RenderOptions = {}): RenderResul
   const infos: PartInfo[] = [];
   const assembly: AssemblyPart[] = [];
   const loose: AssemblyPart[] = [];
+  const stackedCopies = new Set<AssemblyPart>();
   const ready: { info: PartInfo; layers: Map<string, Layer> }[] = [];
   for (const p of parts) {
     const material = union(
@@ -169,13 +170,27 @@ export function render(source: string, options: RenderOptions = {}): RenderResul
     }
     if (material.length) {
       const flat = { name: p.name, thickness: p.thickness, outline: material };
-      if (p.placements)
-        p.placements.forEach((placement, i) =>
-          assembly.push({ ...flat, copy: i + 1, matrix: placementMatrix(placement), placed: true }),
-        );
-      else
+      if (p.placements) {
+        const seen = new Set<string>();
+        p.placements.forEach((placement, i) => {
+          const part = { ...flat, copy: i + 1, matrix: placementMatrix(placement), placed: true };
+          assembly.push(part);
+          const key = part.matrix.map((v) => v.toFixed(6)).join(',');
+          if (seen.has(key)) stackedCopies.add(part);
+          seen.add(key);
+        });
+        if (seen.size < p.placements.length)
+          warnings.push(
+            `Copies of part "${p.name}" are in the same place in the assembly. Give at a list with one placement per copy to spread them out.`,
+          );
+      } else
         for (let i = 0; i < p.qty; i++)
-          loose.push({ ...flat, copy: i + 1, matrix: placementMatrix({ at: [0, 0, 0], rotate: [0, 0, 0] }), placed: false });
+          loose.push({
+            ...flat,
+            copy: i + 1,
+            matrix: placementMatrix({ at: [0, 0, 0], rotate: [0, 0, 0] }),
+            placed: false,
+          });
     }
     const n = pieces(material).length;
     if (n > 1)
@@ -218,12 +233,20 @@ export function render(source: string, options: RenderOptions = {}): RenderResul
     ready.push({ info, layers });
   }
 
-  const clashes = collisions(assembly);
+  const { found: clashes, complete } = collisions(
+    assembly.filter((part) => !stackedCopies.has(part)),
+    limits.maxCollisionPairs,
+  );
+  if (!complete)
+    warnings.push(
+      `The assembly has more than ${limits.maxCollisionPairs} pairs of touching parts, the limit, so only those were checked for collisions.`,
+    );
   for (const [a, b] of clashes.slice(0, 5))
     warnings.push(
       `Parts "${a.name}"${a.copy > 1 ? ` (copy ${a.copy})` : ''} and "${b.name}"${b.copy > 1 ? ` (copy ${b.copy})` : ''} collide in the assembly. Check their edges and where they are placed.`,
     );
-  if (clashes.length > 5) warnings.push(`${clashes.length - 5} more pairs of parts collide in the assembly.`);
+  if (clashes.length > 5)
+    warnings.push(`${clashes.length - 5} more pairs of parts collide in the assembly.`);
   if (assembly.length && loose.length) {
     const names = [...new Set(loose.map((p) => `"${p.name}"`))];
     warnings.push(

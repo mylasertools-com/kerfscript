@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { render } from '../dist/index.js';
+import { DEFAULT_LIMITS, render } from '../dist/index.js';
 
 const box = (extra = '') =>
   render(`use <kerf/box>\nmaterial(thickness = 3) box([120, 80, 50], lid = true${extra});`);
@@ -117,4 +117,18 @@ test('a design with no placements at all stays unassembled', () => {
   const r = render('material(thickness = 3) { part("a") rect([40, 20]); part("b") circle(d = 10); }');
   assert.deepEqual(r.assembly, []);
   assert.equal(r.warnings.length, 0);
+});
+
+test('copies sharing one placement warn once instead of colliding with each other', () => {
+  const r = render('part("leg", qty = 3, at = [0, 0, 0], rotate = [90, 0, 0]) rect([10, 40]);');
+  assert.equal(r.assembly.length, 3);
+  assert.equal(r.warnings.filter((w) => /collide/.test(w)).length, 0);
+  assert.equal(r.warnings.filter((w) => /same place/.test(w)).length, 1);
+});
+
+test('the collision check stops at the pair limit with a warning', () => {
+  const src = 'for (i = [0:59]) part(str("p", i), at = [0, 0, i * 0.5]) rect([40, 20]);';
+  const r = render(src, { limits: { ...DEFAULT_LIMITS, maxCollisionPairs: 50 } });
+  assert.equal(r.assembly.length, 60);
+  assert.ok(r.warnings.some((w) => /more than 50 pairs/.test(w)));
 });

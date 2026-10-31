@@ -411,16 +411,17 @@ Exceeding a limit stops evaluation with an error.
 
 Programs are also limited in how much memory they can ask for:
 
-| Limit             | Default   | What it counts                                                                                                             |
-| ----------------- | --------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `maxParts`        | 10,000    | copies of all parts, adding up every `qty`                                                                                 |
-| `maxSegments`     | 10,000    | segments in one circle, ellipse or arc, and corners in one polygon                                                         |
-| `maxListLength`   | 1,000,000 | items in one list or range, or characters in one string, including the text `echo()` writes in one call                    |
-| `maxListItems`    | 3,000,000 | items in all lists the program builds, plus 4 for each list, one for every 8 characters of the strings it builds or echoes |
-| `maxTextLength`   | 2,000     | characters in one `text()`                                                                                                 |
-| `maxPoints`       | 2,000,000 | points in all shapes the modules make, plus 100 for each shape                                                             |
-| `maxOutputPoints` | 1,000,000 | points in the exported files, counting every copy                                                                          |
-| `maxSheets`       | 200       | sheets in the layout                                                                                                       |
+| Limit               | Default   | What it counts                                                                                                             |
+| ------------------- | --------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `maxParts`          | 10,000    | copies of all parts, adding up every `qty`                                                                                 |
+| `maxSegments`       | 10,000    | segments in one circle, ellipse or arc, and corners in one polygon                                                         |
+| `maxListLength`     | 1,000,000 | items in one list or range, or characters in one string, including the text `echo()` writes in one call                    |
+| `maxListItems`      | 3,000,000 | items in all lists the program builds, plus 4 for each list, one for every 8 characters of the strings it builds or echoes |
+| `maxTextLength`     | 2,000     | characters in one `text()`                                                                                                 |
+| `maxPoints`         | 2,000,000 | points in all shapes the modules make, plus 100 for each shape                                                             |
+| `maxOutputPoints`   | 1,000,000 | points in the exported files, counting every copy                                                                          |
+| `maxSheets`         | 200       | sheets in the layout                                                                                                       |
+| `maxCollisionPairs` | 20,000    | pairs of touching placed parts checked for collisions; past it the check stops with a warning                              |
 
 Applications can change them with the `limits` render option.
 

@@ -92,6 +92,8 @@ export interface Limits {
   maxOutputPoints: number;
   // Sheets in the layout
   maxSheets: number;
+  // Pairs of touching placed parts checked for collisions
+  maxCollisionPairs: number;
 }
 
 export const DEFAULT_LIMITS: Limits = {
@@ -103,6 +105,7 @@ export const DEFAULT_LIMITS: Limits = {
   maxPoints: 2_000_000,
   maxOutputPoints: 1_000_000,
   maxSheets: 200,
+  maxCollisionPairs: 20_000,
 };
 
 const SHAPE_COST = 100;
@@ -1228,7 +1231,8 @@ export class Evaluator {
           throw new Error(`more than ${this.limits.maxParts} part copies in total, the limit`);
         const at = this.arg(c.args, 'at', -1);
         const turn = this.arg(c.args, 'rotate', -1);
-        const placements = at === undefined && turn === undefined ? undefined : this.placements(at, turn, qty);
+        const placements =
+          at === undefined && turn === undefined ? undefined : this.placements(at, turn, qty);
         const s = c.children();
         return {
           layers: new Map(),
