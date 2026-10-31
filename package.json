@@ -72,8 +72,8 @@
     "site": "npm run build && npm --prefix site run build",
     "site:serve": "npm --prefix site run preview",
     "prepack": "npm run check",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
+    "format": "prettier --write . --ignore-path .gitignore --ignore-path .prettierignore --ignore-path .git/info/exclude",
+    "format:check": "prettier --check . --ignore-path .gitignore --ignore-path .prettierignore --ignore-path .git/info/exclude",
     "compat": "node scripts/compat.mjs",
     "wasm": "node scripts/wasm.mjs",
     "readme-images": "npm run build && cd site && node ../scripts/readme-images.mjs"

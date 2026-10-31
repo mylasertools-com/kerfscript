@@ -8,8 +8,8 @@
 # (stable).
 #
 # Every night with new commits, and on a manual run, the same files go to the
-# rolling "nightly" prerelease, named by date like OpenSCAD's snapshots, with
-# the Docker image tagged dev and the snap on the edge channel.
+# rolling "nightly" prerelease, named by date, with the Docker image tagged
+# dev and the snap on the edge channel.
 #
 # Docker and the snap publish only after the release files have been built,
 # tested and checked, and the GitHub release or nightly has been made.
